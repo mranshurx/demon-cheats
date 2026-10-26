@@ -8,14 +8,13 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
     body { background: #030712; color: #f3f4f6; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; background-image: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #030712 70%); }
-    .glass-card { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px; padding: 2.5rem; width: 100%; max-width: 480px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+    .glass-card { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px; padding: 2.5rem; width: 100%; max-width: 480px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align: center; }
     
-    .brand { text-align: center; margin-bottom: 2rem; }
-    .brand-title { font-size: 2.2rem; font-weight: 800; color: #fff; background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0.02em; }
+    .brand-title { font-size: 2.2rem; font-weight: 800; color: #fff; background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0.02em; margin-bottom: 2rem; }
     
     .hidden { display: none !important; }
 
-    .input-group { margin-bottom: 1.25rem; }
+    .input-group { margin-bottom: 1.25rem; text-align: left; }
     label { display: block; font-size: 0.85rem; font-weight: 600; color: #9ca3af; margin-bottom: 0.5rem; }
     input[type="text"] { width: 100%; padding: 1rem 1.25rem; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(3, 7, 18, 0.6); color: #fff; font-size: 1rem; font-weight: 600; outline: none; transition: border-color 0.2s; }
     input[type="text"]:focus { border-color: #38bdf8; }
@@ -24,19 +23,12 @@
     .btn-primary { background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(2, 132, 199, 0.4); }
     .btn-primary:hover { opacity: 0.95; transform: translateY(-1px); }
     
-    /* Copy URL Button */
     .btn-copy { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4); margin-top: 1rem; font-size: 1.05rem; }
-    .btn-copy:hover { opacity: 0.95; transform: translateY(-1px); }
-
-    /* Open Happ Button */
     .btn-happ-open { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.4); margin-top: 0.75rem; font-size: 1.05rem; }
-    .btn-happ-open:hover { opacity: 0.95; transform: translateY(-1px); }
-    
     .btn-feature { background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.05em; padding: 0.75rem; border-radius: 12px; margin-bottom: 1rem; text-transform: uppercase; }
 
     .error-box { color: #f87171; font-size: 0.85rem; font-weight: 600; text-align: center; margin-top: 1rem; min-height: 1.25rem; }
     
-    /* Navigation Tabs */
     .tab-nav { display: flex; background: rgba(3, 7, 18, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 4px; margin-bottom: 1.5rem; }
     .tab-btn { flex: 1; padding: 0.65rem; border: none; background: transparent; color: #9ca3af; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer; transition: all 0.2s; text-align: center; }
     .tab-btn.active { background: #1e293b; color: #38bdf8; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
@@ -51,17 +43,25 @@
     .info-value { color: #f3f4f6; font-weight: 700; font-family: monospace; }
 
     .setup-box { background: rgba(3, 7, 18, 0.4); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 1.5rem; text-align: left; }
-
     .contact-card { background: rgba(3, 7, 18, 0.4); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; text-align: left; }
     .contact-title { font-size: 0.8rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
     .contact-value { font-size: 1.1rem; font-weight: 700; color: #38bdf8; }
+
+    /* Maintenance Overlay Banner */
+    .maintenance-banner { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 16px; padding: 2rem; margin-top: 1rem; }
   </style>
 </head>
 <body>
 
   <div class="glass-card">
-    <div class="brand">
-      <h1 class="brand-title">CYBER X SILENT</h1>
+    <h1 class="brand-title">CYBER X SILENT</h1>
+
+    <!-- MAINTENANCE MODE VIEW -->
+    <div id="maintenanceView" class="hidden">
+      <div class="maintenance-banner">
+        <h3 style="color: #f87171; font-size: 1.2rem; margin-bottom: 0.75rem;">⚠️ SYSTEM MAINTENANCE</h3>
+        <p id="maintenanceMsgText" style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;"></p>
+      </div>
     </div>
 
     <!-- VIEW 1: UNLOCK FORM -->
@@ -77,15 +77,14 @@
     <!-- VIEW 2: UNLOCKED DASHBOARD WITH TABS -->
     <div id="dashboardView" class="hidden">
       
-      <!-- TAB NAVIGATION -->
       <div class="tab-nav">
         <button class="tab-btn active" onclick="switchTab('proxyTab', this)">PROXY</button>
         <button class="tab-btn" onclick="switchTab('setupTab', this)">SETUP</button>
         <button class="tab-btn" onclick="switchTab('contactTab', this)">CONTACT</button>
       </div>
 
-      <!-- TAB 1: PROXY (DEFAULT) -->
-      <div id="proxyTab" style="text-align: center;">
+      <!-- TAB 1: PROXY -->
+      <div id="proxyTab">
         <div class="status-badge">
           <span class="status-dot"></span> Active Subscription
         </div>
@@ -105,20 +104,10 @@
           </div>
         </div>
 
-        <!-- AIMBOT LEGIT + MOCO BADGE BUTTON -->
-        <div class="btn btn-feature">
-          🎯 AIMBOT LEGIT + MOCO
-        </div>
+        <div class="btn btn-feature">🎯 AIMBOT LEGIT + MOCO</div>
 
-        <!-- COPY URL BUTTON -->
-        <button class="btn btn-copy" onclick="copySubUrl()" id="copyBtn">
-          📋 COPY SUBSCRIPTION URL
-        </button>
-
-        <!-- OPEN HAPP BUTTON -->
-        <button class="btn btn-happ-open" onclick="openHappApp()">
-          🚀 OPEN HAPP
-        </button>
+        <button class="btn btn-copy" onclick="copySubUrl()" id="copyBtn">📋 COPY SUBSCRIPTION URL</button>
+        <button class="btn btn-happ-open" onclick="openHappApp()">🚀 OPEN HAPP</button>
       </div>
 
       <!-- TAB 2: SETUP -->
@@ -139,7 +128,6 @@
           <div class="contact-title">Telegram</div>
           <div class="contact-value">CYBER X SILENT</div>
         </div>
-
         <div class="contact-card">
           <div class="contact-title">WhatsApp</div>
           <div class="contact-value">CYBER X SILENT</div>
@@ -152,6 +140,22 @@
   <script>
     const BACKEND_URL = "https://cyber-x-silent-server.onrender.com";
     let rawSubUrl = "";
+
+    // Check maintenance status on load
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/maintenance-status`);
+        const data = await res.json();
+        if (data.enabled) {
+          document.getElementById('unlockView').classList.add('hidden');
+          document.getElementById('maintenanceMsgTextinnerText = data.message;
+          document.getElementById('maintenanceMsgText').innerText = data.message;
+          document.getElementById('maintenanceView').classList.remove('hidden');
+        }
+      } catch (err) {
+        console.error("Could not check maintenance status");
+      }
+    });
 
     async function unlockPortal() {
       const key = document.getElementById('keyInput').value.trim();
@@ -166,6 +170,13 @@
       try {
         const res = await fetch(`${BACKEND_URL}/api/check-key?key=${key}`);
         const data = await res.json();
+
+        if (data.maintenance) {
+          document.getElementById('unlockView').classList.add('hidden');
+          document.getElementById('maintenanceMsgText').innerText = data.message;
+          document.getElementById('maintenanceView').classList.remove('hidden');
+          return;
+        }
 
         if (data.valid) {
           rawSubUrl = `${BACKEND_URL}/sub?key=${data.key}`;
@@ -205,11 +216,7 @@
     }
 
     function openHappApp() {
-      // Attempts to launch Happ app via generic custom scheme, with fallback instructions if app is missing
       window.location.href = "happ://";
-      setTimeout(() => {
-        // If the app doesn't intercept, it stays on page; user can open manually
-      }, 1000);
     }
   </script>
 </body>
