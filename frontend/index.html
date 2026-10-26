@@ -47,7 +47,6 @@
     .contact-title { font-size: 0.8rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
     .contact-value { font-size: 1.1rem; font-weight: 700; color: #38bdf8; }
 
-    /* Maintenance Overlay Banner */
     .maintenance-banner { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 16px; padding: 2rem; margin-top: 1rem; }
   </style>
 </head>
@@ -146,9 +145,8 @@
       try {
         const res = await fetch(`${BACKEND_URL}/api/maintenance-status`);
         const data = await res.json();
-        if (data.enabled) {
+        if (data && data.enabled) {
           document.getElementById('unlockView').classList.add('hidden');
-          document.getElementById('maintenanceMsgTextinnerText = data.message;
           document.getElementById('maintenanceMsgText').innerText = data.message;
           document.getElementById('maintenanceView').classList.remove('hidden');
         }
