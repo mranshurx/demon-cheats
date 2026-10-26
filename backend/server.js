@@ -10,10 +10,10 @@ app.use(cors());
 const KEYS_FILE = path.join(__dirname, 'keys.json');
 const ADMIN_SECRET_PASS = process.env.ADMIN_PASS || "CYBER_ADMIN_PASSWORD_999"; 
 
-// YOUR EXACT HYSTERIA & GAME ROUTING CONFIGURATION
+// YOUR HYSTERIA & GAME ROUTING CONFIGURATION
 const BASE_CONFIG = {
-  "remarks": "CYBER X SILENT [Auto-Update: 30m]",
-  "profile-update-interval": 30, // 30 minutes interval
+  "remarks": "CYBER X SILENT [Auto-Update: 1h]",
+  "profile-update-interval": 3600, // 1 hour interval (in seconds)
   "inbounds": [
     { "tag": "socks", "listen": "127.0.0.1", "port": 10808, "protocol": "socks", "settings": { "auth": "noauth", "udp": true }, "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } },
     { "tag": "http", "listen": "127.0.0.1", "port": 10809, "protocol": "http", "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } }
@@ -78,7 +78,7 @@ const BASE_CONFIG = {
 
 const EXPIRED_CONFIG = {
   "remarks": "❌ SUBSCRIPTION EXPIRED - ACCESS TERMINATED",
-  "profile-update-interval": 30,
+  "profile-update-interval": 3600,
   "inbounds": [],
   "outbounds": [{ "tag": "blocked", "protocol": "blackhole" }],
   "routing": { "rules": [] }
@@ -99,8 +99,8 @@ function writeKeys(keys) {
 app.get('/sub', (req, res) => {
   const { key } = req.query;
 
-  // Set auto-update interval header explicitly to 30 minutes
-  res.setHeader('profile-update-interval', '30');
+  // Set 1-hour auto-update header (3600 seconds / 1 hour)
+  res.setHeader('profile-update-interval', '1');
   res.setHeader('Content-Type', 'application/json');
 
   if (!key) return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
@@ -117,10 +117,8 @@ app.get('/sub', (req, res) => {
     return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
   }
 
-  // Calculate precise Unix timestamp (seconds) for when THIS specific key expires
+  // Set accurate dynamic Unix expiration epoch timestamp
   const expireEpochSeconds = Math.floor(expiresAt.getTime() / 1000);
-  
-  // Pass exact dynamic expiration timestamp to Happ so it shows the correct expiry time
   res.setHeader('subscription-userinfo', `upload=0; download=0; total=107374182400; expire=${expireEpochSeconds}`);
 
   return res.status(200).send(JSON.stringify(BASE_CONFIG, null, 2));
@@ -131,26 +129,26 @@ app.get('/sub', (req, res) => {
 // -------------------------------------------------------------
 app.get('/api/check-key', (req, res) => {
   const { key } = req.query;
-  if (!key) return res.json({ valid: false, message: "Please enter a key." });
+  if (!key) return res.json({ valid: false, message: "Please enter an access key." });
 
   const keys = readKeys();
   const record = keys.find(k => k.key === key);
 
   if (!record) {
-    return res.json({ valid: false, message: "❌ Invalid Key! Key does not exist." });
+    return res.json({ valid: false, message: "Invalid key! Key does not exist in our system." });
   }
 
   const now = new Date();
   const expiresAt = new Date(record.expiresAt);
   if (now > expiresAt) {
-    return res.json({ valid: false, message: "❌ Key has expired!" });
+    return res.json({ valid: false, message: "This key has expired." });
   }
 
   return res.json({
     valid: true,
     key: record.key,
     expiresAt: record.expiresAt,
-    message: "✅ Key is valid! Subscription unlocked."
+    message: "Access Key Validated!"
   });
 });
 
