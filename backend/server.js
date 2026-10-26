@@ -8,12 +8,13 @@ app.use(express.json());
 app.use(cors());
 
 const KEYS_FILE = path.join(__dirname, 'keys.json');
-const ADMIN_SECRET_PASS = process.env.ADMIN_PASS || "CYBER_ADMIN_PASSWORD_999"; 
+const MAINTENANCE_FILE = path.join(__dirname, 'maintenance.json');
+const ADMIN_SECRET_PASS = "ANSHU-BHAI-CYBER"; // Hardcoded admin password
 
-// YOUR HYSTERIA & GAME ROUTING CONFIGURATION
+// YOUR EXACT HYSTERIA & GAME ROUTING CONFIGURATION
 const BASE_CONFIG = {
   "remarks": "CYBER X SILENT [Auto-Update: 1h]",
-  "profile-update-interval": 3600, // 1 hour interval (in seconds)
+  "profile-update-interval": 3600,
   "inbounds": [
     { "tag": "socks", "listen": "127.0.0.1", "port": 10808, "protocol": "socks", "settings": { "auth": "noauth", "udp": true }, "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } },
     { "tag": "http", "listen": "127.0.0.1", "port": 10809, "protocol": "http", "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } }
@@ -77,7 +78,7 @@ const BASE_CONFIG = {
 };
 
 const EXPIRED_CONFIG = {
-  "remarks": "❌ SUBSCRIPTION EXPIRED - ACCESS TERMINATED",
+  "remarks": "❌ SUBSCRIPTION EXPIRED OR TERMINATED",
   "profile-update-interval": 3600,
   "inbounds": [],
   "outbounds": [{ "tag": "blocked", "protocol": "blackhole" }],
@@ -93,16 +94,40 @@ function writeKeys(keys) {
   fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2));
 }
 
+function readMaintenance() {
+  if (!fs.existsSync(MAINTENANCE_FILE)) {
+    fs.writeFileSync(MAINTENANCE_FILE, JSON.stringify({ enabled: false, message: "System is currently under maintenance. Please check back later." }));
+  }
+  return JSON.parse(fs.readFileSync(MAINTENANCE_FILE, 'utf8'));
+}
+
+function writeMaintenance(data) {
+  fs.writeFileSync(MAINTENANCE_FILE, JSON.stringify(data, null, 2));
+}
+
 // -------------------------------------------------------------
-// 1. PUBLIC SUBSCRIPTION ENDPOINT (Happ App)
+// MAINTENANCE STATUS API (Public)
+// -------------------------------------------------------------
+app.get('/api/maintenance-status', (req, res) => {
+  const m = readMaintenance();
+  res.json(m);
+});
+
+// -------------------------------------------------------------
+// PUBLIC SUBSCRIPTION ENDPOINT (Happ App)
 // -------------------------------------------------------------
 app.get('/sub', (req, res) => {
-  const { key } = req.query;
-
-  // Set 1-hour auto-update header (3600 seconds / 1 hour)
-  res.setHeader('profile-update-interval', '1');
+  const m = readMaintenance();
+  res.setHeader('profile-update-interval', '3600');
   res.setHeader('Content-Type', 'application/json');
 
+  if (m.enabled) {
+    let maintenanceConfig = { ...EXPIRED_CONFIG };
+    maintenanceConfig.remarks = `⚠️ MAINTENANCE: ${m.message}`;
+    return res.status(200).send(JSON.stringify(maintenanceConfig, null, 2));
+  }
+
+  const { key } = req.query;
   if (!key) return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
 
   const keys = readKeys();
@@ -117,7 +142,6 @@ app.get('/sub', (req, res) => {
     return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
   }
 
-  // Set accurate dynamic Unix expiration epoch timestamp
   const expireEpochSeconds = Math.floor(expiresAt.getTime() / 1000);
   res.setHeader('subscription-userinfo', `upload=0; download=0; total=107374182400; expire=${expireEpochSeconds}`);
 
@@ -125,9 +149,14 @@ app.get('/sub', (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 2. CLIENT PORTAL KEY CHECK API
+// CLIENT PORTAL KEY CHECK API
 // -------------------------------------------------------------
 app.get('/api/check-key', (req, res) => {
+  const m = readMaintenance();
+  if (m.enabled) {
+    return res.json({ valid: false, maintenance: true, message: m.message });
+  }
+
   const { key } = req.query;
   if (!key) return res.json({ valid: false, message: "Please enter an access key." });
 
@@ -135,7 +164,7 @@ app.get('/api/check-key', (req, res) => {
   const record = keys.find(k => k.key === key);
 
   if (!record) {
-    return res.json({ valid: false, message: "Invalid key! Key does not exist in our system." });
+    return res.json({ valid: false, message: "Invalid key! Key does not exist or has been revoked." });
   }
 
   const now = new Date();
@@ -153,11 +182,17 @@ app.get('/api/check-key', (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 3. ADMIN APIs
+// ADMIN APIs
 // -------------------------------------------------------------
+app.post('/api/admin/login', (req, res) => {
+  const { adminPass } = req.body;
+  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ success: false, error: "Invalid Admin Password." });
+  return res.json({ success: true });
+});
+
 app.post('/api/admin/create-key', (req, res) => {
   const { adminPass, durationHours } = req.body;
-  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized Admin Password." });
+  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
 
   const keys = readKeys();
   const randomKey = "CYBER-" + Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -177,7 +212,32 @@ app.post('/api/admin/list-keys', (req, res) => {
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized" });
 
   const keys = readKeys();
-  return res.json({ keys });
+  const maintenance = readMaintenance();
+  return res.json({ keys, maintenance });
+});
+
+app.post('/api/admin/revoke-key', (req, res) => {
+  const { adminPass, key } = req.body;
+  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized" });
+
+  let keys = readKeys();
+  const initialLength = keys.length;
+  keys = keys.filter(k => k.key !== key);
+
+  if (keys.length === initialLength) {
+    return res.json({ success: false, error: "Key not found." });
+  }
+
+  writeKeys(keys);
+  return res.json({ success: true, message: `Key ${key} revoked instantly.` });
+});
+
+app.post('/api/admin/maintenance', (req, res) => {
+  const { adminPass, enabled, message } = req.body;
+  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized" });
+
+  writeMaintenance({ enabled: !!enabled, message: message || "System under maintenance." });
+  return res.json({ success: true, maintenance: readMaintenance() });
 });
 
 const PORT = process.env.PORT || 3000;
