@@ -13,7 +13,7 @@ const ADMIN_SECRET_PASS = process.env.ADMIN_PASS || "CYBER_ADMIN_PASSWORD_999";
 // YOUR EXACT HYSTERIA & GAME ROUTING CONFIGURATION
 const BASE_CONFIG = {
   "remarks": "CYBER X SILENT [Auto-Update: 30m]",
-  "profile-update-interval": 30, // Embed 30-min auto-update natively
+  "profile-update-interval": 30, // 30 minutes interval
   "inbounds": [
     { "tag": "socks", "listen": "127.0.0.1", "port": 10808, "protocol": "socks", "settings": { "auth": "noauth", "udp": true }, "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } },
     { "tag": "http", "listen": "127.0.0.1", "port": 10809, "protocol": "http", "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } }
@@ -76,7 +76,6 @@ const BASE_CONFIG = {
   }
 };
 
-// BLACKHOLE CONFIG (Wipes Happ cache upon expiry or invalid key)
 const EXPIRED_CONFIG = {
   "remarks": "❌ SUBSCRIPTION EXPIRED - ACCESS TERMINATED",
   "profile-update-interval": 30,
@@ -100,8 +99,8 @@ function writeKeys(keys) {
 app.get('/sub', (req, res) => {
   const { key } = req.query;
 
+  // Set auto-update interval header explicitly to 30 minutes
   res.setHeader('profile-update-interval', '30');
-  res.setHeader('subscription-userinfo', 'upload=0; download=0; total=107374182400; expire=2050000000');
   res.setHeader('Content-Type', 'application/json');
 
   if (!key) return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
@@ -111,9 +110,18 @@ app.get('/sub', (req, res) => {
 
   if (!keyRecord) return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
 
-  if (new Date() > new Date(keyRecord.expiresAt)) {
+  const now = new Date();
+  const expiresAt = new Date(keyRecord.expiresAt);
+
+  if (now > expiresAt) {
     return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
   }
+
+  // Calculate precise Unix timestamp (seconds) for when THIS specific key expires
+  const expireEpochSeconds = Math.floor(expiresAt.getTime() / 1000);
+  
+  // Pass exact dynamic expiration timestamp to Happ so it shows the correct expiry time
+  res.setHeader('subscription-userinfo', `upload=0; download=0; total=107374182400; expire=${expireEpochSeconds}`);
 
   return res.status(200).send(JSON.stringify(BASE_CONFIG, null, 2));
 });
