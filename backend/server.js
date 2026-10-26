@@ -11,10 +11,10 @@ const KEYS_FILE = path.join(__dirname, 'keys.json');
 const MAINTENANCE_FILE = path.join(__dirname, 'maintenance.json');
 const ADMIN_SECRET_PASS = "ANSHU-BHAI-CYBER"; 
 
-// YOUR EXACT HYSTERIA & GAME ROUTING CONFIGURATION
+// HYSTERIA & GAME ROUTING CONFIG WITH STRICT 1-HOUR AUTO-UPDATE
 const BASE_CONFIG = {
   "remarks": "CYBER X SILENT [Auto-Update: 1h]",
-  "profile-update-interval": 3600,
+  "profile-update-interval": 1, // 1 hour auto-update interval for Happ
   "inbounds": [
     { "tag": "socks", "listen": "127.0.0.1", "port": 10808, "protocol": "socks", "settings": { "auth": "noauth", "udp": true }, "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } },
     { "tag": "http", "listen": "127.0.0.1", "port": 10809, "protocol": "http", "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } }
@@ -79,7 +79,7 @@ const BASE_CONFIG = {
 
 const EXPIRED_CONFIG = {
   "remarks": "❌ SUBSCRIPTION EXPIRED OR TERMINATED",
-  "profile-update-interval": 3600,
+  "profile-update-interval": 1,
   "inbounds": [],
   "outbounds": [{ "tag": "blocked", "protocol": "blackhole" }],
   "routing": { "rules": [] }
@@ -125,7 +125,9 @@ app.get('/api/maintenance-status', (req, res) => {
 // -------------------------------------------------------------
 app.get('/sub', (req, res) => {
   const m = readMaintenance();
-  res.setHeader('profile-update-interval', '3600');
+  
+  // Set explicit 1-hour update headers for Happ
+  res.setHeader('profile-update-interval', '1');
   res.setHeader('Content-Type', 'application/json');
 
   if (m.enabled) {
