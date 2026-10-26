@@ -27,7 +27,7 @@
     </div>
 
     <div class="form-group">
-      <label>Select Key Duration (Hours)</label>
+      <label>Select Key Custom Duration</label>
       <select id="duration">
         <option value="1">1 Hour Trial</option>
         <option value="24" selected>24 Hours (1 Day)</option>
@@ -36,15 +36,15 @@
       </select>
     </div>
 
-    <button onclick="createKey()">Generate New Key</button>
+    <button onclick="createKey()">Generate New Custom Key</button>
 
-    <h2>Active Key Database</h2>
-    <button onclick="loadKeys()" style="background: #0284c7; margin-bottom: 10px;">Refresh List</button>
+    <h2>Generated Key Database</h2>
+    <button onclick="loadKeys()" style="background: #0284c7; margin-bottom: 10px;">Refresh Key List</button>
 
     <table>
       <thead>
         <tr>
-          <th>Key</th>
+          <th>Generated Key</th>
           <th>Expires At</th>
         </tr>
       </thead>
@@ -53,8 +53,8 @@
   </div>
 
   <script>
-    // Replace with your live Render backend URL after deploying
-    const BACKEND_URL = "https://cyber-x-silent.onrender.com";
+    // UPDATED NEW BACKEND LINK
+    const BACKEND_URL = "https://cyber-x-silent-server.onrender.com";
 
     async function createKey() {
       const adminPass = document.getElementById('adminPass').value;
@@ -68,7 +68,7 @@
 
       const data = await res.json();
       if (data.success) {
-        alert(`New Key Generated: ${data.record.key}`);
+        alert(`Success! New Key Created: ${data.record.key}`);
         loadKeys();
       } else {
         alert(data.error || "Failed to create key");
@@ -88,10 +88,12 @@
         const table = document.getElementById('keyTable');
         table.innerHTML = data.keys.map(k => `
           <tr>
-            <td style="font-family: monospace; color:#38bdf8;">${k.key}</td>
+            <td style="font-family: monospace; color:#38bdf8; font-weight:bold;">${k.key}</td>
             <td>${new Date(k.expiresAt).toLocaleString()}</td>
           </tr>
         `).join('');
+      } else {
+        alert("Unauthorized password or failed to load keys.");
       }
     }
   </script>
