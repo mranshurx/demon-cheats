@@ -8,13 +8,12 @@ app.use(express.json());
 app.use(cors());
 
 const KEYS_FILE = path.join(__dirname, 'keys.json');
-
-// Secret password for your Admin Panel API actions
-const ADMIN_SECRET_PASS = "CYBER_ADMIN_PASSWORD_999"; 
+const ADMIN_SECRET_PASS = process.env.ADMIN_PASS || "CYBER_ADMIN_PASSWORD_999"; 
 
 // YOUR EXACT WORKING HYSTERIA & GAME ROUTING CONFIGURATION
 const BASE_CONFIG = {
-  "remarks": "CYBER X SILENT",
+  "remarks": "CYBER X SILENT [Auto-Update: 30m]",
+  "profile-update-interval": 30, // Forces Happ to auto-update every 30 minutes
   "inbounds": [
     { "tag": "socks", "listen": "127.0.0.1", "port": 10808, "protocol": "socks", "settings": { "auth": "noauth", "udp": true }, "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } },
     { "tag": "http", "listen": "127.0.0.1", "port": 10809, "protocol": "http", "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } }
@@ -77,9 +76,9 @@ const BASE_CONFIG = {
   }
 };
 
-// DEAD CONFIG TO WIPE CACHE UPON EXPIRY
 const EXPIRED_CONFIG = {
   "remarks": "❌ SUBSCRIPTION EXPIRED - ACCESS TERMINATED",
+  "profile-update-interval": 30,
   "inbounds": [],
   "outbounds": [{ "tag": "blocked", "protocol": "blackhole" }],
   "routing": { "rules": [] }
@@ -94,72 +93,59 @@ function writeKeys(keys) {
   fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2));
 }
 
-// -------------------------------------------------------------
-// 1. PUBLIC SUBSCRIPTION ENDPOINT (Hit by Happ App)
-// -------------------------------------------------------------
+// 1. Happ App Endpoint
 app.get('/sub', (req, res) => {
   const { key } = req.query;
 
-  // Instruct client apps to auto-update every 30 minutes (0.5 hours)
-  res.setHeader('profile-update-interval', '0.5');
+  // Send both HTTP header interval and JSON property interval
+  res.setHeader('profile-update-interval', '30');
+  res.setHeader('subscription-userinfo', 'upload=0; download=0; total=107374182400; expire=2050000000');
   res.setHeader('Content-Type', 'application/json');
 
-  if (!key) {
-    return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
-  }
+  if (!key) return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
 
   const keys = readKeys();
   const keyRecord = keys.find(k => k.key === key);
 
-  if (!keyRecord) {
+  if (!keyRecord) return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
+
+  if (new Date() > new Date(keyRecord.expiresAt)) {
     return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
   }
 
-  const now = new Date();
-  const expiresAt = new Date(keyRecord.expiresAt);
-
-  if (now > expiresAt) {
-    // KEY EXPIRED: Send blackhole config so Happ overwrites cache & disconnects immediately
-    return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
-  }
-
-  // KEY ACTIVE: Send your real working Hysteria JSON config
   return res.status(200).send(JSON.stringify(BASE_CONFIG, null, 2));
 });
 
-// -------------------------------------------------------------
-// 2. CLIENT CHECK API
-// -------------------------------------------------------------
+// 2. Client Portal Key Validation API
 app.get('/api/check-key', (req, res) => {
   const { key } = req.query;
+  if (!key) return res.json({ valid: false, message: "Please enter a key." });
+
   const keys = readKeys();
   const record = keys.find(k => k.key === key);
 
   if (!record) {
-    return res.json({ valid: false, message: "Key not found." });
+    return res.json({ valid: false, message: "❌ Invalid Key! Key does not exist." });
   }
 
   const now = new Date();
   const expiresAt = new Date(record.expiresAt);
-  const isExpired = now > expiresAt;
+  if (now > expiresAt) {
+    return res.json({ valid: false, message: "❌ Key has expired!" });
+  }
 
   return res.json({
-    valid: !isExpired,
+    valid: true,
     key: record.key,
     expiresAt: record.expiresAt,
-    status: isExpired ? "EXPIRED" : "ACTIVE"
+    message: "✅ Key is valid! Subscription unlocked."
   });
 });
 
-// -------------------------------------------------------------
-// 3. ADMIN APIS
-// -------------------------------------------------------------
+// 3. Admin APIs
 app.post('/api/admin/create-key', (req, res) => {
   const { adminPass, durationHours } = req.body;
-
-  if (adminPass !== ADMIN_SECRET_PASS) {
-    return res.status(401).json({ error: "Unauthorized: Invalid Admin Password." });
-  }
+  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized Admin Password." });
 
   const keys = readKeys();
   const randomKey = "CYBER-" + Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -167,12 +153,7 @@ app.post('/api/admin/create-key', (req, res) => {
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + parseInt(durationHours || 24));
 
-  const newRecord = {
-    key: randomKey,
-    expiresAt: expiresAt.toISOString(),
-    createdAt: new Date().toISOString()
-  };
-
+  const newRecord = { key: randomKey, expiresAt: expiresAt.toISOString(), createdAt: new Date().toISOString() };
   keys.push(newRecord);
   writeKeys(keys);
 
