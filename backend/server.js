@@ -10,10 +10,10 @@ app.use(cors());
 const KEYS_FILE = path.join(__dirname, 'keys.json');
 const ADMIN_SECRET_PASS = process.env.ADMIN_PASS || "CYBER_ADMIN_PASSWORD_999"; 
 
-// YOUR EXACT WORKING HYSTERIA & GAME ROUTING CONFIGURATION
+// YOUR EXACT HYSTERIA & GAME ROUTING CONFIGURATION
 const BASE_CONFIG = {
   "remarks": "CYBER X SILENT [Auto-Update: 30m]",
-  "profile-update-interval": 30, // Forces Happ to auto-update every 30 minutes
+  "profile-update-interval": 30, // Embed 30-min auto-update natively
   "inbounds": [
     { "tag": "socks", "listen": "127.0.0.1", "port": 10808, "protocol": "socks", "settings": { "auth": "noauth", "udp": true }, "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } },
     { "tag": "http", "listen": "127.0.0.1", "port": 10809, "protocol": "http", "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } }
@@ -76,6 +76,7 @@ const BASE_CONFIG = {
   }
 };
 
+// BLACKHOLE CONFIG (Wipes Happ cache upon expiry or invalid key)
 const EXPIRED_CONFIG = {
   "remarks": "❌ SUBSCRIPTION EXPIRED - ACCESS TERMINATED",
   "profile-update-interval": 30,
@@ -93,11 +94,12 @@ function writeKeys(keys) {
   fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2));
 }
 
-// 1. Happ App Endpoint
+// -------------------------------------------------------------
+// 1. PUBLIC SUBSCRIPTION ENDPOINT (Happ App)
+// -------------------------------------------------------------
 app.get('/sub', (req, res) => {
   const { key } = req.query;
 
-  // Send both HTTP header interval and JSON property interval
   res.setHeader('profile-update-interval', '30');
   res.setHeader('subscription-userinfo', 'upload=0; download=0; total=107374182400; expire=2050000000');
   res.setHeader('Content-Type', 'application/json');
@@ -116,7 +118,9 @@ app.get('/sub', (req, res) => {
   return res.status(200).send(JSON.stringify(BASE_CONFIG, null, 2));
 });
 
-// 2. Client Portal Key Validation API
+// -------------------------------------------------------------
+// 2. CLIENT PORTAL KEY CHECK API
+// -------------------------------------------------------------
 app.get('/api/check-key', (req, res) => {
   const { key } = req.query;
   if (!key) return res.json({ valid: false, message: "Please enter a key." });
@@ -142,7 +146,9 @@ app.get('/api/check-key', (req, res) => {
   });
 });
 
-// 3. Admin APIs
+// -------------------------------------------------------------
+// 3. ADMIN APIs
+// -------------------------------------------------------------
 app.post('/api/admin/create-key', (req, res) => {
   const { adminPass, durationHours } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized Admin Password." });
