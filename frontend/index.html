@@ -168,16 +168,13 @@
     }
 
     function switchTab(tabId, btnElement) {
-      // Hide all tabs
       document.getElementById('proxyTab').classList.add('hidden');
       document.getElementById('setupTab').classList.add('hidden');
       document.getElementById('contactTab').classList.add('hidden');
 
-      // Remove active class from all buttons
       const buttons = document.querySelectorAll('.tab-btn');
       buttons.forEach(btn => btn.classList.remove('active'));
 
-      // Show selected tab and activate button
       document.getElementById(tabId).classList.remove('hidden');
       btnElement.classList.add('active');
     }
@@ -185,22 +182,22 @@
     function importToHapp() {
       if (!rawSubUrl) return;
 
-      // Construct Native Happ Import Deep Links
-      // Encodes the full subscription URL into Happ's native sub launcher scheme
-      const encodedUrl = encodeURIComponent(rawSubUrl);
-      const encodedTitle = encodeURIComponent("CYBER X SILENT");
+      // Encode the subscription URL using base64 format which Happ natively parses without errors
+      const base64Sub = btoa(rawSubUrl);
       
-      // Happ native launcher URIs
-      const happAddUrl = `happ://add/${encodedUrl}#${encodedTitle}`;
-      const happSubUrl = `happ://sub/${encodedUrl}#${encodedTitle}`;
+      // Use Happ's universal import scheme
+      const happImportUrl = `happ://import/${base64Sub}`;
+      
+      // Fallback intent scheme if import scheme fails
+      const happDirectUrl = `happ://add/?url=${encodeURIComponent(rawSubUrl)}&name=${encodeURIComponent('CYBER X SILENT')}`;
 
-      // Try primary deep link
-      window.location.href = happAddUrl;
+      // Launch Happ import scheme
+      window.location.href = happImportUrl;
 
-      // Secondary launcher attempt fallback
+      // Backup attempt
       setTimeout(() => {
-        window.location.href = happSubUrl;
-      }, 500);
+        window.location.href = happDirectUrl;
+      }, 600);
     }
   </script>
 </body>
