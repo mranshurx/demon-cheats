@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const app = express();
 app.use(express.json());
@@ -11,9 +12,13 @@ const KEYS_FILE = path.join(__dirname, 'keys.json');
 const MAINTENANCE_FILE = path.join(__dirname, 'maintenance.json');
 const ADMIN_SECRET_PASS = "ANSHU-BHAI-CYBER"; 
 
-// YOUR HYSTERIA & GAME ROUTING CONFIGURATION (SECURED ON SERVER)
+// Happ AES-128-GCM Encryption Credentials (Official Test/Custom Standard)
+const HAPP_AES_KEY = "key02:+]%4ij#P\"/"; // Exactly 16 bytes
+const HAPP_IV = "kkkkkkkkkkkk";          // Exactly 12 bytes
+
+// YOUR HYSTERIA & GAME ROUTING CONFIGURATION (HIDDEN & ENCRYPTED)
 const BASE_CONFIG = {
-  "remarks": "CYBER X SILENT [Secured]",
+  "remarks": "CYBER X SILENT [Secured & Encrypted]",
   "profile-update-interval": 1,
   "inbounds": [
     { "tag": "socks", "listen": "127.0.0.1", "port": 10808, "protocol": "socks", "settings": { "auth": "noauth", "udp": true }, "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } },
@@ -85,6 +90,17 @@ const EXPIRED_CONFIG = {
   "routing": { "rules": [] }
 };
 
+function encryptPayload(jsonString) {
+  const cipher = crypto.createCipheriv('aes-128-gcm', Buffer.from(HAPP_AES_KEY, 'utf8'), Buffer.from(HAPP_IV, 'utf8'));
+  let encrypted = cipher.update(jsonString, 'utf8');
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return {
+    ciphertext: encrypted,
+    tag: authTag.toString('base64')
+  };
+}
+
 function readKeys() {
   if (!fs.existsSync(KEYS_FILE)) fs.writeFileSync(KEYS_FILE, '[]');
   try { return JSON.parse(fs.readFileSync(KEYS_FILE, 'utf8')); } catch (e) { return []; }
@@ -100,14 +116,13 @@ app.get('/api/maintenance-status', (req, res) => {
 });
 
 // -------------------------------------------------------------
-// SECURE SUBSCRIPTION ENDPOINT (Encrypted Payload Shield)
+// HAPP NATIVE ENCRYPTED SUBSCRIPTION ENDPOINT
 // -------------------------------------------------------------
 app.get('/sub', (req, res) => {
   const m = readMaintenance();
   
-  // Set headers to treat response as an encrypted configuration profile stream
   res.setHeader('profile-update-interval', '1');
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
 
   let targetConfig = BASE_CONFIG;
 
@@ -129,14 +144,14 @@ app.get('/sub', (req, res) => {
     }
   }
 
-  // Obfuscate / shield configuration by compressing property keys and structure for casual viewers,
-  // while keeping it 100% compliant with Happ's schema parser.
-  const shieldedConfig = {
-    ...targetConfig,
-    "remarks": targetConfig.remarks.includes("MAINTENANCE") ? targetConfig.remarks : "CYBER X SILENT [Protected]"
-  };
+  // Encrypt JSON config using Happ's AES-128-GCM standard
+  const encryptedResult = encryptPayload(JSON.stringify(targetConfig));
 
-  return res.status(200).send(JSON.stringify(shieldedConfig, null, 0));
+  // Set the required authentication tag header for Happ decryption
+  res.setHeader('encrypt-tag', encryptedResult.tag);
+
+  // Return the encrypted binary/ciphertext block directly in the body
+  return res.status(200).send(encryptedResult.ciphertext);
 });
 
 // CLIENT PORTAL KEY CHECK API
