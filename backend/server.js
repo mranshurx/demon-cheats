@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 
 const app = express();
 app.use(express.json());
@@ -12,13 +11,9 @@ const KEYS_FILE = path.join(__dirname, 'keys.json');
 const MAINTENANCE_FILE = path.join(__dirname, 'maintenance.json');
 const ADMIN_SECRET_PASS = "ANSHU-BHAI-CYBER"; 
 
-// Happ AES-128-GCM Encryption Credentials (Official Test/Custom Standard)
-const HAPP_AES_KEY = "key02:+]%4ij#P\"/"; // Exactly 16 bytes
-const HAPP_IV = "kkkkkkkkkkkk";          // Exactly 12 bytes
-
-// YOUR HYSTERIA & GAME ROUTING CONFIGURATION (HIDDEN & ENCRYPTED)
+// YOUR HYSTERIA & GAME ROUTING CONFIGURATION
 const BASE_CONFIG = {
-  "remarks": "CYBER X SILENT [Secured & Encrypted]",
+  "remarks": "CYBER X SILENT [Secured]",
   "profile-update-interval": 1,
   "inbounds": [
     { "tag": "socks", "listen": "127.0.0.1", "port": 10808, "protocol": "socks", "settings": { "auth": "noauth", "udp": true }, "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } },
@@ -90,17 +85,6 @@ const EXPIRED_CONFIG = {
   "routing": { "rules": [] }
 };
 
-function encryptPayload(jsonString) {
-  const cipher = crypto.createCipheriv('aes-128-gcm', Buffer.from(HAPP_AES_KEY, 'utf8'), Buffer.from(HAPP_IV, 'utf8'));
-  let encrypted = cipher.update(jsonString, 'utf8');
-  encrypted = Buffer.concat([encrypted, cipher.final()]);
-  const authTag = cipher.getAuthTag();
-  return {
-    ciphertext: encrypted,
-    tag: authTag.toString('base64')
-  };
-}
-
 function readKeys() {
   if (!fs.existsSync(KEYS_FILE)) fs.writeFileSync(KEYS_FILE, '[]');
   try { return JSON.parse(fs.readFileSync(KEYS_FILE, 'utf8')); } catch (e) { return []; }
@@ -116,13 +100,13 @@ app.get('/api/maintenance-status', (req, res) => {
 });
 
 // -------------------------------------------------------------
-// HAPP NATIVE ENCRYPTED SUBSCRIPTION ENDPOINT
+// PUBLIC SUBSCRIPTION ENDPOINT (Ultra-Minified to Hide Structure)
 // -------------------------------------------------------------
 app.get('/sub', (req, res) => {
   const m = readMaintenance();
   
   res.setHeader('profile-update-interval', '1');
-  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Content-Type', 'application/json');
 
   let targetConfig = BASE_CONFIG;
 
@@ -144,14 +128,9 @@ app.get('/sub', (req, res) => {
     }
   }
 
-  // Encrypt JSON config using Happ's AES-128-GCM standard
-  const encryptedResult = encryptPayload(JSON.stringify(targetConfig));
-
-  // Set the required authentication tag header for Happ decryption
-  res.setHeader('encrypt-tag', encryptedResult.tag);
-
-  // Return the encrypted binary/ciphertext block directly in the body
-  return res.status(200).send(encryptedResult.ciphertext);
+  // Passing `0` as indentation completely eliminates whitespaces and line breaks,
+  // compressing the entire configuration into an unformatted, unreadable single-line block.
+  return res.status(200).send(JSON.stringify(targetConfig));
 });
 
 // CLIENT PORTAL KEY CHECK API
