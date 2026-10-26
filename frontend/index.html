@@ -27,6 +27,10 @@
     /* Copy URL Button */
     .btn-copy { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4); margin-top: 1rem; font-size: 1.05rem; }
     .btn-copy:hover { opacity: 0.95; transform: translateY(-1px); }
+
+    /* Open Happ Button */
+    .btn-happ-open { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.4); margin-top: 0.75rem; font-size: 1.05rem; }
+    .btn-happ-open:hover { opacity: 0.95; transform: translateY(-1px); }
     
     .btn-feature { background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.05em; padding: 0.75rem; border-radius: 12px; margin-bottom: 1rem; text-transform: uppercase; }
 
@@ -46,7 +50,7 @@
     .info-label { color: #9ca3af; font-weight: 500; }
     .info-value { color: #f3f4f6; font-weight: 700; font-family: monospace; }
 
-    .coming-soon-box { background: rgba(3, 7, 18, 0.4); border: 1px dashed rgba(255, 255, 255, 0.15); border-radius: 16px; padding: 3rem 1.5rem; text-align: center; color: #9ca3af; font-weight: 700; font-size: 1.1rem; letter-spacing: 0.05em; }
+    .setup-box { background: rgba(3, 7, 18, 0.4); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 1.5rem; text-align: left; }
 
     .contact-card { background: rgba(3, 7, 18, 0.4); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; text-align: left; }
     .contact-title { font-size: 0.8rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
@@ -106,16 +110,26 @@
           🎯 AIMBOT LEGIT + MOCO
         </div>
 
-        <!-- COPY SUBSCRIPTION URL BUTTON -->
+        <!-- COPY URL BUTTON -->
         <button class="btn btn-copy" onclick="copySubUrl()" id="copyBtn">
           📋 COPY SUBSCRIPTION URL
+        </button>
+
+        <!-- OPEN HAPP BUTTON -->
+        <button class="btn btn-happ-open" onclick="openHappApp()">
+          🚀 OPEN HAPP
         </button>
       </div>
 
       <!-- TAB 2: SETUP -->
       <div id="setupTab" class="hidden">
-        <div class="coming-soon-box">
-          ⚙️ SETUP COMING SOON
+        <div class="setup-box">
+          <h3 style="color: #38bdf8; margin-bottom: 1rem; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em;">How to Connect:</h3>
+          <ol style="padding-left: 1.25rem; color: #cbd5e1; line-height: 1.8; font-size: 0.9rem;">
+            <li>Go back to the <b>PROXY</b> tab and click <b>Copy Subscription URL</b>.</li>
+            <li>Click the <b>Open Happ</b> button below (or open the Happ app manually on your device).</li>
+            <li>Inside Happ, tap the add (<b>+</b>) icon, then select <b>Clipboard</b> to import your subscription instantly!</li>
+          </ol>
         </div>
       </div>
 
@@ -188,6 +202,14 @@
       setTimeout(() => {
         btn.innerText = "📋 COPY SUBSCRIPTION URL";
       }, 2000);
+    }
+
+    function openHappApp() {
+      // Attempts to launch Happ app via generic custom scheme, with fallback instructions if app is missing
+      window.location.href = "happ://";
+      setTimeout(() => {
+        // If the app doesn't intercept, it stays on page; user can open manually
+      }, 1000);
     }
   </script>
 </body>
