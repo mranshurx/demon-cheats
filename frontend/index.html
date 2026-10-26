@@ -2,50 +2,112 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>CYBER X SILENT - Client Portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CYBER X SILENT — Client Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body { background: #0f172a; color: #f8fafc; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-    .card { background: #1e293b; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); width: 100%; max-width: 420px; text-align: center; }
-    h2 { color: #38bdf8; margin-bottom: 0.5rem; }
-    input { width: 90%; padding: 12px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; margin-bottom: 12px; font-size: 1rem; }
-    button { width: 95%; padding: 12px; border-radius: 6px; border: none; background: #0284c7; color: #fff; font-weight: bold; cursor: pointer; font-size: 1rem; }
-    button:hover { background: #0369a1; }
-    .result-box { margin-top: 20px; text-align: left; background: #0f172a; padding: 15px; border-radius: 8px; display: none; }
-    .msg { margin-top: 10px; font-weight: bold; font-size: 0.9rem; }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+    body { background: #030712; color: #f3f4f6; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; background-image: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #030712 70%); }
+    .glass-card { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px; padding: 2.5rem; width: 100%; max-width: 480px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+    .brand { text-align: center; margin-bottom: 2rem; }
+    .brand-tag { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.15em; color: #38bdf8; text-transform: uppercase; margin-bottom: 0.5rem; display: block; }
+    .brand-title { font-size: 1.85rem; font-weight: 800; color: #fff; background: linear-gradient(135deg, #fff 0%, #94a3b8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    
+    .view-section { transition: all 0.3s ease; }
+    .hidden { display: none !important; }
+
+    .input-group { margin-bottom: 1.25rem; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; color: #9ca3af; margin-bottom: 0.5rem; }
+    input[type="text"] { width: 100%; padding: 1rem 1.25rem; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(3, 7, 18, 0.6); color: #fff; font-size: 1rem; font-weight: 600; transition: border-color 0.2s; outline: none; }
+    input[type="text"]:focus { border-color: #38bdf8; }
+    
+    .btn { width: 100%; padding: 1rem; border-radius: 14px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+    .btn-primary { background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(2, 132, 199, 0.4); }
+    .btn-primary:hover { opacity: 0.95; transform: translateY(-1px); }
+    .btn-happ { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4); margin-bottom: 1rem; }
+    .btn-happ:hover { opacity: 0.95; transform: translateY(-1px); }
+    .btn-secondary { background: rgba(255, 255, 255, 0.05); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.1); }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+
+    .error-box { color: #f87171; font-size: 0.85rem; font-weight: 600; text-align: center; margin-top: 1rem; min-height: 1.25rem; }
+    
+    /* Dashboard view */
+    .status-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.85rem; border-radius: 99px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; font-size: 0.8rem; font-weight: 700; margin-bottom: 1.5rem; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 10px #34d399; }
+    
+    .info-grid { background: rgba(3, 7, 18, 0.4); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 1.25rem; margin-bottom: 1.5rem; text-align: left; }
+    .info-row { display: flex; justify-content: space-between; margin-bottom: 0.75rem; font-size: 0.9rem; }
+    .info-row:last-child { margin-bottom: 0; }
+    .info-label { color: #9ca3af; font-weight: 500; }
+    .info-value { color: #f3f4f6; font-weight: 700; font-family: monospace; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h2>CYBER X SILENT</h2>
-    <p style="color: #94a3b8; font-size: 0.9rem;">Enter your custom key to unlock your Happ subscription URL</p>
-    
-    <input type="text" id="keyInput" placeholder="Enter Key (e.g., CYBER-XYZ123)">
-    <button onclick="unlockPortal()">Unlock Subscription</button>
-    
-    <div id="errorMsg" class="msg" style="color: #f87171;"></div>
 
-    <div class="result-box" id="resultBox">
-      <p style="color: #4ade80; font-weight: bold;" id="successMsg"></p>
-      <p><strong>Expires At:</strong> <span id="keyExpiry" style="color: #cbd5e1; font-size: 0.85rem;"></span></p>
-      <p style="margin-top: 10px;"><strong>Your Happ Subscription Link:</strong></p>
-      <input type="text" id="subUrl" readonly onclick="this.select()" style="font-size: 0.85rem; color: #38bdf8;">
+  <div class="glass-card">
+    <div class="brand">
+      <span class="brand-tag">Cyber X Silent</span>
+      <h1 class="brand-title">Client Portal</h1>
+    </div>
+
+    <!-- VIEW 1: UNLOCK FORM -->
+    <div id="unlockView" class="view-section">
+      <div class="input-group">
+        <label for="keyInput">Access Key</label>
+        <input type="text" id="keyInput" placeholder="e.g. CYBER-A1B2C3" autocomplete="off">
+      </div>
+      <button class="btn btn-primary" onclick="unlockPortal()">Unlock Subscription</button>
+      <div id="errorMsg" class="error-box"></div>
+    </div>
+
+    <!-- VIEW 2: UNLOCKED DASHBOARD -->
+    <div id="dashboardView" class="view-section hidden" style="text-align: center;">
+      <div class="status-badge">
+        <span class="status-dot"></span> Active Subscription
+      </div>
+
+      <div class="info-grid">
+        <div class="info-row">
+          <span class="info-label">Access Key:</span>
+          <span class="info-value" id="displayKey">CYBER-XXXXXX</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Auto Refresh:</span>
+          <span class="info-value" style="color:#38bdf8;">Every 1 Hour</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Expires At:</span>
+          <span class="info-value" id="displayExpiry">Loading...</span>
+        </div>
+      </div>
+
+      <!-- DIRECT IMPORT BUTTON -->
+      <button class="btn btn-happ" onclick="importToHapp()">
+        ⚡ Add to Happ App
+      </button>
+
+      <!-- MANUAL URL COPY BUTTON -->
+      <button class="btn btn-secondary" onclick="copySubUrl()" id="copyBtn">
+        📋 Copy Subscription URL
+      </button>
+      
+      <p style="color: #6b7280; font-size: 0.75rem; margin-top: 1.5rem;">
+        Clicking "Add to Happ" will open the Happ app and directly import your profile.
+      </p>
     </div>
   </div>
 
   <script>
-    // UPDATED NEW BACKEND LINK
     const BACKEND_URL = "https://cyber-x-silent-server.onrender.com";
+    let rawSubUrl = "";
 
     async function unlockPortal() {
       const key = document.getElementById('keyInput').value.trim();
       const errorMsg = document.getElementById('errorMsg');
-      const resultBox = document.getElementById('resultBox');
-      
       errorMsg.innerText = "";
-      resultBox.style.display = "none";
 
       if (!key) {
-        errorMsg.innerText = "Please enter a valid key!";
+        errorMsg.innerText = "Please enter your access key.";
         return;
       }
 
@@ -54,17 +116,44 @@
         const data = await res.json();
 
         if (data.valid) {
-          errorMsg.innerText = "";
-          document.getElementById('successMsg').innerText = data.message;
-          document.getElementById('keyExpiry').innerText = new Date(data.expiresAt).toLocaleString();
-          document.getElementById('subUrl').value = `${BACKEND_URL}/sub?key=${data.key}`;
-          resultBox.style.display = 'block';
+          rawSubUrl = `${BACKEND_URL}/sub?key=${data.key}`;
+          document.getElementById('displayKey').innerText = data.key;
+          document.getElementById('displayExpiry').innerText = new Date(data.expiresAt).toLocaleString();
+          
+          // Switch to dashboard view
+          document.getElementById('unlockView').classList.add('hidden');
+          document.getElementById('dashboardView').classList.remove('hidden');
         } else {
           errorMsg.innerText = data.message;
         }
       } catch (err) {
-        errorMsg.innerText = "Connection error. Make sure backend is active.";
+        errorMsg.innerText = "Connection error. Make sure your backend server is online.";
       }
+    }
+
+    function importToHapp() {
+      if (!rawSubUrl) return;
+
+      // Custom Happ deep link scheme for direct importing
+      const happDeepLink = `happ://sub/${encodeURIComponent(rawSubUrl)}#CYBER%20X%20SILENT`;
+      
+      // Attempt to launch Happ directly
+      window.location.href = happDeepLink;
+
+      // Fallback: Copy subscription link if deep link is not handled natively
+      setTimeout(() => {
+        navigator.clipboard.writeText(rawSubUrl);
+      }, 1200);
+    }
+
+    function copySubUrl() {
+      if (!rawSubUrl) return;
+      navigator.clipboard.writeText(rawSubUrl);
+      const btn = document.getElementById('copyBtn');
+      btn.innerText = "✅ Link Copied!";
+      setTimeout(() => {
+        btn.innerText = "📋 Copy Subscription URL";
+      }, 2000);
     }
   </script>
 </body>
