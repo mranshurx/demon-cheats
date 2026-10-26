@@ -9,10 +9,10 @@ app.use(cors());
 
 const KEYS_FILE = path.join(__dirname, 'keys.json');
 
-// Secret password to protect your Admin Panel API actions
+// Secret password for your Admin Panel API actions
 const ADMIN_SECRET_PASS = "CYBER_ADMIN_PASSWORD_999"; 
 
-// YOUR EXACT HYSTERIA & GAME ROUTING CONFIGURATION
+// YOUR EXACT WORKING HYSTERIA & GAME ROUTING CONFIGURATION
 const BASE_CONFIG = {
   "remarks": "CYBER X SILENT",
   "inbounds": [
@@ -77,48 +77,58 @@ const BASE_CONFIG = {
   }
 };
 
-// Helper function to read keys
+// DEAD CONFIG TO WIPE CACHE UPON EXPIRY
+const EXPIRED_CONFIG = {
+  "remarks": "❌ SUBSCRIPTION EXPIRED - ACCESS TERMINATED",
+  "inbounds": [],
+  "outbounds": [{ "tag": "blocked", "protocol": "blackhole" }],
+  "routing": { "rules": [] }
+};
+
 function readKeys() {
   if (!fs.existsSync(KEYS_FILE)) fs.writeFileSync(KEYS_FILE, '[]');
   return JSON.parse(fs.readFileSync(KEYS_FILE, 'utf8'));
 }
 
-// Helper function to write keys
 function writeKeys(keys) {
   fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2));
 }
 
 // -------------------------------------------------------------
-// 1. PUBLIC SUBSCRIPTION ENDPOINT (Hit by Happ / Client Apps)
+// 1. PUBLIC SUBSCRIPTION ENDPOINT (Hit by Happ App)
 // -------------------------------------------------------------
 app.get('/sub', (req, res) => {
   const { key } = req.query;
 
+  // Instruct client apps to auto-update every 30 minutes (0.5 hours)
+  res.setHeader('profile-update-interval', '0.5');
+  res.setHeader('Content-Type', 'application/json');
+
   if (!key) {
-    return res.status(401).send("Error: Missing subscription key parameter.");
+    return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
   }
 
   const keys = readKeys();
   const keyRecord = keys.find(k => k.key === key);
 
   if (!keyRecord) {
-    return res.status(403).send("Error: Invalid or unrecognised key.");
+    return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
   }
 
   const now = new Date();
   const expiresAt = new Date(keyRecord.expiresAt);
 
   if (now > expiresAt) {
-    return res.status(403).send("Error: Your Subscription Key Has Expired!");
+    // KEY EXPIRED: Send blackhole config so Happ overwrites cache & disconnects immediately
+    return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
   }
 
-  // Key valid! Serve JSON config directly
-  res.setHeader('Content-Type', 'application/json');
-  return res.send(JSON.stringify(BASE_CONFIG, null, 2));
+  // KEY ACTIVE: Send your real working Hysteria JSON config
+  return res.status(200).send(JSON.stringify(BASE_CONFIG, null, 2));
 });
 
 // -------------------------------------------------------------
-// 2. CLIENT CHECK API (Hit by Client Portal HTML)
+// 2. CLIENT CHECK API
 // -------------------------------------------------------------
 app.get('/api/check-key', (req, res) => {
   const { key } = req.query;
@@ -142,7 +152,7 @@ app.get('/api/check-key', (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 3. ADMIN API (Create Key & List Keys)
+// 3. ADMIN APIS
 // -------------------------------------------------------------
 app.post('/api/admin/create-key', (req, res) => {
   const { adminPass, durationHours } = req.body;
