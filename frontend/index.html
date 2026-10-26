@@ -24,9 +24,10 @@
     .btn-primary { background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(2, 132, 199, 0.4); }
     .btn-primary:hover { opacity: 0.95; transform: translateY(-1px); }
     
-    .btn-happ { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4); margin-top: 1rem; font-size: 1.05rem; }
-    .btn-happ:hover { opacity: 0.95; transform: translateY(-1px); }
-    
+    /* Native Anchor Button for Happ */
+    .btn-happ { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4); margin-top: 1rem; font-size: 1.05rem; text-decoration: none; display: flex; align-items: center; justify-content: center; width: 100%; padding: 1rem; border-radius: 14px; font-weight: 700; }
+    .btn-happ:hover { opacity: 0.95; transform: translateY(-1px); color: #fff; }
+
     .btn-feature { background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.05em; padding: 0.75rem; border-radius: 12px; margin-bottom: 1rem; text-transform: uppercase; }
 
     .error-box { color: #f87171; font-size: 0.85rem; font-weight: 600; text-align: center; margin-top: 1rem; min-height: 1.25rem; }
@@ -105,10 +106,10 @@
           🎯 AIMBOT LEGIT + MOCO
         </div>
 
-        <!-- AUTOMATIC ADD TO HAPP BUTTON -->
-        <button class="btn btn-happ" onclick="importToHapp()">
+        <!-- REAL NATIVE ANCHOR LINK FOR HAPP -->
+        <a id="happLink" href="#" class="btn-happ">
           ⚡ ADD TO HAPP
-        </button>
+        </a>
       </div>
 
       <!-- TAB 2: SETUP -->
@@ -136,7 +137,6 @@
 
   <script>
     const BACKEND_URL = "https://cyber-x-silent-server.onrender.com";
-    let rawSubUrl = "";
 
     async function unlockPortal() {
       const key = document.getElementById('keyInput').value.trim();
@@ -153,10 +153,15 @@
         const data = await res.json();
 
         if (data.valid) {
-          rawSubUrl = `${BACKEND_URL}/sub?key=${data.key}`;
+          const rawSubUrl = `${BACKEND_URL}/sub?key=${data.key}`;
           document.getElementById('displayKey').innerText = data.key;
           document.getElementById('displayExpiry').innerText = new Date(data.expiresAt).toLocaleString();
           
+          // Set the exact native link scheme that Happ registers for imports
+          // Happ handles standard sub:// or direct url schemes
+          const happScheme = `happ://add/?url=${encodeURIComponent(rawSubUrl)}&name=${encodeURIComponent('CYBER X SILENT')}`;
+          document.getElementById('happLink').href = happScheme;
+
           document.getElementById('unlockView').classList.add('hidden');
           document.getElementById('dashboardView').classList.remove('hidden');
         } else {
@@ -177,27 +182,6 @@
 
       document.getElementById(tabId).classList.remove('hidden');
       btnElement.classList.add('active');
-    }
-
-    function importToHapp() {
-      if (!rawSubUrl) return;
-
-      // Encode the subscription URL using base64 format which Happ natively parses without errors
-      const base64Sub = btoa(rawSubUrl);
-      
-      // Use Happ's universal import scheme
-      const happImportUrl = `happ://import/${base64Sub}`;
-      
-      // Fallback intent scheme if import scheme fails
-      const happDirectUrl = `happ://add/?url=${encodeURIComponent(rawSubUrl)}&name=${encodeURIComponent('CYBER X SILENT')}`;
-
-      // Launch Happ import scheme
-      window.location.href = happImportUrl;
-
-      // Backup attempt
-      setTimeout(() => {
-        window.location.href = happDirectUrl;
-      }, 600);
     }
   </script>
 </body>
