@@ -11,10 +11,10 @@ const KEYS_FILE = path.join(__dirname, 'keys.json');
 const MAINTENANCE_FILE = path.join(__dirname, 'maintenance.json');
 const ADMIN_SECRET_PASS = "ANSHU-BHAI-CYBER"; 
 
-// HYSTERIA & GAME ROUTING CONFIG WITH STRICT 1-HOUR AUTO-UPDATE
+// YOUR HYSTERIA & GAME ROUTING CONFIGURATION
 const BASE_CONFIG = {
   "remarks": "CYBER X SILENT [Auto-Update: 1h]",
-  "profile-update-interval": 1, // 1 hour auto-update interval for Happ
+  "profile-update-interval": 1,
   "inbounds": [
     { "tag": "socks", "listen": "127.0.0.1", "port": 10808, "protocol": "socks", "settings": { "auth": "noauth", "udp": true }, "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } },
     { "tag": "http", "listen": "127.0.0.1", "port": 10809, "protocol": "http", "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } }
@@ -109,10 +109,6 @@ function readMaintenance() {
   }
 }
 
-function writeMaintenance(data) {
-  fs.writeFileSync(MAINTENANCE_FILE, JSON.stringify(data, null, 2));
-}
-
 // -------------------------------------------------------------
 // MAINTENANCE STATUS API
 // -------------------------------------------------------------
@@ -121,40 +117,49 @@ app.get('/api/maintenance-status', (req, res) => {
 });
 
 // -------------------------------------------------------------
-// PUBLIC SUBSCRIPTION ENDPOINT (Happ App)
+// PUBLIC SUBSCRIPTION ENDPOINT (Base64 Encoded to Hide Raw JSON)
 // -------------------------------------------------------------
 app.get('/sub', (req, res) => {
   const m = readMaintenance();
   
-  // Set explicit 1-hour update headers for Happ
   res.setHeader('profile-update-interval', '1');
-  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8'); // Standard base64 subscription format
 
   if (m.enabled) {
     let maintConfig = { ...EXPIRED_CONFIG };
     maintConfig.remarks = `⚠️ MAINTENANCE: ${m.message}`;
-    return res.status(200).send(JSON.stringify(maintConfig, null, 2));
+    const encodedMaint = Buffer.from(JSON.stringify(maintConfig)).toString('base64');
+    return res.status(200).send(encodedMaint);
   }
 
   const { key } = req.query;
-  if (!key) return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
+  if (!key) {
+    const encodedExpired = Buffer.from(JSON.stringify(EXPIRED_CONFIG)).toString('base64');
+    return res.status(200).send(encodedExpired);
+  }
 
   const keys = readKeys();
   const keyRecord = keys.find(k => k.key === key);
 
-  if (!keyRecord) return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
+  if (!keyRecord) {
+    const encodedExpired = Buffer.from(JSON.stringify(EXPIRED_CONFIG)).toString('base64');
+    return res.status(200).send(encodedExpired);
+  }
 
   const now = new Date();
   const expiresAt = new Date(keyRecord.expiresAt);
 
   if (now > expiresAt) {
-    return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
+    const encodedExpired = Buffer.from(JSON.stringify(EXPIRED_CONFIG)).toString('base64');
+    return res.status(200).send(encodedExpired);
   }
 
   const expireEpochSeconds = Math.floor(expiresAt.getTime() / 1000);
   res.setHeader('subscription-userinfo', `upload=0; download=0; total=107374182400; expire=${expireEpochSeconds}`);
 
-  return res.status(200).send(JSON.stringify(BASE_CONFIG, null, 2));
+  // Base64 encode the config so the raw JSON file text is completely hidden in Happ
+  const encodedConfig = Buffer.from(JSON.stringify(BASE_CONFIG)).toString('base64');
+  return res.status(200).send(encodedConfig);
 });
 
 // -------------------------------------------------------------
@@ -245,8 +250,10 @@ app.post('/api/admin/maintenance', (req, res) => {
   const { adminPass, enabled, message } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized" });
 
-  writeMaintenance({ enabled: !!enabled, message: message || "System under maintenance." });
-  return res.json({ success: true, maintenance: readMaintenance() });
+  const fs = require('fs');
+  const updateData = { enabled: !!enabled, message: message || "System under maintenance." };
+  fs.writeFileSync(MAINTENANCE_FILE, JSON.stringify(updateData, null, 2));
+  return res.json({ success: true, maintenance: updateData });
 });
 
 const PORT = process.env.PORT || 3000;
