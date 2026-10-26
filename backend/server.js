@@ -117,49 +117,39 @@ app.get('/api/maintenance-status', (req, res) => {
 });
 
 // -------------------------------------------------------------
-// PUBLIC SUBSCRIPTION ENDPOINT (Base64 Encoded to Hide Raw JSON)
+// PUBLIC SUBSCRIPTION ENDPOINT (Raw JSON for Happ Parser)
 // -------------------------------------------------------------
 app.get('/sub', (req, res) => {
   const m = readMaintenance();
   
   res.setHeader('profile-update-interval', '1');
-  res.setHeader('Content-Type', 'text/plain; charset=utf-8'); // Standard base64 subscription format
+  res.setHeader('Content-Type', 'application/json');
 
   if (m.enabled) {
     let maintConfig = { ...EXPIRED_CONFIG };
     maintConfig.remarks = `⚠️ MAINTENANCE: ${m.message}`;
-    const encodedMaint = Buffer.from(JSON.stringify(maintConfig)).toString('base64');
-    return res.status(200).send(encodedMaint);
+    return res.status(200).send(JSON.stringify(maintConfig, null, 2));
   }
 
   const { key } = req.query;
-  if (!key) {
-    const encodedExpired = Buffer.from(JSON.stringify(EXPIRED_CONFIG)).toString('base64');
-    return res.status(200).send(encodedExpired);
-  }
+  if (!key) return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
 
   const keys = readKeys();
   const keyRecord = keys.find(k => k.key === key);
 
-  if (!keyRecord) {
-    const encodedExpired = Buffer.from(JSON.stringify(EXPIRED_CONFIG)).toString('base64');
-    return res.status(200).send(encodedExpired);
-  }
+  if (!keyRecord) return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
 
   const now = new Date();
   const expiresAt = new Date(keyRecord.expiresAt);
 
   if (now > expiresAt) {
-    const encodedExpired = Buffer.from(JSON.stringify(EXPIRED_CONFIG)).toString('base64');
-    return res.status(200).send(encodedExpired);
+    return res.status(200).send(JSON.stringify(EXPIRED_CONFIG, null, 2));
   }
 
   const expireEpochSeconds = Math.floor(expiresAt.getTime() / 1000);
   res.setHeader('subscription-userinfo', `upload=0; download=0; total=107374182400; expire=${expireEpochSeconds}`);
 
-  // Base64 encode the config so the raw JSON file text is completely hidden in Happ
-  const encodedConfig = Buffer.from(JSON.stringify(BASE_CONFIG)).toString('base64');
-  return res.status(200).send(encodedConfig);
+  return res.status(200).send(JSON.stringify(BASE_CONFIG, null, 2));
 });
 
 // -------------------------------------------------------------
