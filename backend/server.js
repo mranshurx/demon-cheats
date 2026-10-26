@@ -9,7 +9,7 @@ app.use(cors());
 
 const KEYS_FILE = path.join(__dirname, 'keys.json');
 const MAINTENANCE_FILE = path.join(__dirname, 'maintenance.json');
-const ADMIN_SECRET_PASS = "ANSHU-BHAI-CYBER"; // Hardcoded admin password
+const ADMIN_SECRET_PASS = "ANSHU-BHAI-CYBER"; 
 
 // YOUR EXACT HYSTERIA & GAME ROUTING CONFIGURATION
 const BASE_CONFIG = {
@@ -87,7 +87,11 @@ const EXPIRED_CONFIG = {
 
 function readKeys() {
   if (!fs.existsSync(KEYS_FILE)) fs.writeFileSync(KEYS_FILE, '[]');
-  return JSON.parse(fs.readFileSync(KEYS_FILE, 'utf8'));
+  try {
+    return JSON.parse(fs.readFileSync(KEYS_FILE, 'utf8'));
+  } catch (e) {
+    return [];
+  }
 }
 
 function writeKeys(keys) {
@@ -96,9 +100,13 @@ function writeKeys(keys) {
 
 function readMaintenance() {
   if (!fs.existsSync(MAINTENANCE_FILE)) {
-    fs.writeFileSync(MAINTENANCE_FILE, JSON.stringify({ enabled: false, message: "System is currently under maintenance. Please check back later." }));
+    return { enabled: false, message: "System under maintenance." };
   }
-  return JSON.parse(fs.readFileSync(MAINTENANCE_FILE, 'utf8'));
+  try {
+    return JSON.parse(fs.readFileSync(MAINTENANCE_FILE, 'utf8'));
+  } catch (e) {
+    return { enabled: false, message: "System under maintenance." };
+  }
 }
 
 function writeMaintenance(data) {
@@ -106,11 +114,10 @@ function writeMaintenance(data) {
 }
 
 // -------------------------------------------------------------
-// MAINTENANCE STATUS API (Public)
+// MAINTENANCE STATUS API
 // -------------------------------------------------------------
 app.get('/api/maintenance-status', (req, res) => {
-  const m = readMaintenance();
-  res.json(m);
+  res.json(readMaintenance());
 });
 
 // -------------------------------------------------------------
@@ -122,9 +129,9 @@ app.get('/sub', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
 
   if (m.enabled) {
-    let maintenanceConfig = { ...EXPIRED_CONFIG };
-    maintenanceConfig.remarks = `⚠️ MAINTENANCE: ${m.message}`;
-    return res.status(200).send(JSON.stringify(maintenanceConfig, null, 2));
+    let maintConfig = { ...EXPIRED_CONFIG };
+    maintConfig.remarks = `⚠️ MAINTENANCE: ${m.message}`;
+    return res.status(200).send(JSON.stringify(maintConfig, null, 2));
   }
 
   const { key } = req.query;
