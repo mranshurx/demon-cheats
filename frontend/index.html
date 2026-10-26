@@ -3,97 +3,134 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CYBER X SILENT — Client Portal</title>
+  <title>CYBER X SILENT</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
     body { background: #030712; color: #f3f4f6; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; background-image: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #030712 70%); }
     .glass-card { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px; padding: 2.5rem; width: 100%; max-width: 480px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
-    .brand { text-align: center; margin-bottom: 2rem; }
-    .brand-tag { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.15em; color: #38bdf8; text-transform: uppercase; margin-bottom: 0.5rem; display: block; }
-    .brand-title { font-size: 1.85rem; font-weight: 800; color: #fff; background: linear-gradient(135deg, #fff 0%, #94a3b8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     
-    .view-section { transition: all 0.3s ease; }
+    .brand { text-align: center; margin-bottom: 2rem; }
+    .brand-title { font-size: 2.2rem; font-weight: 800; color: #fff; background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0.02em; }
+    
     .hidden { display: none !important; }
 
     .input-group { margin-bottom: 1.25rem; }
     label { display: block; font-size: 0.85rem; font-weight: 600; color: #9ca3af; margin-bottom: 0.5rem; }
-    input[type="text"] { width: 100%; padding: 1rem 1.25rem; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(3, 7, 18, 0.6); color: #fff; font-size: 1rem; font-weight: 600; transition: border-color 0.2s; outline: none; }
+    input[type="text"] { width: 100%; padding: 1rem 1.25rem; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(3, 7, 18, 0.6); color: #fff; font-size: 1rem; font-weight: 600; outline: none; transition: border-color 0.2s; }
     input[type="text"]:focus { border-color: #38bdf8; }
     
-    .btn { width: 100%; padding: 1rem; border-radius: 14px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+    .btn { width: 100%; padding: 1rem; border-radius: 14px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none; }
     .btn-primary { background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(2, 132, 199, 0.4); }
     .btn-primary:hover { opacity: 0.95; transform: translateY(-1px); }
-    .btn-happ { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4); margin-bottom: 1rem; }
+    
+    .btn-happ { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4); margin-top: 1rem; font-size: 1.05rem; }
     .btn-happ:hover { opacity: 0.95; transform: translateY(-1px); }
-    .btn-secondary { background: rgba(255, 255, 255, 0.05); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.1); }
-    .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+    
+    .btn-feature { background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.05em; padding: 0.75rem; border-radius: 12px; margin-bottom: 1rem; text-transform: uppercase; }
 
     .error-box { color: #f87171; font-size: 0.85rem; font-weight: 600; text-align: center; margin-top: 1rem; min-height: 1.25rem; }
     
-    /* Dashboard view */
-    .status-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.85rem; border-radius: 99px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; font-size: 0.8rem; font-weight: 700; margin-bottom: 1.5rem; }
+    /* Navigation Tabs */
+    .tab-nav { display: flex; background: rgba(3, 7, 18, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 4px; margin-bottom: 1.5rem; }
+    .tab-btn { flex: 1; padding: 0.65rem; border: none; background: transparent; color: #9ca3af; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer; transition: all 0.2s; text-align: center; }
+    .tab-btn.active { background: #1e293b; color: #38bdf8; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+
+    .status-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.85rem; border-radius: 99px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; font-size: 0.8rem; font-weight: 700; margin-bottom: 1.25rem; }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 10px #34d399; }
     
-    .info-grid { background: rgba(3, 7, 18, 0.4); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 1.25rem; margin-bottom: 1.5rem; text-align: left; }
+    .info-grid { background: rgba(3, 7, 18, 0.4); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; text-align: left; }
     .info-row { display: flex; justify-content: space-between; margin-bottom: 0.75rem; font-size: 0.9rem; }
     .info-row:last-child { margin-bottom: 0; }
     .info-label { color: #9ca3af; font-weight: 500; }
     .info-value { color: #f3f4f6; font-weight: 700; font-family: monospace; }
+
+    .coming-soon-box { background: rgba(3, 7, 18, 0.4); border: 1px dashed rgba(255, 255, 255, 0.15); border-radius: 16px; padding: 3rem 1.5rem; text-align: center; color: #9ca3af; font-weight: 700; font-size: 1.1rem; letter-spacing: 0.05em; }
+
+    .contact-card { background: rgba(3, 7, 18, 0.4); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; text-align: left; }
+    .contact-title { font-size: 0.8rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+    .contact-value { font-size: 1.1rem; font-weight: 700; color: #38bdf8; }
   </style>
 </head>
 <body>
 
   <div class="glass-card">
     <div class="brand">
-      <span class="brand-tag">Cyber X Silent</span>
-      <h1 class="brand-title">Client Portal</h1>
+      <h1 class="brand-title">CYBER X SILENT</h1>
     </div>
 
     <!-- VIEW 1: UNLOCK FORM -->
-    <div id="unlockView" class="view-section">
+    <div id="unlockView">
       <div class="input-group">
         <label for="keyInput">Access Key</label>
-        <input type="text" id="keyInput" placeholder="e.g. CYBER-A1B2C3" autocomplete="off">
+        <input type="text" id="keyInput" placeholder="Enter Key (e.g. CYBER-A1B2C3)" autocomplete="off">
       </div>
-      <button class="btn btn-primary" onclick="unlockPortal()">Unlock Subscription</button>
+      <button class="btn btn-primary" onclick="unlockPortal()">Unlock Access</button>
       <div id="errorMsg" class="error-box"></div>
     </div>
 
-    <!-- VIEW 2: UNLOCKED DASHBOARD -->
-    <div id="dashboardView" class="view-section hidden" style="text-align: center;">
-      <div class="status-badge">
-        <span class="status-dot"></span> Active Subscription
-      </div>
-
-      <div class="info-grid">
-        <div class="info-row">
-          <span class="info-label">Access Key:</span>
-          <span class="info-value" id="displayKey">CYBER-XXXXXX</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Auto Refresh:</span>
-          <span class="info-value" style="color:#38bdf8;">Every 1 Hour</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Expires At:</span>
-          <span class="info-value" id="displayExpiry">Loading...</span>
-        </div>
-      </div>
-
-      <!-- DIRECT IMPORT BUTTON -->
-      <button class="btn btn-happ" onclick="importToHapp()">
-        ⚡ Add to Happ App
-      </button>
-
-      <!-- MANUAL URL COPY BUTTON -->
-      <button class="btn btn-secondary" onclick="copySubUrl()" id="copyBtn">
-        📋 Copy Subscription URL
-      </button>
+    <!-- VIEW 2: UNLOCKED DASHBOARD WITH TABS -->
+    <div id="dashboardView" class="hidden">
       
-      <p style="color: #6b7280; font-size: 0.75rem; margin-top: 1.5rem;">
-        Clicking "Add to Happ" will open the Happ app and directly import your profile.
-      </p>
+      <!-- TAB NAVIGATION -->
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('proxyTab', this)">PROXY</button>
+        <button class="tab-btn" onclick="switchTab('setupTab', this)">SETUP</button>
+        <button class="tab-btn" onclick="switchTab('contactTab', this)">CONTACT</button>
+      </div>
+
+      <!-- TAB 1: PROXY (DEFAULT) -->
+      <div id="proxyTab" style="text-align: center;">
+        <div class="status-badge">
+          <span class="status-dot"></span> Active Subscription
+        </div>
+
+        <div class="info-grid">
+          <div class="info-row">
+            <span class="info-label">Access Key:</span>
+            <span class="info-value" id="displayKey">CYBER-XXXXXX</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Auto Refresh:</span>
+            <span class="info-value" style="color:#38bdf8;">Every 1 Hour</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Expires At:</span>
+            <span class="info-value" id="displayExpiry">Loading...</span>
+          </div>
+        </div>
+
+        <!-- AIMBOT LEGIT + MOCO BADGE BUTTON -->
+        <div class="btn btn-feature">
+          🎯 AIMBOT LEGIT + MOCO
+        </div>
+
+        <!-- AUTOMATIC ADD TO HAPP BUTTON -->
+        <button class="btn btn-happ" onclick="importToHapp()">
+          ⚡ ADD TO HAPP
+        </button>
+      </div>
+
+      <!-- TAB 2: SETUP -->
+      <div id="setupTab" class="hidden">
+        <div class="coming-soon-box">
+          ⚙️ SETUP COMING SOON
+        </div>
+      </div>
+
+      <!-- TAB 3: CONTACT -->
+      <div id="contactTab" class="hidden">
+        <div class="contact-card">
+          <div class="contact-title">Telegram</div>
+          <div class="contact-value">CYBER X SILENT</div>
+        </div>
+
+        <div class="contact-card">
+          <div class="contact-title">WhatsApp</div>
+          <div class="contact-value">CYBER X SILENT</div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -120,40 +157,50 @@
           document.getElementById('displayKey').innerText = data.key;
           document.getElementById('displayExpiry').innerText = new Date(data.expiresAt).toLocaleString();
           
-          // Switch to dashboard view
           document.getElementById('unlockView').classList.add('hidden');
           document.getElementById('dashboardView').classList.remove('hidden');
         } else {
           errorMsg.innerText = data.message;
         }
       } catch (err) {
-        errorMsg.innerText = "Connection error. Make sure your backend server is online.";
+        errorMsg.innerText = "Connection error. Check your server status.";
       }
+    }
+
+    function switchTab(tabId, btnElement) {
+      // Hide all tabs
+      document.getElementById('proxyTab').classList.add('hidden');
+      document.getElementById('setupTab').classList.add('hidden');
+      document.getElementById('contactTab').classList.add('hidden');
+
+      // Remove active class from all buttons
+      const buttons = document.querySelectorAll('.tab-btn');
+      buttons.forEach(btn => btn.classList.remove('active'));
+
+      // Show selected tab and activate button
+      document.getElementById(tabId).classList.remove('hidden');
+      btnElement.classList.add('active');
     }
 
     function importToHapp() {
       if (!rawSubUrl) return;
 
-      // Custom Happ deep link scheme for direct importing
-      const happDeepLink = `happ://sub/${encodeURIComponent(rawSubUrl)}#CYBER%20X%20SILENT`;
+      // Construct Native Happ Import Deep Links
+      // Encodes the full subscription URL into Happ's native sub launcher scheme
+      const encodedUrl = encodeURIComponent(rawSubUrl);
+      const encodedTitle = encodeURIComponent("CYBER X SILENT");
       
-      // Attempt to launch Happ directly
-      window.location.href = happDeepLink;
+      // Happ native launcher URIs
+      const happAddUrl = `happ://add/${encodedUrl}#${encodedTitle}`;
+      const happSubUrl = `happ://sub/${encodedUrl}#${encodedTitle}`;
 
-      // Fallback: Copy subscription link if deep link is not handled natively
-      setTimeout(() => {
-        navigator.clipboard.writeText(rawSubUrl);
-      }, 1200);
-    }
+      // Try primary deep link
+      window.location.href = happAddUrl;
 
-    function copySubUrl() {
-      if (!rawSubUrl) return;
-      navigator.clipboard.writeText(rawSubUrl);
-      const btn = document.getElementById('copyBtn');
-      btn.innerText = "✅ Link Copied!";
+      // Secondary launcher attempt fallback
       setTimeout(() => {
-        btn.innerText = "📋 Copy Subscription URL";
-      }, 2000);
+        window.location.href = happSubUrl;
+      }, 500);
     }
   </script>
 </body>
