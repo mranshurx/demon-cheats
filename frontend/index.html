@@ -2,65 +2,68 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>CYBER X SILENT - Client Subscription Portal</title>
+  <title>CYBER X SILENT - Client Portal</title>
   <style>
     body { background: #0f172a; color: #f8fafc; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
     .card { background: #1e293b; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); width: 100%; max-width: 420px; text-align: center; }
-    h2 { color: #38bdf8; margin-bottom: 1rem; }
+    h2 { color: #38bdf8; margin-bottom: 0.5rem; }
     input { width: 90%; padding: 12px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; margin-bottom: 12px; font-size: 1rem; }
     button { width: 95%; padding: 12px; border-radius: 6px; border: none; background: #0284c7; color: #fff; font-weight: bold; cursor: pointer; font-size: 1rem; }
     button:hover { background: #0369a1; }
-    .status-box { margin-top: 20px; text-align: left; background: #0f172a; padding: 15px; border-radius: 8px; display: none; }
-    .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; }
-    .active { background: #166534; color: #4ade80; }
-    .expired { background: #991b1b; color: #fca5a5; }
+    .result-box { margin-top: 20px; text-align: left; background: #0f172a; padding: 15px; border-radius: 8px; display: none; }
+    .msg { margin-top: 10px; font-weight: bold; font-size: 0.9rem; }
   </style>
 </head>
 <body>
-
   <div class="card">
     <h2>CYBER X SILENT</h2>
-    <p style="color: #94a3b8;">Enter your access key to get your Happ subscription link</p>
+    <p style="color: #94a3b8; font-size: 0.9rem;">Enter your custom key to unlock your Happ subscription URL</p>
     
-    <input type="text" id="keyInput" placeholder="Enter Key (e.g., CYBER-X92A1B)">
-    <button onclick="checkKey()">Check & Generate Link</button>
+    <input type="text" id="keyInput" placeholder="Enter Key (e.g., CYBER-XYZ123)">
+    <button onclick="unlockPortal()">Unlock Subscription</button>
+    
+    <div id="errorMsg" class="msg" style="color: #f87171;"></div>
 
-    <div class="status-box" id="resultBox">
-      <p><strong>Status:</strong> <span id="keyStatus"></span></p>
-      <p><strong>Expires At:</strong> <span id="keyExpiry" style="color: #cbd5e1;"></span></p>
-      <p><strong>Happ Subscription URL:</strong></p>
-      <input type="text" id="subUrl" readonly onclick="this.select()">
+    <div class="result-box" id="resultBox">
+      <p style="color: #4ade80; font-weight: bold;" id="successMsg"></p>
+      <p><strong>Expires At:</strong> <span id="keyExpiry" style="color: #cbd5e1; font-size: 0.85rem;"></span></p>
+      <p style="margin-top: 10px;"><strong>Your Happ Subscription Link:</strong></p>
+      <input type="text" id="subUrl" readonly onclick="this.select()" style="font-size: 0.85rem; color: #38bdf8;">
     </div>
   </div>
 
   <script>
-    // Replace with your live Render backend URL after deploying
-    const BACKEND_URL = "https://cyber-x-silent.onrender.com";
+    // UPDATED NEW BACKEND LINK
+    const BACKEND_URL = "https://cyber-x-silent-server.onrender.com";
 
-    async function checkKey() {
+    async function unlockPortal() {
       const key = document.getElementById('keyInput').value.trim();
-      if (!key) return alert("Please enter a key!");
-
-      const res = await fetch(`${BACKEND_URL}/api/check-key?key=${key}`);
-      const data = await res.json();
-
+      const errorMsg = document.getElementById('errorMsg');
       const resultBox = document.getElementById('resultBox');
-      const statusSpan = document.getElementById('keyStatus');
-      const expirySpan = document.getElementById('keyExpiry');
-      const subUrlInput = document.getElementById('subUrl');
+      
+      errorMsg.innerText = "";
+      resultBox.style.display = "none";
 
-      resultBox.style.display = 'block';
+      if (!key) {
+        errorMsg.innerText = "Please enter a valid key!";
+        return;
+      }
 
-      if (data.valid) {
-        statusSpan.className = "badge active";
-        statusSpan.innerText = "ACTIVE";
-        expirySpan.innerText = new Date(data.expiresAt).toLocaleString();
-        subUrlInput.value = `${BACKEND_URL}/sub?key=${data.key}`;
-      } else {
-        statusSpan.className = "badge expired";
-        statusSpan.innerText = data.status || "INVALID / EXPIRED";
-        expirySpan.innerText = data.expiresAt ? new Date(data.expiresAt).toLocaleString() : "N/A";
-        subUrlInput.value = "SUBSCRIPTION EXPIRED";
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/check-key?key=${key}`);
+        const data = await res.json();
+
+        if (data.valid) {
+          errorMsg.innerText = "";
+          document.getElementById('successMsg').innerText = data.message;
+          document.getElementById('keyExpiry').innerText = new Date(data.expiresAt).toLocaleString();
+          document.getElementById('subUrl').value = `${BACKEND_URL}/sub?key=${data.key}`;
+          resultBox.style.display = 'block';
+        } else {
+          errorMsg.innerText = data.message;
+        }
+      } catch (err) {
+        errorMsg.innerText = "Connection error. Make sure backend is active.";
       }
     }
   </script>
