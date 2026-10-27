@@ -9,7 +9,14 @@ app.use(cors());
 
 const KEYS_FILE = path.join(__dirname, 'keys.json');
 const MAINTENANCE_FILE = path.join(__dirname, 'maintenance.json');
-const ADMIN_SECRET_PASS = "ANSHU-BHAI-CYBER"; 
+const ADMIN_SECRET_PASS = "ANSHU-BHAI-CYBER";
+
+// ============================================================
+//  HAPP PROVIDER ID  (optional, but required for "hide config" +
+//  "auto-update on open" to be enforced by the Happ app)
+//  Register free at https://happ-proxy.com and paste your ID here.
+// ============================================================
+const HAPP_PROVIDER_ID = ""; // e.g. "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 
 // YOUR HYSTERIA & GAME ROUTING CONFIGURATION
 const BASE_CONFIG = {
@@ -100,12 +107,22 @@ app.get('/api/maintenance-status', (req, res) => {
 });
 
 // -------------------------------------------------------------
-// PUBLIC SUBSCRIPTION ENDPOINT (Ultra-Minified to Hide Structure)
+// PUBLIC SUBSCRIPTION ENDPOINT
 // -------------------------------------------------------------
 app.get('/sub', (req, res) => {
   const m = readMaintenance();
-  
+
+  // ---- Happ client-management headers (do NOT touch routing/addresses) ----
+  // 1) auto-update the profile every 1 hour
   res.setHeader('profile-update-interval', '1');
+  // 2) force auto-update on + refresh the subscription on every app launch
+  res.setHeader('subscription-auto-update-enable', '1');
+  res.setHeader('subscription-auto-update-open-enable', '1');
+  // 3) HIDE the JSON / server settings from the user inside the Happ app
+  res.setHeader('hide-settings', '1');
+  // 4) tie the subscription to your Happ provider account (needed for 2 & 3)
+  if (HAPP_PROVIDER_ID) res.setHeader('providerid', HAPP_PROVIDER_ID);
+  res.setHeader('content-disposition', 'attachment; filename="cyber-x-silent"');
   res.setHeader('Content-Type', 'application/json');
 
   let targetConfig = BASE_CONFIG;
@@ -128,8 +145,7 @@ app.get('/sub', (req, res) => {
     }
   }
 
-  // Passing `0` as indentation completely eliminates whitespaces and line breaks,
-  // compressing the entire configuration into an unformatted, unreadable single-line block.
+  // Minified single-line payload.
   return res.status(200).send(JSON.stringify(targetConfig));
 });
 
@@ -175,7 +191,9 @@ app.post('/api/admin/create-key', (req, res) => {
 app.post('/api/admin/list-keys', (req, res) => {
   const { adminPass } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized" });
-  return res.json({ keys: readKeys(), maintenance: readMaintenance() });
+  // Returns EVERY key in the database (active + expired), newest first.
+  const keys = readKeys().sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  return res.json({ keys, maintenance: readMaintenance() });
 });
 
 app.post('/api/admin/revoke-key', (req, res) => {
