@@ -71,6 +71,7 @@
     .row:last-child{margin-bottom:0}
     .row .k{color:var(--dim);letter-spacing:.06em;text-transform:uppercase;font-size:.7rem}
     .row .v{color:#fff;font-weight:700;letter-spacing:.04em;text-align:right;word-break:break-all}
+    .row .v.live{color:#4ade80}
     .feature{display:block;text-align:center;background:transparent;border:1px solid var(--line-2);color:#eaeaea;font-size:.72rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;padding:.8rem;margin:.3rem 0 1.1rem}
     .btn{width:100%;padding:1rem;border:none;cursor:pointer;font-family:var(--mono);font-size:.78rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;transition:opacity .16s,background .16s,color .16s}
     .btn-primary{background:#fff;color:#000;margin-bottom:.7rem}
@@ -141,22 +142,22 @@
         <div class="status"><span class="dot"></span> Active Subscription</div>
         <div class="panel-box">
           <div class="row"><span class="k">Access Key</span><span class="v" id="displayKey">CYBER-XXXXXX</span></div>
+          <div class="row"><span class="k">Time Left</span><span class="v live" id="displayLeft">—</span></div>
           <div class="row"><span class="k">Auto Refresh</span><span class="v">Every 1 Hour</span></div>
           <div class="row"><span class="k">Expires At</span><span class="v" id="displayExpiry">Loading...</span></div>
           <div class="row"><span class="k">Security</span><span class="v" id="displaySec">Standard</span></div>
         </div>
         <div class="feature">🎯 Aimbot Legit + Moco</div>
-        <button class="btn btn-primary" onclick="copySubUrl()" id="copyBtn">📋 Copy Subscription URL</button>
-        <button class="btn btn-ghost" onclick="openHappApp()">🚀 Open Happ</button>
+        <button class="btn btn-primary" onclick="openHappApp()">🚀 ADD TO HAPP</button>
       </div>
 
       <div id="setupTab" class="hidden">
         <div class="setup-box">
           <h3>How to Connect</h3>
           <ol>
-            <li>Go back to the <b>PROXY</b> tab and tap <b>Copy Subscription URL</b>.</li>
-            <li>Tap <b>Open Happ</b> (or open the Happ app manually).</li>
-            <li>Inside Happ, tap the add (<b>+</b>) icon, then choose <b>Clipboard</b> to import instantly.</li>
+            <li>Go back to the <b>PROXY</b> tab and tap <b>Add to Happ</b>.</li>
+            <li>Happ opens and the subscription is added automatically.</li>
+            <li>If it doesn't, open Happ, tap the add (<b>+</b>) icon and choose <b>Clipboard</b>.</li>
           </ol>
         </div>
       </div>
@@ -176,9 +177,11 @@
     let happLink = "";
     let activeKey = "";
     let expiryTimer = null;
+    let countdownTimer = null;
+    let expiresAtMs = 0;
 
     /* ============ LOGO (no status text) ============ */
-    const LOGO_FILE = ""; // e.g. "logo/mylogo.png"
+    const LOGO_FILE = "";
     const NAMES = [
       "logo.png","logo.jpg","logo.jpeg","logo.webp","logo.gif","logo.svg",
       "logo.avif","logo.ico","logo.bmp","logo.jfif","logo","LOGO.png","Logo.png","logo.PNG","logo.JPG"
@@ -205,7 +208,7 @@
       for (const url of CANDIDATES) { if (await probe(url)) return applyLogo(url); }
     }
 
-    /* ============ SESSION (localStorage persistence) ============ */
+    /* ============ SESSION ============ */
     function saveSession(key, expiresAt){
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ key, expiresAt })); } catch(e){}
     }
@@ -219,8 +222,29 @@
     }
     function clearSession(){ try { localStorage.removeItem(STORAGE_KEY); } catch(e){} }
 
+    /* ============ LIVE COUNTDOWN ============ */
+    function startCountdown(){
+      if(countdownTimer) clearInterval(countdownTimer);
+      updateLeft();
+      countdownTimer = setInterval(updateLeft, 1000);
+    }
+    function stopCountdown(){ if(countdownTimer) clearInterval(countdownTimer); countdownTimer = null; }
+    function updateLeft(){
+      const el = document.getElementById('displayLeft');
+      if(!el) return;
+      if(!expiresAtMs){ el.innerText = "—"; return; }
+      let ms = expiresAtMs - Date.now();
+      if(ms <= 0){ el.innerText = "EXPIRED"; return; }
+      const d = Math.floor(ms / 86400000);
+      const h = Math.floor((ms % 86400000) / 3600000);
+      const m = Math.floor((ms % 3600000) / 60000);
+      const s = Math.floor((ms % 60000) / 1000);
+      el.innerText = `${d > 0 ? d + "d " : ""}${h}h ${m}m ${s}s`;
+    }
+
     /* ============ VIEWS ============ */
     function showUnlock(){
+      stopCountdown();
       document.getElementById('dashboardView').classList.add('hidden');
       document.getElementById('maintenanceView').classList.add('hidden');
       document.getElementById('unlockView').classList.remove('hidden');
@@ -236,14 +260,17 @@
       activeKey = key;
       rawSubUrl = `${BACKEND_URL}/sub?key=${encodeURIComponent(key)}`;
 
-      if (changed){ happLink = ""; loadHappLink(key); }  // fetch encrypted link once per session
+      if (changed){ happLink = ""; loadHappLink(key); }
 
+      expiresAtMs = expiresAt ? new Date(expiresAt).getTime() : 0;
       document.getElementById('displayKey').innerText = key;
       document.getElementById('displayExpiry').innerText = expiresAt ? new Date(expiresAt).toLocaleString() : "—";
       document.getElementById('displaySec').innerText = happLink ? "🔒 Encrypted" : "Standard";
       document.getElementById('maintenanceView').classList.add('hidden');
       document.getElementById('unlockView').classList.add('hidden');
       document.getElementById('dashboardView').classList.remove('hidden');
+
+      startCountdown();
       scheduleExpiry(expiresAt);
     }
     function scheduleExpiry(expiresAt){
@@ -251,12 +278,12 @@
       if(!expiresAt) return;
       const ms = new Date(expiresAt).getTime() - Date.now();
       if(ms <= 0){ logout(); return; }
-      // re-check at expiry, or every hour (whichever comes first)
       expiryTimer = setTimeout(revalidate, Math.min(ms, 3600000));
     }
     function logout(){
       clearSession();
-      activeKey = ""; rawSubUrl = ""; happLink = "";
+      stopCountdown();
+      activeKey = ""; rawSubUrl = ""; happLink = ""; expiresAtMs = 0;
       document.getElementById('errorMsg').innerText = "";
       showUnlock();
     }
@@ -279,7 +306,7 @@
           const sec = document.getElementById('displaySec');
           if (sec) sec.innerText = "🔒 Encrypted";
         }
-      } catch(e){ /* fall back to raw URL */ }
+      } catch(e){}
     }
 
     function normalizeKey(v){ return (v || "").replace(/\s+/g, "").toUpperCase(); }
@@ -298,7 +325,7 @@
         const data = await checkKey(key);
         if(data.maintenance){ showMaintenance(data.message); return; }
         if(data.valid){
-          saveSession(data.key, data.expiresAt);   // persist so refresh keeps you in
+          saveSession(data.key, data.expiresAt);
           showDashboard(data.key, data.expiresAt);
         } else {
           errorMsg.innerText = data.message || "Invalid key.";
@@ -308,7 +335,6 @@
       }
     }
 
-    // re-check while the page is open — logs out on expiry / revocation
     async function revalidate(){
       const s = readSession();
       const key = s ? s.key : activeKey;
@@ -321,16 +347,15 @@
       try {
         const data = await checkKey(key);
         if(data.maintenance){ showMaintenance(data.message); return; }
-        if(!data.valid){ logout(); return; }         // key expired / revoked -> log out
+        if(!data.valid){ logout(); return; }
         saveSession(data.key, data.expiresAt);
         showDashboard(data.key, data.expiresAt);
-      } catch(err){ /* network hiccup: keep the session */ }
+      } catch(err){}
     }
 
     async function restoreSession(){
       const s = readSession();
       if(!s) return false;
-      // local expiry check first (instant logout if already expired)
       if(s.expiresAt && new Date(s.expiresAt).getTime() <= Date.now()){ clearSession(); return false; }
       try {
         const data = await checkKey(s.key);
@@ -339,7 +364,6 @@
         clearSession();
         return false;
       } catch(err){
-        // offline: trust the stored session so refresh never logs the user out
         showDashboard(s.key, s.expiresAt);
         return true;
       }
@@ -357,10 +381,8 @@
         if(!ok) showUnlock();
       }
 
-      setInterval(revalidate, 60000);                                   // every minute
-      document.addEventListener('visibilitychange', () => {             // on tab focus
-        if(!document.hidden) revalidate();
-      });
+      setInterval(revalidate, 60000);
+      document.addEventListener('visibilitychange', () => { if(!document.hidden) revalidate(); });
     });
 
     /* ============ ACTIONS ============ */
@@ -380,17 +402,7 @@
       btnElement.classList.add('active');
     }
 
-    // Copy the ENCRYPTED link (falls back to the raw URL)
-    function copySubUrl(){
-      const link = happLink || rawSubUrl;
-      if (!link) return;
-      navigator.clipboard.writeText(link);
-      const btn = document.getElementById('copyBtn');
-      btn.innerText = happLink ? "✅ ENCRYPTED LINK COPIED!" : "✅ COPIED TO CLIPBOARD!";
-      setTimeout(() => { btn.innerText = "📋 COPY SUBSCRIPTION URL"; }, 2000);
-    }
-
-    // Open Happ — uses the encrypted link directly, else the happ://add/ deep link
+    // Opens Happ and imports (encrypted link preferred, raw deep link fallback)
     function openHappApp(){
       const deep = happLink ? happLink : (rawSubUrl ? `happ://add/${rawSubUrl}` : "happ://");
       const a = document.createElement('a');
