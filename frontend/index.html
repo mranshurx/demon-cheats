@@ -143,6 +143,7 @@
           <div class="row"><span class="k">Access Key</span><span class="v" id="displayKey">CYBER-XXXXXX</span></div>
           <div class="row"><span class="k">Auto Refresh</span><span class="v">Every 1 Hour</span></div>
           <div class="row"><span class="k">Expires At</span><span class="v" id="displayExpiry">Loading...</span></div>
+          <div class="row"><span class="k">Security</span><span class="v" id="displaySec">Standard</span></div>
         </div>
         <div class="feature">🎯 Aimbot Legit + Moco</div>
         <button class="btn btn-primary" onclick="copySubUrl()" id="copyBtn">📋 Copy Subscription URL</button>
@@ -172,6 +173,7 @@
     const STORAGE_KEY = "cyber_x_silent_session";
 
     let rawSubUrl = "";
+    let happLink = "";
     let activeKey = "";
     let expiryTimer = null;
 
@@ -230,10 +232,15 @@
       document.getElementById('maintenanceView').classList.remove('hidden');
     }
     function showDashboard(key, expiresAt){
+      const changed = (activeKey !== key);
       activeKey = key;
       rawSubUrl = `${BACKEND_URL}/sub?key=${encodeURIComponent(key)}`;
+
+      if (changed){ happLink = ""; loadHappLink(key); }  // fetch encrypted link once per session
+
       document.getElementById('displayKey').innerText = key;
       document.getElementById('displayExpiry').innerText = expiresAt ? new Date(expiresAt).toLocaleString() : "—";
+      document.getElementById('displaySec').innerText = happLink ? "🔒 Encrypted" : "Standard";
       document.getElementById('maintenanceView').classList.add('hidden');
       document.getElementById('unlockView').classList.add('hidden');
       document.getElementById('dashboardView').classList.remove('hidden');
@@ -249,8 +256,7 @@
     }
     function logout(){
       clearSession();
-      activeKey = "";
-      rawSubUrl = "";
+      activeKey = ""; rawSubUrl = ""; happLink = "";
       document.getElementById('errorMsg').innerText = "";
       showUnlock();
     }
@@ -263,6 +269,17 @@
     async function getMaintenance(){
       try { const r = await fetch(`${BACKEND_URL}/api/maintenance-status`); return r.json(); }
       catch(e){ return { enabled:false }; }
+    }
+    async function loadHappLink(key){
+      try {
+        const r = await fetch(`${BACKEND_URL}/api/happ-link?key=${encodeURIComponent(key)}`);
+        const d = await r.json();
+        if (d && d.ok && d.link) {
+          happLink = d.link;
+          const sec = document.getElementById('displaySec');
+          if (sec) sec.innerText = "🔒 Encrypted";
+        }
+      } catch(e){ /* fall back to raw URL */ }
     }
 
     function normalizeKey(v){ return (v || "").replace(/\s+/g, "").toUpperCase(); }
@@ -363,17 +380,19 @@
       btnElement.classList.add('active');
     }
 
+    // Copy the ENCRYPTED link (falls back to the raw URL)
     function copySubUrl(){
-      if (!rawSubUrl) return;
-      navigator.clipboard.writeText(rawSubUrl);
+      const link = happLink || rawSubUrl;
+      if (!link) return;
+      navigator.clipboard.writeText(link);
       const btn = document.getElementById('copyBtn');
-      btn.innerText = "✅ COPIED TO CLIPBOARD!";
+      btn.innerText = happLink ? "✅ ENCRYPTED LINK COPIED!" : "✅ COPIED TO CLIPBOARD!";
       setTimeout(() => { btn.innerText = "📋 COPY SUBSCRIPTION URL"; }, 2000);
     }
 
-    // FIXED: correct Happ deep link — opens Happ AND imports the subscription
+    // Open Happ — uses the encrypted link directly, else the happ://add/ deep link
     function openHappApp(){
-      const deep = rawSubUrl ? `happ://add/${rawSubUrl}` : "happ://";
+      const deep = happLink ? happLink : (rawSubUrl ? `happ://add/${rawSubUrl}` : "happ://");
       const a = document.createElement('a');
       a.href = deep;
       a.style.display = 'none';
