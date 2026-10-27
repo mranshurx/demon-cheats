@@ -4,132 +4,278 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CYBER X SILENT</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
-    body { background: #030712; color: #f3f4f6; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; background-image: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #030712 70%); }
-    .glass-card { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px; padding: 2.5rem; width: 100%; max-width: 480px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align: center; }
-    
-    .brand-title { font-size: 2.2rem; font-weight: 800; color: #fff; background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0.02em; margin-bottom: 2rem; }
-    
-    .hidden { display: none !important; }
+    :root{
+      --bg:#000000;
+      --strip:#060606;
+      --line:#171717;
+      --line-2:#232323;
+      --txt:#f4f4f4;
+      --dim:#6d6d6d;
+      --dim-2:#3a3a3a;
+      --mono:'JetBrains Mono',monospace;
+      --display:'Archivo Black',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      background:var(--bg);
+      color:var(--txt);
+      font-family:var(--mono);
+      display:flex;
+      justify-content:center;
+      min-height:100vh;
+      -webkit-font-smoothing:antialiased;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='230' height='230' viewBox='0 0 220 220'%3E%3Cpath fill='%230a0a0a' d='M110 40C78 40 64 66 64 100L64 158L76 146L87 158L98 146L110 158L122 146L133 158L144 146L156 158L156 100C156 66 142 40 110 40Z'/%3E%3C/svg%3E");
+      background-size:230px 230px;
+    }
+    /* faint vignette so the watermark reads */
+    body::before{
+      content:"";position:fixed;inset:0;pointer-events:none;
+      background:radial-gradient(circle at 50% 0%, rgba(0,0,0,0) 0%, rgba(0,0,0,.85) 78%);
+    }
 
-    .input-group { margin-bottom: 1.25rem; text-align: left; }
-    label { display: block; font-size: 0.85rem; font-weight: 600; color: #9ca3af; margin-bottom: 0.5rem; }
-    input[type="text"] { width: 100%; padding: 1rem 1.25rem; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(3, 7, 18, 0.6); color: #fff; font-size: 1rem; font-weight: 600; outline: none; transition: border-color 0.2s; }
-    input[type="text"]:focus { border-color: #38bdf8; }
-    
-    .btn { width: 100%; padding: 1rem; border-radius: 14px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none; }
-    .btn-primary { background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(2, 132, 199, 0.4); }
-    .btn-primary:hover { opacity: 0.95; transform: translateY(-1px); }
-    
-    .btn-copy { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4); margin-top: 1rem; font-size: 1.05rem; }
-    .btn-happ-open { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: #fff; box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.4); margin-top: 0.75rem; font-size: 1.05rem; }
-    .btn-feature { background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.05em; padding: 0.75rem; border-radius: 12px; margin-bottom: 1rem; text-transform: uppercase; }
+    .strip{
+      position:relative;
+      width:100%;
+      max-width:460px;
+      min-height:100vh;
+      background:var(--strip);
+      border-left:1px solid var(--line);
+      border-right:1px solid var(--line);
+      padding:1.4rem 1.9rem 2.2rem;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      z-index:1;
+    }
 
-    .error-box { color: #f87171; font-size: 0.85rem; font-weight: 600; text-align: center; margin-top: 1rem; min-height: 1.25rem; }
-    
-    .tab-nav { display: flex; background: rgba(3, 7, 18, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 4px; margin-bottom: 1.5rem; }
-    .tab-btn { flex: 1; padding: 0.65rem; border: none; background: transparent; color: #9ca3af; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer; transition: all 0.2s; text-align: center; }
-    .tab-btn.active { background: #1e293b; color: #38bdf8; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    /* top bar */
+    .topbar{display:flex;justify-content:flex-end;align-items:center;gap:.4rem;margin-bottom:2rem}
+    .lang{display:inline-flex;align-items:center;gap:.45rem;font-size:.72rem;font-weight:700;letter-spacing:.14em;color:var(--dim);border:1px solid var(--line-2);border-radius:99px;padding:.35rem .7rem}
+    .lang svg{width:12px;height:12px;fill:var(--dim)}
 
-    .status-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.85rem; border-radius: 99px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; font-size: 0.8rem; font-weight: 700; margin-bottom: 1.25rem; }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 10px #34d399; }
-    
-    .info-grid { background: rgba(3, 7, 18, 0.4); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; text-align: left; }
-    .info-row { display: flex; justify-content: space-between; margin-bottom: 0.75rem; font-size: 0.9rem; }
-    .info-row:last-child { margin-bottom: 0; }
-    .info-label { color: #9ca3af; font-weight: 500; }
-    .info-value { color: #f3f4f6; font-weight: 700; font-family: monospace; }
+    .hidden{display:none !important}
 
-    .setup-box { background: rgba(3, 7, 18, 0.4); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 1.5rem; text-align: left; }
-    .contact-card { background: rgba(3, 7, 18, 0.4); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; text-align: left; }
-    .contact-title { font-size: 0.8rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
-    .contact-value { font-size: 1.1rem; font-weight: 700; color: #38bdf8; }
+    /* mascot */
+    .mascot{display:flex;justify-content:center;margin-bottom:.4rem}
+    .mascot svg{width:132px;height:132px;filter:drop-shadow(0 0 44px rgba(255,255,255,.16))}
 
-    .maintenance-banner { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 16px; padding: 2rem; margin-top: 1rem; }
+    .brand{
+      font-family:var(--display);
+      font-weight:900;
+      font-size:2.05rem;
+      line-height:1;
+      text-align:center;
+      letter-spacing:.03em;
+      color:#fff;
+      margin-bottom:1.05rem;
+      text-transform:uppercase;
+    }
+    .tagline{
+      text-align:center;
+      font-size:.68rem;
+      font-weight:500;
+      letter-spacing:.2em;
+      color:var(--dim);
+      text-transform:uppercase;
+      margin-bottom:2.4rem;
+    }
+
+    /* field */
+    .field-label{
+      display:flex;align-items:center;gap:.55rem;
+      font-size:.7rem;font-weight:700;letter-spacing:.22em;
+      color:#dcdcdc;text-transform:uppercase;margin-bottom:.7rem;
+    }
+    .field-label::before{content:"";width:9px;height:9px;background:#fff;display:inline-block}
+
+    .input-shell{
+      display:flex;align-items:stretch;
+      background:#0b0b0b;
+      border:1px solid var(--line-2);
+      transition:border-color .18s;
+    }
+    .input-shell:focus-within{border-color:#4a4a4a}
+    #keyInput{
+      flex:1;min-width:0;
+      background:transparent;border:none;outline:none;
+      color:#fff;font-family:var(--mono);font-size:.86rem;font-weight:500;
+      letter-spacing:.08em;padding:1.05rem 1rem;
+      text-transform:uppercase;
+    }
+    #keyInput::placeholder{color:var(--dim-2);text-transform:uppercase}
+    .paste-btn{
+      background:#0f0f0f;border:none;border-left:1px solid var(--line-2);
+      color:#cfcfcf;font-family:var(--mono);font-size:.7rem;font-weight:700;
+      letter-spacing:.16em;padding:0 1.15rem;cursor:pointer;text-transform:uppercase;
+      transition:background .18s,color .18s;
+    }
+    .paste-btn:hover{background:#171717;color:#fff}
+
+    .unlock{
+      width:100%;margin-top:1.1rem;padding:1.1rem;
+      background:#ffffff;color:#000;border:none;cursor:pointer;
+      font-family:var(--display);font-size:1.05rem;letter-spacing:.14em;
+      text-transform:uppercase;
+      transition:opacity .16s,transform .16s;
+    }
+    .unlock:hover{opacity:.9}
+    .unlock:active{transform:translateY(1px)}
+
+    .error-box{color:#fff;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-align:center;margin-top:1rem;min-height:1rem;text-transform:uppercase}
+
+    .foot{margin-top:1.6rem;text-align:center;font-size:.7rem;letter-spacing:.08em;color:var(--dim-2);line-height:1.9}
+    .foot a{color:var(--dim);text-decoration:none}
+
+    /* dashboard */
+    .tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--line);margin-bottom:1.8rem}
+    .tab-btn{
+      flex:1;background:transparent;border:none;cursor:pointer;
+      font-family:var(--mono);font-size:.72rem;font-weight:700;letter-spacing:.16em;
+      color:var(--dim);text-transform:uppercase;padding:.85rem .2rem;position:relative;
+      transition:color .16s;
+    }
+    .tab-btn:hover{color:#bdbdbd}
+    .tab-btn.active{color:#fff}
+    .tab-btn.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#fff}
+
+    .status{display:inline-flex;align-items:center;gap:.55rem;font-size:.68rem;font-weight:700;letter-spacing:.2em;color:#e6e6e6;text-transform:uppercase;margin-bottom:1.3rem}
+    .dot{width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 12px rgba(255,255,255,.7);animation:pulse 1.8s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+    .panel-box{background:#0a0a0a;border:1px solid var(--line);padding:1.15rem;margin-bottom:.9rem}
+    .row{display:flex;justify-content:space-between;gap:1rem;font-size:.78rem;margin-bottom:.85rem}
+    .row:last-child{margin-bottom:0}
+    .row .k{color:var(--dim);letter-spacing:.06em;text-transform:uppercase;font-size:.7rem}
+    .row .v{color:#fff;font-weight:700;letter-spacing:.04em;text-align:right;word-break:break-all}
+
+    .feature{
+      display:block;text-align:center;background:transparent;border:1px solid var(--line-2);
+      color:#eaeaea;font-size:.72rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;
+      padding:.8rem;margin:.3rem 0 1.1rem;
+    }
+
+    .btn{width:100%;padding:1rem;border:none;cursor:pointer;font-family:var(--mono);font-size:.78rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;transition:opacity .16s,background .16s,color .16s}
+    .btn-primary{background:#fff;color:#000;margin-bottom:.7rem}
+    .btn-primary:hover{opacity:.9}
+    .btn-ghost{background:transparent;color:#eaeaea;border:1px solid var(--line-2)}
+    .btn-ghost:hover{background:#111;color:#fff}
+
+    .setup-box{background:#0a0a0a;border:1px solid var(--line);padding:1.4rem}
+    .setup-box h3{font-size:.75rem;letter-spacing:.2em;text-transform:uppercase;color:#fff;margin-bottom:1rem;font-weight:700}
+    .setup-box ol{padding-left:1.15rem;color:var(--dim);font-size:.78rem;line-height:2}
+    .setup-box ol b{color:#fff}
+
+    .contact-card{background:#0a0a0a;border:1px solid var(--line);padding:1.15rem;margin-bottom:.9rem}
+    .contact-card .t{font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim-2);margin-bottom:.4rem;font-weight:700}
+    .contact-card .c{font-size:.95rem;font-weight:700;color:#fff;letter-spacing:.06em}
+
+    .maint{border:1px solid #ffffff;background:#0a0a0a;padding:2rem 1.5rem;text-align:center;margin-top:1rem}
+    .maint h3{font-family:var(--display);font-size:1.05rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.9rem}
+    .maint p{color:var(--dim);font-size:.8rem;line-height:1.8;letter-spacing:.04em}
+
+    @media(max-width:480px){
+      .strip{border:none;padding:1.2rem 1.4rem 2rem}
+      .brand{font-size:1.7rem}
+      .mascot svg{width:112px;height:112px}
+    }
   </style>
 </head>
 <body>
 
-  <div class="glass-card">
-    <h1 class="brand-title">CYBER X SILENT</h1>
+  <div class="strip">
+    <div class="topbar">
+      <span class="lang">
+        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm6.9 6h-2.95a15.6 15.6 0 00-1.4-3.6A8 8 0 0118.9 8zM12 4c.8 1.2 1.4 2.6 1.8 4h-3.6c.4-1.4 1-2.8 1.8-4zM4.3 14a8 8 0 010-4h3.3a17 17 0 000 4H4.3zm.8 2h2.95c.35 1.3.82 2.5 1.4 3.6A8 8 0 015.1 16zm2.95-8H5.1a8 8 0 014.35-3.6A15.6 15.6 0 008.05 8zM12 20c-.8-1.2-1.4-2.6-1.8-4h3.6c-.4 1.4-1 2.8-1.8 4zm2.2-6H9.8a15 15 0 010-4h4.4a15 15 0 010 4zm.35 5.6c.58-1.1 1.05-2.3 1.4-3.6h2.95a8 8 0 01-4.35 3.6zm1.85-5.6a17 17 0 000-4h3.3a8 8 0 010 4h-3.3z"/></svg>
+        EN
+      </span>
+    </div>
 
-    <!-- MAINTENANCE MODE VIEW -->
+    <!-- MAINTENANCE VIEW -->
     <div id="maintenanceView" class="hidden">
-      <div class="maintenance-banner">
-        <h3 style="color: #f87171; font-size: 1.2rem; margin-bottom: 0.75rem;">⚠️ SYSTEM MAINTENANCE</h3>
-        <p id="maintenanceMsgText" style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;"></p>
+      <div class="maint">
+        <h3>⚠ SYSTEM MAINTENANCE</h3>
+        <p id="maintenanceMsgText"></p>
       </div>
     </div>
 
-    <!-- VIEW 1: UNLOCK FORM -->
+    <!-- UNLOCK VIEW -->
     <div id="unlockView">
-      <div class="input-group">
-        <label for="keyInput">Access Key</label>
-        <input type="text" id="keyInput" placeholder="Enter Key (e.g. CYBER-A1B2C3)" autocomplete="off">
+      <div class="mascot">
+        <svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#ffffff" d="M110 40C78 40 64 66 64 100L64 158L76 146L87 158L98 146L110 158L122 146L133 158L144 146L156 158L156 100C156 66 142 40 110 40Z"/>
+          <g stroke="#000000" stroke-width="7" stroke-linecap="round">
+            <line x1="79" y1="96" x2="99" y2="116"/>
+            <line x1="99" y1="96" x2="79" y2="116"/>
+            <line x1="121" y1="96" x2="141" y2="116"/>
+            <line x1="141" y1="96" x2="121" y2="116"/>
+          </g>
+        </svg>
       </div>
-      <button class="btn btn-primary" onclick="unlockPortal()">Unlock Access</button>
+      <h1 class="brand">Cyber X Silent</h1>
+      <p class="tagline">No account. No password. Just your key.</p>
+
+      <div class="field-label">Access Key</div>
+      <div class="input-shell">
+        <input type="text" id="keyInput" placeholder="CYBER-XXXXXX" autocomplete="off" spellcheck="false">
+        <button class="paste-btn" onclick="pasteKey()">Paste</button>
+      </div>
+      <button class="unlock" onclick="unlockPortal()">Unlock</button>
       <div id="errorMsg" class="error-box"></div>
+
+      <p class="foot">no key? contact your seller.<br>your time starts when you connect.</p>
     </div>
 
-    <!-- VIEW 2: UNLOCKED DASHBOARD WITH TABS -->
+    <!-- DASHBOARD VIEW -->
     <div id="dashboardView" class="hidden">
-      
-      <div class="tab-nav">
-        <button class="tab-btn active" onclick="switchTab('proxyTab', this)">PROXY</button>
-        <button class="tab-btn" onclick="switchTab('setupTab', this)">SETUP</button>
-        <button class="tab-btn" onclick="switchTab('contactTab', this)">CONTACT</button>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('proxyTab', this)">Proxy</button>
+        <button class="tab-btn" onclick="switchTab('setupTab', this)">Setup</button>
+        <button class="tab-btn" onclick="switchTab('contactTab', this)">Contact</button>
       </div>
 
-      <!-- TAB 1: PROXY -->
+      <!-- TAB 1 -->
       <div id="proxyTab">
-        <div class="status-badge">
-          <span class="status-dot"></span> Active Subscription
+        <div class="status"><span class="dot"></span> Active Subscription</div>
+
+        <div class="panel-box">
+          <div class="row"><span class="k">Access Key</span><span class="v" id="displayKey">CYBER-XXXXXX</span></div>
+          <div class="row"><span class="k">Auto Refresh</span><span class="v">Every 1 Hour</span></div>
+          <div class="row"><span class="k">Expires At</span><span class="v" id="displayExpiry">Loading...</span></div>
         </div>
 
-        <div class="info-grid">
-          <div class="info-row">
-            <span class="info-label">Access Key:</span>
-            <span class="info-value" id="displayKey">CYBER-XXXXXX</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Auto Refresh:</span>
-            <span class="info-value" style="color:#38bdf8;">Every 1 Hour</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Expires At:</span>
-            <span class="info-value" id="displayExpiry">Loading...</span>
-          </div>
-        </div>
+        <div class="feature">🎯 Aimbot Legit + Moco</div>
 
-        <div class="btn btn-feature">🎯 AIMBOT LEGIT + MOCO</div>
-
-        <button class="btn btn-copy" onclick="copySubUrl()" id="copyBtn">📋 COPY SUBSCRIPTION URL</button>
-        <button class="btn btn-happ-open" onclick="openHappApp()">🚀 OPEN HAPP</button>
+        <button class="btn btn-primary" onclick="copySubUrl()" id="copyBtn">📋 Copy Subscription URL</button>
+        <button class="btn btn-ghost" onclick="openHappApp()">🚀 Open Happ</button>
       </div>
 
-      <!-- TAB 2: SETUP -->
+      <!-- TAB 2 -->
       <div id="setupTab" class="hidden">
         <div class="setup-box">
-          <h3 style="color: #38bdf8; margin-bottom: 1rem; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em;">How to Connect:</h3>
-          <ol style="padding-left: 1.25rem; color: #cbd5e1; line-height: 1.8; font-size: 0.9rem;">
-            <li>Go back to the <b>PROXY</b> tab and click <b>Copy Subscription URL</b>.</li>
-            <li>Click the <b>Open Happ</b> button below (or open the Happ app manually on your device).</li>
-            <li>Inside Happ, tap the add (<b>+</b>) icon, then select <b>Clipboard</b> to import your subscription instantly!</li>
+          <h3>How to Connect</h3>
+          <ol>
+            <li>Go back to the <b>PROXY</b> tab and tap <b>Copy Subscription URL</b>.</li>
+            <li>Tap <b>Open Happ</b> (or open the Happ app manually).</li>
+            <li>Inside Happ, tap the add (<b>+</b>) icon, then choose <b>Clipboard</b> to import instantly.</li>
           </ol>
         </div>
       </div>
 
-      <!-- TAB 3: CONTACT -->
+      <!-- TAB 3 -->
       <div id="contactTab" class="hidden">
         <div class="contact-card">
-          <div class="contact-title">Telegram</div>
-          <div class="contact-value">CYBER X SILENT</div>
+          <div class="t">Telegram</div>
+          <div class="c">CYBER X SILENT</div>
         </div>
         <div class="contact-card">
-          <div class="contact-title">WhatsApp</div>
-          <div class="contact-value">CYBER X SILENT</div>
+          <div class="t">WhatsApp</div>
+          <div class="c">CYBER X SILENT</div>
         </div>
       </div>
 
@@ -140,7 +286,6 @@
     const BACKEND_URL = "https://cyber-x-silent-server.onrender.com";
     let rawSubUrl = "";
 
-    // Check maintenance status on load
     window.addEventListener('DOMContentLoaded', async () => {
       try {
         const res = await fetch(`${BACKEND_URL}/api/maintenance-status`);
@@ -154,6 +299,15 @@
         console.error("Could not check maintenance status");
       }
     });
+
+    function pasteKey() {
+      const input = document.getElementById('keyInput');
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        navigator.clipboard.readText().then(t => { input.value = t.trim(); }).catch(() => input.focus());
+      } else {
+        input.focus();
+      }
+    }
 
     async function unlockPortal() {
       const key = document.getElementById('keyInput').value.trim();
@@ -180,7 +334,7 @@
           rawSubUrl = `${BACKEND_URL}/sub?key=${data.key}`;
           document.getElementById('displayKey').innerText = data.key;
           document.getElementById('displayExpiry').innerText = new Date(data.expiresAt).toLocaleString();
-          
+
           document.getElementById('unlockView').classList.add('hidden');
           document.getElementById('dashboardView').classList.remove('hidden');
         } else {
@@ -196,8 +350,7 @@
       document.getElementById('setupTab').classList.add('hidden');
       document.getElementById('contactTab').classList.add('hidden');
 
-      const buttons = document.querySelectorAll('.tab-btn');
-      buttons.forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
 
       document.getElementById(tabId).classList.remove('hidden');
       btnElement.classList.add('active');
