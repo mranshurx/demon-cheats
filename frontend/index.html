@@ -10,188 +10,81 @@
   <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     :root{
-      --bg:#000000;
-      --strip:#060606;
-      --line:#171717;
-      --line-2:#232323;
-      --txt:#f4f4f4;
-      --dim:#6d6d6d;
-      --dim-2:#3a3a3a;
-      --mono:'JetBrains Mono',monospace;
-      --display:'Archivo Black',sans-serif;
+      --bg:#000000;--strip:#060606;--line:#171717;--line-2:#232323;
+      --txt:#f4f4f4;--dim:#6d6d6d;--dim-2:#3a3a3a;
+      --mono:'JetBrains Mono',monospace;--display:'Archivo Black',sans-serif;
     }
     *{margin:0;padding:0;box-sizing:border-box}
     [hidden]{display:none !important}
     html,body{height:100%}
     body{
-      background:var(--bg);
-      color:var(--txt);
-      font-family:var(--mono);
-      display:flex;
-      justify-content:center;
-      min-height:100vh;
-      -webkit-font-smoothing:antialiased;
+      background:var(--bg);color:var(--txt);font-family:var(--mono);
+      display:flex;justify-content:center;min-height:100vh;-webkit-font-smoothing:antialiased;
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='230' height='230' viewBox='0 0 220 220'%3E%3Cpath fill='%230a0a0a' d='M110 40C78 40 64 66 64 100L64 158L76 146L87 158L98 146L110 158L122 146L133 158L144 146L156 158L156 100C156 66 142 40 110 40Z'/%3E%3C/svg%3E");
       background-size:230px 230px;
     }
-    body::before{
-      content:"";position:fixed;inset:0;pointer-events:none;
-      background:radial-gradient(circle at 50% 0%, rgba(0,0,0,0) 0%, rgba(0,0,0,.85) 78%);
-    }
-
-    .strip{
-      position:relative;
-      width:100%;
-      max-width:460px;
-      min-height:100vh;
-      background:var(--strip);
-      border-left:1px solid var(--line);
-      border-right:1px solid var(--line);
-      padding:1.4rem 1.9rem 2.2rem;
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
-      z-index:1;
-    }
-
+    body::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 0%, rgba(0,0,0,0) 0%, rgba(0,0,0,.85) 78%)}
+    .strip{position:relative;width:100%;max-width:460px;min-height:100vh;background:var(--strip);border-left:1px solid var(--line);border-right:1px solid var(--line);padding:1.4rem 1.9rem 2.2rem;display:flex;flex-direction:column;justify-content:center;z-index:1}
     .topbar{display:flex;justify-content:flex-end;align-items:center;gap:.4rem;margin-bottom:2rem}
     .lang{display:inline-flex;align-items:center;gap:.45rem;font-size:.72rem;font-weight:700;letter-spacing:.14em;color:var(--dim);border:1px solid var(--line-2);border-radius:99px;padding:.35rem .7rem}
     .lang svg{width:12px;height:12px;fill:var(--dim)}
-
     .hidden{display:none !important}
 
-    /* ---------- LOGO ---------- */
     .logo-slot{display:flex;align-items:center;justify-content:center}
     .logo-slot img{display:block;object-fit:contain}
     .logo-slot svg{display:block}
-
     .logo-slot.big{margin-bottom:.9rem}
     .logo-slot.big img,.logo-slot.big svg{width:132px;height:132px;filter:drop-shadow(0 0 44px rgba(255,255,255,.16))}
-
-    .dash-head{
-      display:flex;align-items:center;gap:.75rem;
-      padding-bottom:1.1rem;margin-bottom:1.5rem;
-      border-bottom:1px solid var(--line);
-    }
+    .dash-head{display:flex;align-items:center;gap:.75rem;padding-bottom:1.1rem;margin-bottom:1.5rem;border-bottom:1px solid var(--line)}
     .dash-head .logo-slot.small img,.dash-head .logo-slot.small svg{width:34px;height:34px}
     .dash-name{font-family:var(--display);font-size:1rem;letter-spacing:.08em;text-transform:uppercase;color:#fff}
 
-    .brand{
-      font-family:var(--display);
-      font-weight:900;
-      font-size:2.05rem;
-      line-height:1;
-      text-align:center;
-      letter-spacing:.03em;
-      color:#fff;
-      margin-bottom:1.05rem;
-      text-transform:uppercase;
-    }
-    .tagline{
-      text-align:center;
-      font-size:.68rem;
-      font-weight:500;
-      letter-spacing:.2em;
-      color:var(--dim);
-      text-transform:uppercase;
-      margin-bottom:2.4rem;
-    }
-
-    .field-label{
-      display:flex;align-items:center;gap:.55rem;
-      font-size:.7rem;font-weight:700;letter-spacing:.22em;
-      color:#dcdcdc;text-transform:uppercase;margin-bottom:.7rem;
-    }
+    .brand{font-family:var(--display);font-weight:900;font-size:2.05rem;line-height:1;text-align:center;letter-spacing:.03em;color:#fff;margin-bottom:1.05rem;text-transform:uppercase}
+    .tagline{text-align:center;font-size:.68rem;font-weight:500;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;margin-bottom:2.4rem}
+    .field-label{display:flex;align-items:center;gap:.55rem;font-size:.7rem;font-weight:700;letter-spacing:.22em;color:#dcdcdc;text-transform:uppercase;margin-bottom:.7rem}
     .field-label::before{content:"";width:9px;height:9px;background:#fff;display:inline-block}
-
-    .input-shell{
-      display:flex;align-items:stretch;
-      background:#0b0b0b;
-      border:1px solid var(--line-2);
-      transition:border-color .18s;
-    }
+    .input-shell{display:flex;align-items:stretch;background:#0b0b0b;border:1px solid var(--line-2);transition:border-color .18s}
     .input-shell:focus-within{border-color:#4a4a4a}
-    #keyInput{
-      flex:1;min-width:0;
-      background:transparent;border:none;outline:none;
-      color:#fff;font-family:var(--mono);font-size:.86rem;font-weight:500;
-      letter-spacing:.08em;padding:1.05rem 1rem;
-      text-transform:uppercase;
-    }
+    #keyInput{flex:1;min-width:0;background:transparent;border:none;outline:none;color:#fff;font-family:var(--mono);font-size:.86rem;font-weight:500;letter-spacing:.08em;padding:1.05rem 1rem;text-transform:uppercase}
     #keyInput::placeholder{color:var(--dim-2);text-transform:uppercase}
-    .paste-btn{
-      background:#0f0f0f;border:none;border-left:1px solid var(--line-2);
-      color:#cfcfcf;font-family:var(--mono);font-size:.7rem;font-weight:700;
-      letter-spacing:.16em;padding:0 1.15rem;cursor:pointer;text-transform:uppercase;
-      transition:background .18s,color .18s;
-    }
+    .paste-btn{background:#0f0f0f;border:none;border-left:1px solid var(--line-2);color:#cfcfcf;font-family:var(--mono);font-size:.7rem;font-weight:700;letter-spacing:.16em;padding:0 1.15rem;cursor:pointer;text-transform:uppercase;transition:background .18s,color .18s}
     .paste-btn:hover{background:#171717;color:#fff}
-
-    .unlock{
-      width:100%;margin-top:1.1rem;padding:1.1rem;
-      background:#ffffff;color:#000;border:none;cursor:pointer;
-      font-family:var(--display);font-size:1.05rem;letter-spacing:.14em;
-      text-transform:uppercase;
-      transition:opacity .16s,transform .16s;
-    }
+    .unlock{width:100%;margin-top:1.1rem;padding:1.1rem;background:#ffffff;color:#000;border:none;cursor:pointer;font-family:var(--display);font-size:1.05rem;letter-spacing:.14em;text-transform:uppercase;transition:opacity .16s,transform .16s}
     .unlock:hover{opacity:.9}
     .unlock:active{transform:translateY(1px)}
-
     .error-box{color:#fff;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-align:center;margin-top:1rem;min-height:1rem;text-transform:uppercase}
-
     .foot{margin-top:1.6rem;text-align:center;font-size:.7rem;letter-spacing:.08em;color:var(--dim-2);line-height:1.9}
 
     .tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--line);margin-bottom:1.8rem}
-    .tab-btn{
-      flex:1;background:transparent;border:none;cursor:pointer;
-      font-family:var(--mono);font-size:.72rem;font-weight:700;letter-spacing:.16em;
-      color:var(--dim);text-transform:uppercase;padding:.85rem .2rem;position:relative;
-      transition:color .16s;
-    }
+    .tab-btn{flex:1;background:transparent;border:none;cursor:pointer;font-family:var(--mono);font-size:.72rem;font-weight:700;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;padding:.85rem .2rem;position:relative;transition:color .16s}
     .tab-btn:hover{color:#bdbdbd}
     .tab-btn.active{color:#fff}
     .tab-btn.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#fff}
-
     .status{display:inline-flex;align-items:center;gap:.55rem;font-size:.68rem;font-weight:700;letter-spacing:.2em;color:#e6e6e6;text-transform:uppercase;margin-bottom:1.3rem}
     .dot{width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 12px rgba(255,255,255,.7);animation:pulse 1.8s infinite}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-
     .panel-box{background:#0a0a0a;border:1px solid var(--line);padding:1.15rem;margin-bottom:.9rem}
     .row{display:flex;justify-content:space-between;gap:1rem;font-size:.78rem;margin-bottom:.85rem}
     .row:last-child{margin-bottom:0}
     .row .k{color:var(--dim);letter-spacing:.06em;text-transform:uppercase;font-size:.7rem}
     .row .v{color:#fff;font-weight:700;letter-spacing:.04em;text-align:right;word-break:break-all}
-
-    .feature{
-      display:block;text-align:center;background:transparent;border:1px solid var(--line-2);
-      color:#eaeaea;font-size:.72rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;
-      padding:.8rem;margin:.3rem 0 1.1rem;
-    }
-
+    .feature{display:block;text-align:center;background:transparent;border:1px solid var(--line-2);color:#eaeaea;font-size:.72rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;padding:.8rem;margin:.3rem 0 1.1rem}
     .btn{width:100%;padding:1rem;border:none;cursor:pointer;font-family:var(--mono);font-size:.78rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;transition:opacity .16s,background .16s,color .16s}
     .btn-primary{background:#fff;color:#000;margin-bottom:.7rem}
     .btn-primary:hover{opacity:.9}
     .btn-ghost{background:transparent;color:#eaeaea;border:1px solid var(--line-2)}
     .btn-ghost:hover{background:#111;color:#fff}
-
     .setup-box{background:#0a0a0a;border:1px solid var(--line);padding:1.4rem}
     .setup-box h3{font-size:.75rem;letter-spacing:.2em;text-transform:uppercase;color:#fff;margin-bottom:1rem;font-weight:700}
     .setup-box ol{padding-left:1.15rem;color:var(--dim);font-size:.78rem;line-height:2}
     .setup-box ol b{color:#fff}
-
     .contact-card{background:#0a0a0a;border:1px solid var(--line);padding:1.15rem;margin-bottom:.9rem}
     .contact-card .t{font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim-2);margin-bottom:.4rem;font-weight:700}
     .contact-card .c{font-size:.95rem;font-weight:700;color:#fff;letter-spacing:.06em}
-
     .maint{border:1px solid #ffffff;background:#0a0a0a;padding:2rem 1.5rem;text-align:center;margin-top:1rem}
     .maint h3{font-family:var(--display);font-size:1.05rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.9rem}
     .maint p{color:var(--dim);font-size:.8rem;line-height:1.8;letter-spacing:.04em}
-
-    @media(max-width:480px){
-      .strip{border:none;padding:1.2rem 1.4rem 2rem}
-      .brand{font-size:1.7rem}
-      .logo-slot.big img,.logo-slot.big svg{width:112px;height:112px}
-    }
+    @media(max-width:480px){.strip{border:none;padding:1.2rem 1.4rem 2rem}.brand{font-size:1.7rem}.logo-slot.big img,.logo-slot.big svg{width:112px;height:112px}}
   </style>
 </head>
 <body>
@@ -204,7 +97,6 @@
       </span>
     </div>
 
-    <!-- MAINTENANCE VIEW -->
     <div id="maintenanceView" class="hidden">
       <div class="maint">
         <h3>⚠ SYSTEM MAINTENANCE</h3>
@@ -212,17 +104,14 @@
       </div>
     </div>
 
-    <!-- UNLOCK VIEW -->
     <div id="unlockView">
       <div class="logo-slot big">
         <img class="logo-img" alt="CYBER X SILENT" hidden>
         <svg class="logo-fallback" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
           <path fill="#ffffff" d="M110 40C78 40 64 66 64 100L64 158L76 146L87 158L98 146L110 158L122 146L133 158L144 146L156 158L156 100C156 66 142 40 110 40Z"/>
           <g stroke="#000000" stroke-width="7" stroke-linecap="round">
-            <line x1="79" y1="96" x2="99" y2="116"/>
-            <line x1="99" y1="96" x2="79" y2="116"/>
-            <line x1="121" y1="96" x2="141" y2="116"/>
-            <line x1="141" y1="96" x2="121" y2="116"/>
+            <line x1="79" y1="96" x2="99" y2="116"/><line x1="99" y1="96" x2="79" y2="116"/>
+            <line x1="121" y1="96" x2="141" y2="116"/><line x1="141" y1="96" x2="121" y2="116"/>
           </g>
         </svg>
       </div>
@@ -240,19 +129,15 @@
       <p class="foot">no key? contact your seller.<br>your time starts when you connect.</p>
     </div>
 
-    <!-- DASHBOARD VIEW -->
     <div id="dashboardView" class="hidden">
-
       <div class="dash-head">
         <div class="logo-slot small">
           <img class="logo-img" alt="" hidden>
           <svg class="logo-fallback" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
             <path fill="#ffffff" d="M110 40C78 40 64 66 64 100L64 158L76 146L87 158L98 146L110 158L122 146L133 158L144 146L156 158L156 100C156 66 142 40 110 40Z"/>
             <g stroke="#000000" stroke-width="5" stroke-linecap="round">
-              <line x1="79" y1="96" x2="99" y2="116"/>
-              <line x1="99" y1="96" x2="79" y2="116"/>
-              <line x1="121" y1="96" x2="141" y2="116"/>
-              <line x1="141" y1="96" x2="121" y2="116"/>
+              <line x1="79" y1="96" x2="99" y2="116"/><line x1="99" y1="96" x2="79" y2="116"/>
+              <line x1="121" y1="96" x2="141" y2="116"/><line x1="141" y1="96" x2="121" y2="116"/>
             </g>
           </svg>
         </div>
@@ -267,15 +152,12 @@
 
       <div id="proxyTab">
         <div class="status"><span class="dot"></span> Active Subscription</div>
-
         <div class="panel-box">
           <div class="row"><span class="k">Access Key</span><span class="v" id="displayKey">CYBER-XXXXXX</span></div>
           <div class="row"><span class="k">Auto Refresh</span><span class="v">Every 1 Hour</span></div>
           <div class="row"><span class="k">Expires At</span><span class="v" id="displayExpiry">Loading...</span></div>
         </div>
-
         <div class="feature">🎯 Aimbot Legit + Moco</div>
-
         <button class="btn btn-primary" onclick="copySubUrl()" id="copyBtn">📋 Copy Subscription URL</button>
         <button class="btn btn-ghost" onclick="openHappApp()">🚀 Open Happ</button>
       </div>
@@ -292,16 +174,9 @@
       </div>
 
       <div id="contactTab" class="hidden">
-        <div class="contact-card">
-          <div class="t">Telegram</div>
-          <div class="c">CYBER X SILENT</div>
-        </div>
-        <div class="contact-card">
-          <div class="t">WhatsApp</div>
-          <div class="c">CYBER X SILENT</div>
-        </div>
+        <div class="contact-card"><div class="t">Telegram</div><div class="c">CYBER X SILENT</div></div>
+        <div class="contact-card"><div class="t">WhatsApp</div><div class="c">CYBER X SILENT</div></div>
       </div>
-
     </div>
   </div>
 
@@ -309,42 +184,40 @@
     const BACKEND_URL = "https://cyber-x-silent-server.onrender.com";
     let rawSubUrl = "";
 
-    /* ---------- AUTO LOGO LOADER ----------
-       Drop ANY image named logo.<ext> into frontend/logo/ and it
-       becomes the site logo + favicon automatically. If none is found,
-       the built-in ghost logo stays. */
-    const LOGO_CANDIDATES = [
-      "logo/logo.png", "logo/logo.jpg", "logo/logo.jpeg", "logo/logo.webp",
-      "logo/logo.gif", "logo/logo.svg", "logo/logo.avif", "logo/logo.ico",
-      "logo/logo.bmp", "logo/logo",
-      "logo/LOGO.png", "logo/Logo.png", "logo/logo.PNG", "logo/logo.JPG"
+    /* ===== LOGO =====
+       Put an image named logo.<ext> in frontend/logo/  (logo.png / .jpg / .webp / .svg / .gif ...)
+       If your file has a different name, set LOGO_FILE to its path, e.g. "logo/cyber.png". */
+    const LOGO_FILE = ""; // <-- optional hard override
+
+    const LOGO_CANDIDATES = LOGO_FILE ? [LOGO_FILE] : [
+      "logo/logo.png","logo/logo.jpg","logo/logo.jpeg","logo/logo.jfif","logo/logo.webp",
+      "logo/logo.gif","logo/logo.apng","logo/logo.svg","logo/logo.avif","logo/logo.ico",
+      "logo/logo.bmp","logo/logo.tif","logo/logo.tiff","logo/logo",
+      "logo/LOGO.png","logo/Logo.png","logo/logo.PNG","logo/logo.JPG","logo/logo.JPEG"
     ];
 
-    function applyLogo(url) {
-      document.querySelectorAll('.logo-img').forEach(img => {
-        img.src = url;
-        img.hidden = false;
-      });
+    function applyLogo(url){
+      console.log("[logo] using:", url);
+      document.querySelectorAll('.logo-img').forEach(img => { img.src = url; img.hidden = false; });
       document.querySelectorAll('.logo-fallback').forEach(el => el.hidden = true);
-
       let fav = document.querySelector("link[rel='icon']");
-      if (!fav) { fav = document.createElement('link'); fav.rel = 'icon'; document.head.appendChild(fav); }
+      if(!fav){ fav = document.createElement('link'); fav.rel='icon'; document.head.appendChild(fav); }
       fav.href = url;
     }
 
-    function resolveLogo(i = 0) {
-      if (i >= LOGO_CANDIDATES.length) return; // keep ghost fallback
+    function resolveLogo(i = 0){
+      if(i >= LOGO_CANDIDATES.length){ console.warn("[logo] none found in /logo/ — keeping ghost fallback"); return; }
       const url = LOGO_CANDIDATES[i];
       const test = new Image();
-      test.onload = () => { if (test.naturalWidth > 0) applyLogo(url); else resolveLogo(i + 1); };
-      test.onerror = () => resolveLogo(i + 1);
+      test.onload = () => { console.log("[logo] try", url, "-> ok"); test.naturalWidth > 0 ? applyLogo(url) : resolveLogo(i+1); };
+      test.onerror = () => { console.log("[logo] try", url, "-> 404"); resolveLogo(i+1); };
       test.src = url;
     }
 
+    function normalizeKey(v){ return (v || "").replace(/\s+/g, "").toUpperCase(); }
+
     window.addEventListener('DOMContentLoaded', () => {
       resolveLogo();
-
-      // maintenance check
       (async () => {
         try {
           const res = await fetch(`${BACKEND_URL}/api/maintenance-status`);
@@ -354,33 +227,29 @@
             document.getElementById('maintenanceMsgText').innerText = data.message;
             document.getElementById('maintenanceView').classList.remove('hidden');
           }
-        } catch (err) {
-          console.error("Could not check maintenance status");
-        }
+        } catch (err) { console.error("maintenance check failed", err); }
       })();
     });
 
-    function pasteKey() {
+    function pasteKey(){
       const input = document.getElementById('keyInput');
       if (navigator.clipboard && navigator.clipboard.readText) {
-        navigator.clipboard.readText().then(t => { input.value = t.trim(); }).catch(() => input.focus());
-      } else {
-        input.focus();
-      }
+        navigator.clipboard.readText().then(t => { input.value = normalizeKey(t); }).catch(() => input.focus());
+      } else { input.focus(); }
     }
 
-    async function unlockPortal() {
-      const key = document.getElementById('keyInput').value.trim();
+    async function unlockPortal(){
+      const input = document.getElementById('keyInput');
       const errorMsg = document.getElementById('errorMsg');
       errorMsg.innerText = "";
 
-      if (!key) {
-        errorMsg.innerText = "Please enter your access key.";
-        return;
-      }
+      const key = normalizeKey(input.value);   // <-- FIX: force uppercase + strip spaces
+      input.value = key;
+
+      if (!key) { errorMsg.innerText = "Please enter your access key."; return; }
 
       try {
-        const res = await fetch(`${BACKEND_URL}/api/check-key?key=${key}`);
+        const res = await fetch(`${BACKEND_URL}/api/check-key?key=${encodeURIComponent(key)}`);
         const data = await res.json();
 
         if (data.maintenance) {
@@ -391,10 +260,9 @@
         }
 
         if (data.valid) {
-          rawSubUrl = `${BACKEND_URL}/sub?key=${data.key}`;
+          rawSubUrl = `${BACKEND_URL}/sub?key=${encodeURIComponent(data.key)}`;
           document.getElementById('displayKey').innerText = data.key;
           document.getElementById('displayExpiry').innerText = new Date(data.expiresAt).toLocaleString();
-
           document.getElementById('unlockView').classList.add('hidden');
           document.getElementById('dashboardView').classList.remove('hidden');
         } else {
@@ -405,30 +273,24 @@
       }
     }
 
-    function switchTab(tabId, btnElement) {
+    function switchTab(tabId, btnElement){
       document.getElementById('proxyTab').classList.add('hidden');
       document.getElementById('setupTab').classList.add('hidden');
       document.getElementById('contactTab').classList.add('hidden');
-
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-
       document.getElementById(tabId).classList.remove('hidden');
       btnElement.classList.add('active');
     }
 
-    function copySubUrl() {
+    function copySubUrl(){
       if (!rawSubUrl) return;
       navigator.clipboard.writeText(rawSubUrl);
       const btn = document.getElementById('copyBtn');
       btn.innerText = "✅ COPIED TO CLIPBOARD!";
-      setTimeout(() => {
-        btn.innerText = "📋 COPY SUBSCRIPTION URL";
-      }, 2000);
+      setTimeout(() => { btn.innerText = "📋 COPY SUBSCRIPTION URL"; }, 2000);
     }
 
-    function openHappApp() {
-      window.location.href = "happ://";
-    }
+    function openHappApp(){ window.location.href = "happ://"; }
   </script>
 </body>
 </html>
