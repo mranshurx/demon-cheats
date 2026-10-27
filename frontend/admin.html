@@ -9,15 +9,15 @@
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
     body { background: #030712; color: #f3f4f6; min-height: 100vh; padding: 2rem; background-image: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #030712 80%); }
     .container { max-width: 800px; margin: 0 auto; background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px; padding: 2.5rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
-    
+
     h1 { font-size: 2rem; font-weight: 800; color: #fff; background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; margin-bottom: 2rem; }
-    
+
     .hidden { display: none !important; }
     .form-group { margin-bottom: 1.25rem; text-align: left; }
     label { display: block; font-size: 0.85rem; font-weight: 600; color: #9ca3af; margin-bottom: 0.5rem; }
     input, select, textarea { width: 100%; padding: 0.85rem 1rem; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(3, 7, 18, 0.6); color: #fff; font-size: 0.95rem; outline: none; }
     input:focus, select:focus, textarea:focus { border-color: #38bdf8; }
-    
+
     .btn { width: 100%; padding: 1rem; border-radius: 12px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.2s; }
     .btn-login { background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%); color: #fff; margin-top: 1rem; }
     .btn-create { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; margin-top: 0.5rem; }
@@ -29,10 +29,14 @@
     .section-title { font-size: 1rem; font-weight: 700; color: #38bdf8; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
 
     table { width: 100%; border-collapse: collapse; margin-top: 1rem; border-radius: 12px; overflow: hidden; }
-    th, td { padding: 1rem; text-align: left; font-size: 0.85rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+    th, td { padding: 0.9rem 1rem; text-align: left; font-size: 0.82rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
     th { background: rgba(3, 7, 18, 0.8); color: #38bdf8; font-weight: 700; }
     td { background: rgba(17, 24, 39, 0.4); }
     .key-code { font-family: monospace; font-weight: 700; color: #4ade80; }
+    .badge { display: inline-block; padding: 0.25rem 0.6rem; border-radius: 99px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+    .badge-active { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); }
+    .badge-expired { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); }
+    .key-count { font-size: 0.8rem; color: #9ca3af; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -51,7 +55,7 @@
 
     <!-- ADMIN DASHBOARD VIEW -->
     <div id="adminDashboard" class="hidden">
-      
+
       <!-- MAINTENANCE MODE CONTROL SECTION -->
       <div class="section-card">
         <div class="section-title">Maintenance Mode Control</div>
@@ -84,22 +88,24 @@
         <button class="btn btn-create" onclick="createKey()">Generate New Key</button>
       </div>
 
-      <!-- ACTIVE KEYS TABLE -->
+      <!-- ALL KEYS TABLE -->
       <div class="section-card">
         <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
-          <span>Active Database Keys</span>
+          <span>All Database Keys <span id="keyCount" class="key-count"></span></span>
           <button onclick="loadDashboardData()" style="width: auto; padding: 0.4rem 1rem; background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; font-size: 0.8rem; cursor: pointer;">Refresh List</button>
         </div>
         <table>
           <thead>
             <tr>
               <th>Generated Key</th>
+              <th>Status</th>
+              <th>Created</th>
               <th>Expires At</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody id="keyTable">
-            <tr><td colspan="3" style="text-align:center; color:#6b7280;">Loading keys...</td></tr>
+            <tr><td colspan="5" style="text-align:center; color:#6b7280;">Loading keys...</td></tr>
           </tbody>
         </table>
       </div>
@@ -152,28 +158,42 @@
         const data = await res.json();
 
         if (data.keys) {
-          // Render maintenance state
           if (data.maintenance) {
             document.getElementById('maintStatus').value = data.maintenance.enabled ? "true" : "false";
             document.getElementById('maintMessage').value = data.maintenance.message;
           }
 
-          // Render keys table
           const table = document.getElementById('keyTable');
+          const countEl = document.getElementById('keyCount');
+          const now = Date.now();
+          const active = data.keys.filter(k => new Date(k.expiresAt).getTime() > now).length;
+
+          countEl.innerText = `(${data.keys.length} total · ${active} active)`;
+
           if (data.keys.length === 0) {
-            table.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#6b7280;">No active keys found.</td></tr>`;
+            table.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#6b7280;">No keys found.</td></tr>`;
             return;
           }
 
-          table.innerHTML = data.keys.map(k => `
-            <tr>
-              <td class="key-code">${k.key}</td>
-              <td>${new Date(k.expiresAt).toLocaleString()}</td>
-              <td>
-                <button class="btn-revoke" onclick="revokeKey('${k.key}')">Revoke Instantly</button>
-              </td>
-            </tr>
-          `).join('');
+          // Every key is listed — active and expired.
+          table.innerHTML = data.keys.map(k => {
+            const isExpired = new Date(k.expiresAt).getTime() <= now;
+            const badge = isExpired
+              ? `<span class="badge badge-expired">Expired</span>`
+              : `<span class="badge badge-active">Active</span>`;
+            const created = k.createdAt ? new Date(k.createdAt).toLocaleString() : "—";
+            return `
+              <tr>
+                <td class="key-code">${k.key}</td>
+                <td>${badge}</td>
+                <td>${created}</td>
+                <td>${new Date(k.expiresAt).toLocaleString()}</td>
+                <td>
+                  <button class="btn-revoke" onclick="revokeKey('${k.key}')">Revoke</button>
+                </td>
+              </tr>
+            `;
+          }).join('');
         }
       } catch (err) {
         console.error("Failed to load dashboard data");
