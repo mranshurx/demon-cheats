@@ -41,7 +41,6 @@
       filter:drop-shadow(0 0 40px rgba(255,255,255,.15))}
     .top-logo.small{margin:0 0 1.4rem}
     .top-logo.small img{height:46px;filter:none}
-    .logo-status{text-align:center;font-size:.56rem;letter-spacing:.12em;color:var(--dim-2);text-transform:uppercase;margin-bottom:1rem;word-break:break-all}
 
     .brand{font-family:var(--display);font-weight:900;font-size:2.05rem;line-height:1;text-align:center;letter-spacing:.03em;color:#fff;margin-bottom:1.05rem;text-transform:uppercase}
     .tagline{text-align:center;font-size:.68rem;font-weight:500;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;margin-bottom:2.2rem}
@@ -107,11 +106,10 @@
     </div>
 
     <div id="unlockView">
-      <!-- YOUR LOGO — TOP MIDDLE -->
+      <!-- YOUR LOGO — TOP MIDDLE (no status text below) -->
       <div class="top-logo">
         <img id="brandLogo" src="logo/logo.png" alt="CYBER X SILENT">
       </div>
-      <div id="logoStatus" class="logo-status">logo: searching...</div>
 
       <h1 class="brand">Cyber X Silent</h1>
       <p class="tagline">No account. No password. Just your key.</p>
@@ -171,14 +169,14 @@
 
   <script>
     const BACKEND_URL = "https://cyber-x-silent-server.onrender.com";
+    const STORAGE_KEY = "cyber_x_silent_session";
+
     let rawSubUrl = "";
+    let activeKey = "";
+    let expiryTimer = null;
 
-    /* ============ LOGO ============
-       Put your image at:  frontend/logo/logo.png
-       (other names/extensions and ../logo/ are auto-tried too)
-       Force an exact file with LOGO_FILE if you want. */
+    /* ============ LOGO (no status text) ============ */
     const LOGO_FILE = ""; // e.g. "logo/mylogo.png"
-
     const NAMES = [
       "logo.png","logo.jpg","logo.jpeg","logo.webp","logo.gif","logo.svg",
       "logo.avif","logo.ico","logo.bmp","logo.jfif","logo","LOGO.png","Logo.png","logo.PNG","logo.JPG"
@@ -186,17 +184,12 @@
     const DIRS = ["logo/", "../logo/", "", "../"];
     const CANDIDATES = LOGO_FILE ? [LOGO_FILE] : DIRS.flatMap(d => NAMES.map(n => d + n));
 
-    const setStatus = t => { const e = document.getElementById('logoStatus'); if (e) e.textContent = t; };
-
     function applyLogo(url){
       document.querySelectorAll('.top-logo img').forEach(i => i.src = url);
       let fav = document.querySelector("link[rel='icon']");
       if(!fav){ fav = document.createElement('link'); fav.rel='icon'; document.head.appendChild(fav); }
       fav.href = url;
-      setStatus("logo: " + url);
-      console.log("[logo] loaded ->", url);
     }
-
     function probe(url){
       return new Promise(res => {
         const im = new Image();
@@ -205,38 +198,76 @@
         im.src = url;
       });
     }
-
     async function findLogo(){
       if (LOGO_FILE && await probe(LOGO_FILE)) return applyLogo(LOGO_FILE);
       for (const url of CANDIDATES) { if (await probe(url)) return applyLogo(url); }
-      setStatus("logo: not found — put image at frontend/logo/logo.png");
-      console.warn("[logo] nothing found at frontend/logo/logo.png");
+    }
+
+    /* ============ SESSION (localStorage persistence) ============ */
+    function saveSession(key, expiresAt){
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ key, expiresAt })); } catch(e){}
+    }
+    function readSession(){
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return null;
+        const obj = JSON.parse(raw);
+        return (obj && obj.key) ? obj : null;
+      } catch(e){ return null; }
+    }
+    function clearSession(){ try { localStorage.removeItem(STORAGE_KEY); } catch(e){} }
+
+    /* ============ VIEWS ============ */
+    function showUnlock(){
+      document.getElementById('dashboardView').classList.add('hidden');
+      document.getElementById('maintenanceView').classList.add('hidden');
+      document.getElementById('unlockView').classList.remove('hidden');
+    }
+    function showMaintenance(msg){
+      document.getElementById('unlockView').classList.add('hidden');
+      document.getElementById('dashboardView').classList.add('hidden');
+      document.getElementById('maintenanceMsgText').innerText = msg || "System under maintenance.";
+      document.getElementById('maintenanceView').classList.remove('hidden');
+    }
+    function showDashboard(key, expiresAt){
+      activeKey = key;
+      rawSubUrl = `${BACKEND_URL}/sub?key=${encodeURIComponent(key)}`;
+      document.getElementById('displayKey').innerText = key;
+      document.getElementById('displayExpiry').innerText = expiresAt ? new Date(expiresAt).toLocaleString() : "—";
+      document.getElementById('maintenanceView').classList.add('hidden');
+      document.getElementById('unlockView').classList.add('hidden');
+      document.getElementById('dashboardView').classList.remove('hidden');
+      scheduleExpiry(expiresAt);
+    }
+    function scheduleExpiry(expiresAt){
+      if(expiryTimer) clearTimeout(expiryTimer);
+      if(!expiresAt) return;
+      const ms = new Date(expiresAt).getTime() - Date.now();
+      if(ms <= 0){ logout(); return; }
+      // re-check at expiry, or every hour (whichever comes first)
+      expiryTimer = setTimeout(revalidate, Math.min(ms, 3600000));
+    }
+    function logout(){
+      clearSession();
+      activeKey = "";
+      rawSubUrl = "";
+      document.getElementById('errorMsg').innerText = "";
+      showUnlock();
+    }
+
+    /* ============ NETWORK ============ */
+    async function checkKey(key){
+      const res = await fetch(`${BACKEND_URL}/api/check-key?key=${encodeURIComponent(key)}`);
+      return res.json();
+    }
+    async function getMaintenance(){
+      try { const r = await fetch(`${BACKEND_URL}/api/maintenance-status`); return r.json(); }
+      catch(e){ return { enabled:false }; }
     }
 
     function normalizeKey(v){ return (v || "").replace(/\s+/g, "").toUpperCase(); }
 
-    window.addEventListener('DOMContentLoaded', () => {
-      findLogo();
-      (async () => {
-        try {
-          const res = await fetch(`${BACKEND_URL}/api/maintenance-status`);
-          const data = await res.json();
-          if (data && data.enabled) {
-            document.getElementById('unlockView').classList.add('hidden');
-            document.getElementById('maintenanceMsgText').innerText = data.message;
-            document.getElementById('maintenanceView').classList.remove('hidden');
-          }
-        } catch (err) { console.error("maintenance check failed", err); }
-      })();
-    });
-
-    function pasteKey(){
-      const input = document.getElementById('keyInput');
-      if (navigator.clipboard && navigator.clipboard.readText) {
-        navigator.clipboard.readText().then(t => { input.value = normalizeKey(t); }).catch(() => input.focus());
-      } else { input.focus(); }
-    }
-
+    /* ============ AUTH FLOW ============ */
     async function unlockPortal(){
       const input = document.getElementById('keyInput');
       const errorMsg = document.getElementById('errorMsg');
@@ -244,32 +275,83 @@
 
       const key = normalizeKey(input.value);
       input.value = key;
-
-      if (!key) { errorMsg.innerText = "Please enter your access key."; return; }
+      if(!key){ errorMsg.innerText = "Please enter your access key."; return; }
 
       try {
-        const res = await fetch(`${BACKEND_URL}/api/check-key?key=${encodeURIComponent(key)}`);
-        const data = await res.json();
-
-        if (data.maintenance) {
-          document.getElementById('unlockView').classList.add('hidden');
-          document.getElementById('maintenanceMsgText').innerText = data.message;
-          document.getElementById('maintenanceView').classList.remove('hidden');
-          return;
-        }
-
-        if (data.valid) {
-          rawSubUrl = `${BACKEND_URL}/sub?key=${encodeURIComponent(data.key)}`;
-          document.getElementById('displayKey').innerText = data.key;
-          document.getElementById('displayExpiry').innerText = new Date(data.expiresAt).toLocaleString();
-          document.getElementById('unlockView').classList.add('hidden');
-          document.getElementById('dashboardView').classList.remove('hidden');
+        const data = await checkKey(key);
+        if(data.maintenance){ showMaintenance(data.message); return; }
+        if(data.valid){
+          saveSession(data.key, data.expiresAt);   // persist so refresh keeps you in
+          showDashboard(data.key, data.expiresAt);
         } else {
-          errorMsg.innerText = data.message;
+          errorMsg.innerText = data.message || "Invalid key.";
         }
-      } catch (err) {
+      } catch(err){
         errorMsg.innerText = "Connection error. Check your server status.";
       }
+    }
+
+    // re-check while the page is open — logs out on expiry / revocation
+    async function revalidate(){
+      const s = readSession();
+      const key = s ? s.key : activeKey;
+
+      if(!key){
+        const m = await getMaintenance();
+        if(m && !m.enabled) showUnlock();
+        return;
+      }
+      try {
+        const data = await checkKey(key);
+        if(data.maintenance){ showMaintenance(data.message); return; }
+        if(!data.valid){ logout(); return; }         // key expired / revoked -> log out
+        saveSession(data.key, data.expiresAt);
+        showDashboard(data.key, data.expiresAt);
+      } catch(err){ /* network hiccup: keep the session */ }
+    }
+
+    async function restoreSession(){
+      const s = readSession();
+      if(!s) return false;
+      // local expiry check first (instant logout if already expired)
+      if(s.expiresAt && new Date(s.expiresAt).getTime() <= Date.now()){ clearSession(); return false; }
+      try {
+        const data = await checkKey(s.key);
+        if(data.maintenance){ showMaintenance(data.message); return true; }
+        if(data.valid){ saveSession(data.key, data.expiresAt); showDashboard(data.key, data.expiresAt); return true; }
+        clearSession();
+        return false;
+      } catch(err){
+        // offline: trust the stored session so refresh never logs the user out
+        showDashboard(s.key, s.expiresAt);
+        return true;
+      }
+    }
+
+    /* ============ BOOT ============ */
+    window.addEventListener('DOMContentLoaded', async () => {
+      findLogo();
+
+      const m = await getMaintenance();
+      if(m && m.enabled){
+        showMaintenance(m.message);
+      } else {
+        const ok = await restoreSession();
+        if(!ok) showUnlock();
+      }
+
+      setInterval(revalidate, 60000);                                   // every minute
+      document.addEventListener('visibilitychange', () => {             // on tab focus
+        if(!document.hidden) revalidate();
+      });
+    });
+
+    /* ============ ACTIONS ============ */
+    function pasteKey(){
+      const input = document.getElementById('keyInput');
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        navigator.clipboard.readText().then(t => { input.value = normalizeKey(t); }).catch(() => input.focus());
+      } else { input.focus(); }
     }
 
     function switchTab(tabId, btnElement){
@@ -289,7 +371,16 @@
       setTimeout(() => { btn.innerText = "📋 COPY SUBSCRIPTION URL"; }, 2000);
     }
 
-    function openHappApp(){ window.location.href = "happ://"; }
+    // FIXED: correct Happ deep link — opens Happ AND imports the subscription
+    function openHappApp(){
+      const deep = rawSubUrl ? `happ://add/${rawSubUrl}` : "happ://";
+      const a = document.createElement('a');
+      a.href = deep;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   </script>
 </body>
 </html>
