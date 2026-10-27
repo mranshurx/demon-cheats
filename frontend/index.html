@@ -24,23 +24,27 @@
       background-size:230px 230px;
     }
     body::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 0%, rgba(0,0,0,0) 0%, rgba(0,0,0,.85) 78%)}
-    .strip{position:relative;width:100%;max-width:460px;min-height:100vh;background:var(--strip);border-left:1px solid var(--line);border-right:1px solid var(--line);padding:1.4rem 1.9rem 2.2rem;display:flex;flex-direction:column;justify-content:center;z-index:1}
-    .topbar{display:flex;justify-content:flex-end;align-items:center;gap:.4rem;margin-bottom:2rem}
-    .lang{display:inline-flex;align-items:center;gap:.45rem;font-size:.72rem;font-weight:700;letter-spacing:.14em;color:var(--dim);border:1px solid var(--line-2);border-radius:99px;padding:.35rem .7rem}
+
+    .strip{
+      position:relative;width:100%;max-width:460px;min-height:100vh;background:var(--strip);
+      border-left:1px solid var(--line);border-right:1px solid var(--line);
+      padding:2.2rem 1.9rem 2.2rem;display:flex;flex-direction:column;
+      justify-content:flex-start;z-index:1;
+    }
+    .lang{position:absolute;top:1.3rem;right:1.6rem;display:inline-flex;align-items:center;gap:.45rem;font-size:.72rem;font-weight:700;letter-spacing:.14em;color:var(--dim);border:1px solid var(--line-2);border-radius:99px;padding:.35rem .7rem}
     .lang svg{width:12px;height:12px;fill:var(--dim)}
     .hidden{display:none !important}
 
-    .logo-slot{display:flex;align-items:center;justify-content:center}
-    .logo-slot img{display:block;object-fit:contain}
-    .logo-slot svg{display:block}
-    .logo-slot.big{margin-bottom:.9rem}
-    .logo-slot.big img,.logo-slot.big svg{width:132px;height:132px;filter:drop-shadow(0 0 44px rgba(255,255,255,.16))}
-    .dash-head{display:flex;align-items:center;gap:.75rem;padding-bottom:1.1rem;margin-bottom:1.5rem;border-bottom:1px solid var(--line)}
-    .dash-head .logo-slot.small img,.dash-head .logo-slot.small svg{width:34px;height:34px}
-    .dash-name{font-family:var(--display);font-size:1rem;letter-spacing:.08em;text-transform:uppercase;color:#fff}
+    /* ---------- TOP-MIDDLE LOGO ---------- */
+    .top-logo{display:flex;justify-content:center;align-items:center;margin-top:1.6rem;margin-bottom:1.1rem}
+    .top-logo img{height:104px;width:auto;max-width:100%;object-fit:contain;display:block;
+      filter:drop-shadow(0 0 40px rgba(255,255,255,.15))}
+    .top-logo.small{margin:0 0 1.4rem}
+    .top-logo.small img{height:46px;filter:none}
+    .logo-status{text-align:center;font-size:.56rem;letter-spacing:.12em;color:var(--dim-2);text-transform:uppercase;margin-bottom:1rem;word-break:break-all}
 
     .brand{font-family:var(--display);font-weight:900;font-size:2.05rem;line-height:1;text-align:center;letter-spacing:.03em;color:#fff;margin-bottom:1.05rem;text-transform:uppercase}
-    .tagline{text-align:center;font-size:.68rem;font-weight:500;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;margin-bottom:2.4rem}
+    .tagline{text-align:center;font-size:.68rem;font-weight:500;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;margin-bottom:2.2rem}
     .field-label{display:flex;align-items:center;gap:.55rem;font-size:.7rem;font-weight:700;letter-spacing:.22em;color:#dcdcdc;text-transform:uppercase;margin-bottom:.7rem}
     .field-label::before{content:"";width:9px;height:9px;background:#fff;display:inline-block}
     .input-shell{display:flex;align-items:stretch;background:#0b0b0b;border:1px solid var(--line-2);transition:border-color .18s}
@@ -84,18 +88,16 @@
     .maint{border:1px solid #ffffff;background:#0a0a0a;padding:2rem 1.5rem;text-align:center;margin-top:1rem}
     .maint h3{font-family:var(--display);font-size:1.05rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.9rem}
     .maint p{color:var(--dim);font-size:.8rem;line-height:1.8;letter-spacing:.04em}
-    @media(max-width:480px){.strip{border:none;padding:1.2rem 1.4rem 2rem}.brand{font-size:1.7rem}.logo-slot.big img,.logo-slot.big svg{width:112px;height:112px}}
+    @media(max-width:480px){.strip{border:none;padding:1.8rem 1.4rem 2rem}.brand{font-size:1.7rem}.top-logo img{height:88px}}
   </style>
 </head>
 <body>
 
   <div class="strip">
-    <div class="topbar">
-      <span class="lang">
-        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm6.9 6h-2.95a15.6 15.6 0 00-1.4-3.6A8 8 0 0118.9 8zM12 4c.8 1.2 1.4 2.6 1.8 4h-3.6c.4-1.4 1-2.8 1.8-4zM4.3 14a8 8 0 010-4h3.3a17 17 0 000 4H4.3zm.8 2h2.95c.35 1.3.82 2.5 1.4 3.6A8 8 0 015.1 16zm2.95-8H5.1a8 8 0 014.35-3.6A15.6 15.6 0 008.05 8zM12 20c-.8-1.2-1.4-2.6-1.8-4h3.6c-.4 1.4-1 2.8-1.8 4zm2.2-6H9.8a15 15 0 010-4h4.4a15 15 0 010 4zm.35 5.6c.58-1.1 1.05-2.3 1.4-3.6h2.95a8 8 0 01-4.35 3.6zm1.85-5.6a17 17 0 000-4h3.3a8 8 0 010 4h-3.3z"/></svg>
-        EN
-      </span>
-    </div>
+    <span class="lang">
+      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm6.9 6h-2.95a15.6 15.6 0 00-1.4-3.6A8 8 0 0118.9 8zM12 4c.8 1.2 1.4 2.6 1.8 4h-3.6c.4-1.4 1-2.8 1.8-4zM4.3 14a8 8 0 010-4h3.3a17 17 0 000 4H4.3zm.8 2h2.95c.35 1.3.82 2.5 1.4 3.6A8 8 0 015.1 16zm2.95-8H5.1a8 8 0 014.35-3.6A15.6 15.6 0 008.05 8zM12 20c-.8-1.2-1.4-2.6-1.8-4h3.6c-.4 1.4-1 2.8-1.8 4zm2.2-6H9.8a15 15 0 010-4h4.4a15 15 0 010 4zm.35 5.6c.58-1.1 1.05-2.3 1.4-3.6h2.95a8 8 0 01-4.35 3.6zm1.85-5.6a17 17 0 000-4h3.3a8 8 0 010 4h-3.3z"/></svg>
+      EN
+    </span>
 
     <div id="maintenanceView" class="hidden">
       <div class="maint">
@@ -105,16 +107,12 @@
     </div>
 
     <div id="unlockView">
-      <div class="logo-slot big">
-        <img class="logo-img" alt="CYBER X SILENT" hidden>
-        <svg class="logo-fallback" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
-          <path fill="#ffffff" d="M110 40C78 40 64 66 64 100L64 158L76 146L87 158L98 146L110 158L122 146L133 158L144 146L156 158L156 100C156 66 142 40 110 40Z"/>
-          <g stroke="#000000" stroke-width="7" stroke-linecap="round">
-            <line x1="79" y1="96" x2="99" y2="116"/><line x1="99" y1="96" x2="79" y2="116"/>
-            <line x1="121" y1="96" x2="141" y2="116"/><line x1="141" y1="96" x2="121" y2="116"/>
-          </g>
-        </svg>
+      <!-- YOUR LOGO — TOP MIDDLE -->
+      <div class="top-logo">
+        <img id="brandLogo" src="logo/logo.png" alt="CYBER X SILENT">
       </div>
+      <div id="logoStatus" class="logo-status">logo: searching...</div>
+
       <h1 class="brand">Cyber X Silent</h1>
       <p class="tagline">No account. No password. Just your key.</p>
 
@@ -130,18 +128,9 @@
     </div>
 
     <div id="dashboardView" class="hidden">
-      <div class="dash-head">
-        <div class="logo-slot small">
-          <img class="logo-img" alt="" hidden>
-          <svg class="logo-fallback" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
-            <path fill="#ffffff" d="M110 40C78 40 64 66 64 100L64 158L76 146L87 158L98 146L110 158L122 146L133 158L144 146L156 158L156 100C156 66 142 40 110 40Z"/>
-            <g stroke="#000000" stroke-width="5" stroke-linecap="round">
-              <line x1="79" y1="96" x2="99" y2="116"/><line x1="99" y1="96" x2="79" y2="116"/>
-              <line x1="121" y1="96" x2="141" y2="116"/><line x1="141" y1="96" x2="121" y2="116"/>
-            </g>
-          </svg>
-        </div>
-        <span class="dash-name">Cyber X Silent</span>
+      <!-- YOUR LOGO — TOP MIDDLE -->
+      <div class="top-logo small">
+        <img src="logo/logo.png" alt="CYBER X SILENT">
       </div>
 
       <div class="tabs">
@@ -184,40 +173,50 @@
     const BACKEND_URL = "https://cyber-x-silent-server.onrender.com";
     let rawSubUrl = "";
 
-    /* ===== LOGO =====
-       Put an image named logo.<ext> in frontend/logo/  (logo.png / .jpg / .webp / .svg / .gif ...)
-       If your file has a different name, set LOGO_FILE to its path, e.g. "logo/cyber.png". */
-    const LOGO_FILE = ""; // <-- optional hard override
+    /* ============ LOGO ============
+       Put your image at:  frontend/logo/logo.png
+       (other names/extensions and ../logo/ are auto-tried too)
+       Force an exact file with LOGO_FILE if you want. */
+    const LOGO_FILE = ""; // e.g. "logo/mylogo.png"
 
-    const LOGO_CANDIDATES = LOGO_FILE ? [LOGO_FILE] : [
-      "logo/logo.png","logo/logo.jpg","logo/logo.jpeg","logo/logo.jfif","logo/logo.webp",
-      "logo/logo.gif","logo/logo.apng","logo/logo.svg","logo/logo.avif","logo/logo.ico",
-      "logo/logo.bmp","logo/logo.tif","logo/logo.tiff","logo/logo",
-      "logo/LOGO.png","logo/Logo.png","logo/logo.PNG","logo/logo.JPG","logo/logo.JPEG"
+    const NAMES = [
+      "logo.png","logo.jpg","logo.jpeg","logo.webp","logo.gif","logo.svg",
+      "logo.avif","logo.ico","logo.bmp","logo.jfif","logo","LOGO.png","Logo.png","logo.PNG","logo.JPG"
     ];
+    const DIRS = ["logo/", "../logo/", "", "../"];
+    const CANDIDATES = LOGO_FILE ? [LOGO_FILE] : DIRS.flatMap(d => NAMES.map(n => d + n));
+
+    const setStatus = t => { const e = document.getElementById('logoStatus'); if (e) e.textContent = t; };
 
     function applyLogo(url){
-      console.log("[logo] using:", url);
-      document.querySelectorAll('.logo-img').forEach(img => { img.src = url; img.hidden = false; });
-      document.querySelectorAll('.logo-fallback').forEach(el => el.hidden = true);
+      document.querySelectorAll('.top-logo img').forEach(i => i.src = url);
       let fav = document.querySelector("link[rel='icon']");
       if(!fav){ fav = document.createElement('link'); fav.rel='icon'; document.head.appendChild(fav); }
       fav.href = url;
+      setStatus("logo: " + url);
+      console.log("[logo] loaded ->", url);
     }
 
-    function resolveLogo(i = 0){
-      if(i >= LOGO_CANDIDATES.length){ console.warn("[logo] none found in /logo/ — keeping ghost fallback"); return; }
-      const url = LOGO_CANDIDATES[i];
-      const test = new Image();
-      test.onload = () => { console.log("[logo] try", url, "-> ok"); test.naturalWidth > 0 ? applyLogo(url) : resolveLogo(i+1); };
-      test.onerror = () => { console.log("[logo] try", url, "-> 404"); resolveLogo(i+1); };
-      test.src = url;
+    function probe(url){
+      return new Promise(res => {
+        const im = new Image();
+        im.onload  = () => res(im.naturalWidth > 0 ? url : null);
+        im.onerror = () => res(null);
+        im.src = url;
+      });
+    }
+
+    async function findLogo(){
+      if (LOGO_FILE && await probe(LOGO_FILE)) return applyLogo(LOGO_FILE);
+      for (const url of CANDIDATES) { if (await probe(url)) return applyLogo(url); }
+      setStatus("logo: not found — put image at frontend/logo/logo.png");
+      console.warn("[logo] nothing found at frontend/logo/logo.png");
     }
 
     function normalizeKey(v){ return (v || "").replace(/\s+/g, "").toUpperCase(); }
 
     window.addEventListener('DOMContentLoaded', () => {
-      resolveLogo();
+      findLogo();
       (async () => {
         try {
           const res = await fetch(`${BACKEND_URL}/api/maintenance-status`);
@@ -243,7 +242,7 @@
       const errorMsg = document.getElementById('errorMsg');
       errorMsg.innerText = "";
 
-      const key = normalizeKey(input.value);   // <-- FIX: force uppercase + strip spaces
+      const key = normalizeKey(input.value);
       input.value = key;
 
       if (!key) { errorMsg.innerText = "Please enter your access key."; return; }
