@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CYBER X SILENT</title>
+  <link rel="icon" href="data:,">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -20,6 +21,7 @@
       --display:'Archivo Black',sans-serif;
     }
     *{margin:0;padding:0;box-sizing:border-box}
+    [hidden]{display:none !important}
     html,body{height:100%}
     body{
       background:var(--bg);
@@ -32,7 +34,6 @@
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='230' height='230' viewBox='0 0 220 220'%3E%3Cpath fill='%230a0a0a' d='M110 40C78 40 64 66 64 100L64 158L76 146L87 158L98 146L110 158L122 146L133 158L144 146L156 158L156 100C156 66 142 40 110 40Z'/%3E%3C/svg%3E");
       background-size:230px 230px;
     }
-    /* faint vignette so the watermark reads */
     body::before{
       content:"";position:fixed;inset:0;pointer-events:none;
       background:radial-gradient(circle at 50% 0%, rgba(0,0,0,0) 0%, rgba(0,0,0,.85) 78%);
@@ -53,16 +54,27 @@
       z-index:1;
     }
 
-    /* top bar */
     .topbar{display:flex;justify-content:flex-end;align-items:center;gap:.4rem;margin-bottom:2rem}
     .lang{display:inline-flex;align-items:center;gap:.45rem;font-size:.72rem;font-weight:700;letter-spacing:.14em;color:var(--dim);border:1px solid var(--line-2);border-radius:99px;padding:.35rem .7rem}
     .lang svg{width:12px;height:12px;fill:var(--dim)}
 
     .hidden{display:none !important}
 
-    /* mascot */
-    .mascot{display:flex;justify-content:center;margin-bottom:.4rem}
-    .mascot svg{width:132px;height:132px;filter:drop-shadow(0 0 44px rgba(255,255,255,.16))}
+    /* ---------- LOGO ---------- */
+    .logo-slot{display:flex;align-items:center;justify-content:center}
+    .logo-slot img{display:block;object-fit:contain}
+    .logo-slot svg{display:block}
+
+    .logo-slot.big{margin-bottom:.9rem}
+    .logo-slot.big img,.logo-slot.big svg{width:132px;height:132px;filter:drop-shadow(0 0 44px rgba(255,255,255,.16))}
+
+    .dash-head{
+      display:flex;align-items:center;gap:.75rem;
+      padding-bottom:1.1rem;margin-bottom:1.5rem;
+      border-bottom:1px solid var(--line);
+    }
+    .dash-head .logo-slot.small img,.dash-head .logo-slot.small svg{width:34px;height:34px}
+    .dash-name{font-family:var(--display);font-size:1rem;letter-spacing:.08em;text-transform:uppercase;color:#fff}
 
     .brand{
       font-family:var(--display);
@@ -85,7 +97,6 @@
       margin-bottom:2.4rem;
     }
 
-    /* field */
     .field-label{
       display:flex;align-items:center;gap:.55rem;
       font-size:.7rem;font-weight:700;letter-spacing:.22em;
@@ -129,9 +140,7 @@
     .error-box{color:#fff;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-align:center;margin-top:1rem;min-height:1rem;text-transform:uppercase}
 
     .foot{margin-top:1.6rem;text-align:center;font-size:.7rem;letter-spacing:.08em;color:var(--dim-2);line-height:1.9}
-    .foot a{color:var(--dim);text-decoration:none}
 
-    /* dashboard */
     .tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--line);margin-bottom:1.8rem}
     .tab-btn{
       flex:1;background:transparent;border:none;cursor:pointer;
@@ -181,7 +190,7 @@
     @media(max-width:480px){
       .strip{border:none;padding:1.2rem 1.4rem 2rem}
       .brand{font-size:1.7rem}
-      .mascot svg{width:112px;height:112px}
+      .logo-slot.big img,.logo-slot.big svg{width:112px;height:112px}
     }
   </style>
 </head>
@@ -205,8 +214,9 @@
 
     <!-- UNLOCK VIEW -->
     <div id="unlockView">
-      <div class="mascot">
-        <svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+      <div class="logo-slot big">
+        <img class="logo-img" alt="CYBER X SILENT" hidden>
+        <svg class="logo-fallback" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
           <path fill="#ffffff" d="M110 40C78 40 64 66 64 100L64 158L76 146L87 158L98 146L110 158L122 146L133 158L144 146L156 158L156 100C156 66 142 40 110 40Z"/>
           <g stroke="#000000" stroke-width="7" stroke-linecap="round">
             <line x1="79" y1="96" x2="99" y2="116"/>
@@ -233,13 +243,28 @@
     <!-- DASHBOARD VIEW -->
     <div id="dashboardView" class="hidden">
 
+      <div class="dash-head">
+        <div class="logo-slot small">
+          <img class="logo-img" alt="" hidden>
+          <svg class="logo-fallback" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#ffffff" d="M110 40C78 40 64 66 64 100L64 158L76 146L87 158L98 146L110 158L122 146L133 158L144 146L156 158L156 100C156 66 142 40 110 40Z"/>
+            <g stroke="#000000" stroke-width="5" stroke-linecap="round">
+              <line x1="79" y1="96" x2="99" y2="116"/>
+              <line x1="99" y1="96" x2="79" y2="116"/>
+              <line x1="121" y1="96" x2="141" y2="116"/>
+              <line x1="141" y1="96" x2="121" y2="116"/>
+            </g>
+          </svg>
+        </div>
+        <span class="dash-name">Cyber X Silent</span>
+      </div>
+
       <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('proxyTab', this)">Proxy</button>
         <button class="tab-btn" onclick="switchTab('setupTab', this)">Setup</button>
         <button class="tab-btn" onclick="switchTab('contactTab', this)">Contact</button>
       </div>
 
-      <!-- TAB 1 -->
       <div id="proxyTab">
         <div class="status"><span class="dot"></span> Active Subscription</div>
 
@@ -255,7 +280,6 @@
         <button class="btn btn-ghost" onclick="openHappApp()">🚀 Open Happ</button>
       </div>
 
-      <!-- TAB 2 -->
       <div id="setupTab" class="hidden">
         <div class="setup-box">
           <h3>How to Connect</h3>
@@ -267,7 +291,6 @@
         </div>
       </div>
 
-      <!-- TAB 3 -->
       <div id="contactTab" class="hidden">
         <div class="contact-card">
           <div class="t">Telegram</div>
@@ -286,18 +309,55 @@
     const BACKEND_URL = "https://cyber-x-silent-server.onrender.com";
     let rawSubUrl = "";
 
-    window.addEventListener('DOMContentLoaded', async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/maintenance-status`);
-        const data = await res.json();
-        if (data && data.enabled) {
-          document.getElementById('unlockView').classList.add('hidden');
-          document.getElementById('maintenanceMsgText').innerText = data.message;
-          document.getElementById('maintenanceView').classList.remove('hidden');
+    /* ---------- AUTO LOGO LOADER ----------
+       Drop ANY image named logo.<ext> into frontend/logo/ and it
+       becomes the site logo + favicon automatically. If none is found,
+       the built-in ghost logo stays. */
+    const LOGO_CANDIDATES = [
+      "logo/logo.png", "logo/logo.jpg", "logo/logo.jpeg", "logo/logo.webp",
+      "logo/logo.gif", "logo/logo.svg", "logo/logo.avif", "logo/logo.ico",
+      "logo/logo.bmp", "logo/logo",
+      "logo/LOGO.png", "logo/Logo.png", "logo/logo.PNG", "logo/logo.JPG"
+    ];
+
+    function applyLogo(url) {
+      document.querySelectorAll('.logo-img').forEach(img => {
+        img.src = url;
+        img.hidden = false;
+      });
+      document.querySelectorAll('.logo-fallback').forEach(el => el.hidden = true);
+
+      let fav = document.querySelector("link[rel='icon']");
+      if (!fav) { fav = document.createElement('link'); fav.rel = 'icon'; document.head.appendChild(fav); }
+      fav.href = url;
+    }
+
+    function resolveLogo(i = 0) {
+      if (i >= LOGO_CANDIDATES.length) return; // keep ghost fallback
+      const url = LOGO_CANDIDATES[i];
+      const test = new Image();
+      test.onload = () => { if (test.naturalWidth > 0) applyLogo(url); else resolveLogo(i + 1); };
+      test.onerror = () => resolveLogo(i + 1);
+      test.src = url;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      resolveLogo();
+
+      // maintenance check
+      (async () => {
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/maintenance-status`);
+          const data = await res.json();
+          if (data && data.enabled) {
+            document.getElementById('unlockView').classList.add('hidden');
+            document.getElementById('maintenanceMsgText').innerText = data.message;
+            document.getElementById('maintenanceView').classList.remove('hidden');
+          }
+        } catch (err) {
+          console.error("Could not check maintenance status");
         }
-      } catch (err) {
-        console.error("Could not check maintenance status");
-      }
+      })();
     });
 
     function pasteKey() {
