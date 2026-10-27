@@ -2,8 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 
 const app = express();
+app.set('trust proxy', true);
 app.use(express.json());
 app.use(cors());
 
@@ -11,11 +13,7 @@ const KEYS_FILE = path.join(__dirname, 'keys.json');
 const MAINTENANCE_FILE = path.join(__dirname, 'maintenance.json');
 const ADMIN_SECRET_PASS = "ANSHU-BHAI-CYBER";
 
-// ============================================================
-//  HAPP PROVIDER ID  (optional, but required for "hide config" +
-//  "auto-update on open" to be enforced by the Happ app)
-//  Register free at https://happ-proxy.com and paste your ID here.
-// ============================================================
+// Optional but recommended: paste your happ-proxy.com Provider ID.
 const HAPP_PROVIDER_ID = ""; // e.g. "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 
 // YOUR HYSTERIA & GAME ROUTING CONFIGURATION
@@ -102,8 +100,64 @@ function readMaintenance() {
   try { return JSON.parse(fs.readFileSync(MAINTENANCE_FILE, 'utf8')); } catch (e) { return { enabled: false, message: "System under maintenance." }; }
 }
 
+/* ============================================================
+   HAPP ENCRYPTED LINK  (hides the URL + the JSON config in-app)
+   ============================================================ */
+const happLinkCache = new Map(); // key -> happ://crypt5/... link
+
+function baseUrl(req) {
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  return `${proto}://${req.get('host')}`;
+}
+
+function encryptHappLink(subUrl) {
+  return new Promise((resolve) => {
+    const body = JSON.stringify({ url: subUrl });
+    const req = https.request({
+      hostname: 'crypto.happ.su',
+      path: '/api-v2.php',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body)
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const j = JSON.parse(data);
+          resolve(j && j.encrypted_link ? j.encrypted_link : null);
+        } catch (e) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(9000, () => { req.destroy(); resolve(null); });
+    req.write(body);
+    req.end();
+  });
+}
+
 app.get('/api/maintenance-status', (req, res) => {
   res.json(readMaintenance());
+});
+
+// Returns the encrypted happ:// link for a valid key (cached).
+app.get('/api/happ-link', async (req, res) => {
+  const { key } = req.query;
+  if (!key) return res.json({ ok: false, reason: 'no-key' });
+
+  const record = readKeys().find(k => k.key === key);
+  if (!record || new Date() > new Date(record.expiresAt)) return res.json({ ok: false, reason: 'invalid' });
+
+  const subUrl = `${baseUrl(req)}/sub?key=${encodeURIComponent(key)}`;
+
+  if (happLinkCache.has(key)) return res.json({ ok: true, link: happLinkCache.get(key), raw: subUrl });
+
+  const link = await encryptHappLink(subUrl);
+  if (link) happLinkCache.set(key, link);
+  // If Happ's service is down, fall back to the raw URL (frontend still works).
+  return res.json({ ok: !!link, link: link || subUrl, raw: subUrl, encrypted: !!link });
 });
 
 // -------------------------------------------------------------
@@ -112,15 +166,11 @@ app.get('/api/maintenance-status', (req, res) => {
 app.get('/sub', (req, res) => {
   const m = readMaintenance();
 
-  // ---- Happ client-management headers (do NOT touch routing/addresses) ----
-  // 1) auto-update the profile every 1 hour
-  res.setHeader('profile-update-interval', '1');
-  // 2) force auto-update on + refresh the subscription on every app launch
+  // ---- Happ client-management headers ----
+  res.setHeader('profile-update-interval', '1');                 // auto-update every 1 hour
   res.setHeader('subscription-auto-update-enable', '1');
-  res.setHeader('subscription-auto-update-open-enable', '1');
-  // 3) HIDE the JSON / server settings from the user inside the Happ app
-  res.setHeader('hide-settings', '1');
-  // 4) tie the subscription to your Happ provider account (needed for 2 & 3)
+  res.setHeader('subscription-auto-update-open-enable', '1');    // refresh on every app launch
+  res.setHeader('hide-settings', '1');                           // hide config (needs provider id)
   if (HAPP_PROVIDER_ID) res.setHeader('providerid', HAPP_PROVIDER_ID);
   res.setHeader('content-disposition', 'attachment; filename="cyber-x-silent"');
   res.setHeader('Content-Type', 'application/json');
@@ -145,7 +195,6 @@ app.get('/sub', (req, res) => {
     }
   }
 
-  // Minified single-line payload.
   return res.status(200).send(JSON.stringify(targetConfig));
 });
 
@@ -191,7 +240,6 @@ app.post('/api/admin/create-key', (req, res) => {
 app.post('/api/admin/list-keys', (req, res) => {
   const { adminPass } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized" });
-  // Returns EVERY key in the database (active + expired), newest first.
   const keys = readKeys().sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   return res.json({ keys, maintenance: readMaintenance() });
 });
@@ -203,6 +251,7 @@ app.post('/api/admin/revoke-key', (req, res) => {
   let keys = readKeys();
   keys = keys.filter(k => k.key !== key);
   fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2));
+  happLinkCache.delete(key);
   return res.json({ success: true, message: `Key ${key} revoked instantly.` });
 });
 
