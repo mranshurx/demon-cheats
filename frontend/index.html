@@ -3,414 +3,257 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CYBER X SILENT</title>
-  <link rel="icon" href="data:,">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <title>CYBER X SILENT — Admin Control Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root{
-      --bg:#000000;--strip:#060606;--line:#171717;--line-2:#232323;
-      --txt:#f4f4f4;--dim:#6d6d6d;--dim-2:#3a3a3a;
-      --mono:'JetBrains Mono',monospace;--display:'Archivo Black',sans-serif;
-    }
-    *{margin:0;padding:0;box-sizing:border-box}
-    [hidden]{display:none !important}
-    html,body{height:100%}
-    body{
-      background:var(--bg);color:var(--txt);font-family:var(--mono);
-      display:flex;justify-content:center;min-height:100vh;-webkit-font-smoothing:antialiased;
-      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='230' height='230' viewBox='0 0 220 220'%3E%3Cpath fill='%230a0a0a' d='M110 40C78 40 64 66 64 100L64 158L76 146L87 158L98 146L110 158L122 146L133 158L144 146L156 158L156 100C156 66 142 40 110 40Z'/%3E%3C/svg%3E");
-      background-size:230px 230px;
-    }
-    body::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 0%, rgba(0,0,0,0) 0%, rgba(0,0,0,.85) 78%)}
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+    body { background: #030712; color: #f3f4f6; min-height: 100vh; padding: 2rem; background-image: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #030712 80%); }
+    .container { max-width: 800px; margin: 0 auto; background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px; padding: 2.5rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
 
-    .strip{
-      position:relative;width:100%;max-width:460px;min-height:100vh;background:var(--strip);
-      border-left:1px solid var(--line);border-right:1px solid var(--line);
-      padding:2.2rem 1.9rem 2.2rem;display:flex;flex-direction:column;
-      justify-content:flex-start;z-index:1;
-    }
-    .lang{position:absolute;top:1.3rem;right:1.6rem;display:inline-flex;align-items:center;gap:.45rem;font-size:.72rem;font-weight:700;letter-spacing:.14em;color:var(--dim);border:1px solid var(--line-2);border-radius:99px;padding:.35rem .7rem}
-    .lang svg{width:12px;height:12px;fill:var(--dim)}
-    .hidden{display:none !important}
+    h1 { font-size: 2rem; font-weight: 800; color: #fff; background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; margin-bottom: 2rem; }
 
-    /* ---------- TOP-MIDDLE LOGO ---------- */
-    .top-logo{display:flex;justify-content:center;align-items:center;margin-top:1.6rem;margin-bottom:1.1rem}
-    .top-logo img{height:104px;width:auto;max-width:100%;object-fit:contain;display:block;
-      filter:drop-shadow(0 0 40px rgba(255,255,255,.15))}
-    .top-logo.small{margin:0 0 1.4rem}
-    .top-logo.small img{height:46px;filter:none}
+    .hidden { display: none !important; }
+    .form-group { margin-bottom: 1.25rem; text-align: left; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; color: #9ca3af; margin-bottom: 0.5rem; }
+    input, select, textarea { width: 100%; padding: 0.85rem 1rem; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(3, 7, 18, 0.6); color: #fff; font-size: 0.95rem; outline: none; }
+    input:focus, select:focus, textarea:focus { border-color: #38bdf8; }
 
-    .brand{font-family:var(--display);font-weight:900;font-size:2.05rem;line-height:1;text-align:center;letter-spacing:.03em;color:#fff;margin-bottom:1.05rem;text-transform:uppercase}
-    .tagline{text-align:center;font-size:.68rem;font-weight:500;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;margin-bottom:2.2rem}
-    .field-label{display:flex;align-items:center;gap:.55rem;font-size:.7rem;font-weight:700;letter-spacing:.22em;color:#dcdcdc;text-transform:uppercase;margin-bottom:.7rem}
-    .field-label::before{content:"";width:9px;height:9px;background:#fff;display:inline-block}
-    .input-shell{display:flex;align-items:stretch;background:#0b0b0b;border:1px solid var(--line-2);transition:border-color .18s}
-    .input-shell:focus-within{border-color:#4a4a4a}
-    #keyInput{flex:1;min-width:0;background:transparent;border:none;outline:none;color:#fff;font-family:var(--mono);font-size:.86rem;font-weight:500;letter-spacing:.08em;padding:1.05rem 1rem;text-transform:uppercase}
-    #keyInput::placeholder{color:var(--dim-2);text-transform:uppercase}
-    .paste-btn{background:#0f0f0f;border:none;border-left:1px solid var(--line-2);color:#cfcfcf;font-family:var(--mono);font-size:.7rem;font-weight:700;letter-spacing:.16em;padding:0 1.15rem;cursor:pointer;text-transform:uppercase;transition:background .18s,color .18s}
-    .paste-btn:hover{background:#171717;color:#fff}
-    .unlock{width:100%;margin-top:1.1rem;padding:1.1rem;background:#ffffff;color:#000;border:none;cursor:pointer;font-family:var(--display);font-size:1.05rem;letter-spacing:.14em;text-transform:uppercase;transition:opacity .16s,transform .16s}
-    .unlock:hover{opacity:.9}
-    .unlock:active{transform:translateY(1px)}
-    .error-box{color:#fff;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-align:center;margin-top:1rem;min-height:1rem;text-transform:uppercase}
-    .foot{margin-top:1.6rem;text-align:center;font-size:.7rem;letter-spacing:.08em;color:var(--dim-2);line-height:1.9}
+    .btn { width: 100%; padding: 1rem; border-radius: 12px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.2s; }
+    .btn-login { background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%); color: #fff; margin-top: 1rem; }
+    .btn-create { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; margin-top: 0.5rem; }
+    .btn-maintenance { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #fff; margin-top: 0.75rem; }
+    .btn-revoke { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); padding: 0.4rem 0.8rem; font-size: 0.75rem; border-radius: 8px; width: auto; }
+    .btn-revoke:hover { background: rgba(239, 68, 68, 0.4); }
 
-    .tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--line);margin-bottom:1.8rem}
-    .tab-btn{flex:1;background:transparent;border:none;cursor:pointer;font-family:var(--mono);font-size:.72rem;font-weight:700;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;padding:.85rem .2rem;position:relative;transition:color .16s}
-    .tab-btn:hover{color:#bdbdbd}
-    .tab-btn.active{color:#fff}
-    .tab-btn.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#fff}
-    .status{display:inline-flex;align-items:center;gap:.55rem;font-size:.68rem;font-weight:700;letter-spacing:.2em;color:#e6e6e6;text-transform:uppercase;margin-bottom:1.3rem}
-    .dot{width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 12px rgba(255,255,255,.7);animation:pulse 1.8s infinite}
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-    .panel-box{background:#0a0a0a;border:1px solid var(--line);padding:1.15rem;margin-bottom:.9rem}
-    .row{display:flex;justify-content:space-between;gap:1rem;font-size:.78rem;margin-bottom:.85rem}
-    .row:last-child{margin-bottom:0}
-    .row .k{color:var(--dim);letter-spacing:.06em;text-transform:uppercase;font-size:.7rem}
-    .row .v{color:#fff;font-weight:700;letter-spacing:.04em;text-align:right;word-break:break-all}
-    .row .v.live{color:#4ade80}
-    .feature{display:block;text-align:center;background:transparent;border:1px solid var(--line-2);color:#eaeaea;font-size:.72rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;padding:.8rem;margin:.3rem 0 1.1rem}
-    .btn{width:100%;padding:1rem;border:none;cursor:pointer;font-family:var(--mono);font-size:.78rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;transition:opacity .16s,background .16s,color .16s}
-    .btn-primary{background:#fff;color:#000;margin-bottom:.7rem}
-    .btn-primary:hover{opacity:.9}
-    .btn-ghost{background:transparent;color:#eaeaea;border:1px solid var(--line-2)}
-    .btn-ghost:hover{background:#111;color:#fff}
-    .setup-box{background:#0a0a0a;border:1px solid var(--line);padding:1.4rem}
-    .setup-box h3{font-size:.75rem;letter-spacing:.2em;text-transform:uppercase;color:#fff;margin-bottom:1rem;font-weight:700}
-    .setup-box ol{padding-left:1.15rem;color:var(--dim);font-size:.78rem;line-height:2}
-    .setup-box ol b{color:#fff}
-    .contact-card{background:#0a0a0a;border:1px solid var(--line);padding:1.15rem;margin-bottom:.9rem}
-    .contact-card .t{font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim-2);margin-bottom:.4rem;font-weight:700}
-    .contact-card .c{font-size:.95rem;font-weight:700;color:#fff;letter-spacing:.06em}
-    .maint{border:1px solid #ffffff;background:#0a0a0a;padding:2rem 1.5rem;text-align:center;margin-top:1rem}
-    .maint h3{font-family:var(--display);font-size:1.05rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.9rem}
-    .maint p{color:var(--dim);font-size:.8rem;line-height:1.8;letter-spacing:.04em}
-    @media(max-width:480px){.strip{border:none;padding:1.8rem 1.4rem 2rem}.brand{font-size:1.7rem}.top-logo img{height:88px}}
+    .section-card { background: rgba(3, 7, 18, 0.4); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; }
+    .section-title { font-size: 1rem; font-weight: 700; color: #38bdf8; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; border-radius: 12px; overflow: hidden; }
+    th, td { padding: 0.9rem 1rem; text-align: left; font-size: 0.82rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+    th { background: rgba(3, 7, 18, 0.8); color: #38bdf8; font-weight: 700; }
+    td { background: rgba(17, 24, 39, 0.4); }
+    .key-code { font-family: monospace; font-weight: 700; color: #4ade80; }
+    .badge { display: inline-block; padding: 0.25rem 0.6rem; border-radius: 99px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+    .badge-active { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); }
+    .badge-expired { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); }
+    .badge-pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); }
+    .key-count { font-size: 0.8rem; color: #9ca3af; font-weight: 600; }
   </style>
 </head>
 <body>
+  <div class="container">
+    <h1>CYBER ADMIN PANEL</h1>
 
-  <div class="strip">
-    <span class="lang">
-      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm6.9 6h-2.95a15.6 15.6 0 00-1.4-3.6A8 8 0 0118.9 8zM12 4c.8 1.2 1.4 2.6 1.8 4h-3.6c.4-1.4 1-2.8 1.8-4zM4.3 14a8 8 0 010-4h3.3a17 17 0 000 4H4.3zm.8 2h2.95c.35 1.3.82 2.5 1.4 3.6A8 8 0 015.1 16zm2.95-8H5.1a8 8 0 014.35-3.6A15.6 15.6 0 008.05 8zM12 20c-.8-1.2-1.4-2.6-1.8-4h3.6c-.4 1.4-1 2.8-1.8 4zm2.2-6H9.8a15 15 0 010-4h4.4a15 15 0 010 4zm.35 5.6c.58-1.1 1.05-2.3 1.4-3.6h2.95a8 8 0 01-4.35 3.6zm1.85-5.6a17 17 0 000-4h3.3a8 8 0 010 4h-3.3z"/></svg>
-      EN
-    </span>
-
-    <div id="maintenanceView" class="hidden">
-      <div class="maint">
-        <h3>⚠ SYSTEM MAINTENANCE</h3>
-        <p id="maintenanceMsgText"></p>
+    <!-- LOGIN VIEW -->
+    <div id="loginView">
+      <div class="form-group">
+        <label>Admin Secret Password</label>
+        <input type="password" id="adminPassInput" placeholder="Enter Admin Password">
       </div>
+      <button class="btn btn-login" onclick="adminLogin()">Access Admin Dashboard</button>
+      <div id="loginError" style="color: #f87171; font-size: 0.85rem; margin-top: 1rem; text-align: center;"></div>
     </div>
 
-    <div id="unlockView">
-      <!-- YOUR LOGO — TOP MIDDLE (no status text below) -->
-      <div class="top-logo">
-        <img id="brandLogo" src="logo/logo.png" alt="CYBER X SILENT">
-      </div>
+    <!-- ADMIN DASHBOARD VIEW -->
+    <div id="adminDashboard" class="hidden">
 
-      <h1 class="brand">Cyber X Silent</h1>
-      <p class="tagline">No account. No password. Just your key.</p>
-
-      <div class="field-label">Access Key</div>
-      <div class="input-shell">
-        <input type="text" id="keyInput" placeholder="CYBER-XXXXXX" autocomplete="off" spellcheck="false">
-        <button class="paste-btn" onclick="pasteKey()">Paste</button>
-      </div>
-      <button class="unlock" onclick="unlockPortal()">Unlock</button>
-      <div id="errorMsg" class="error-box"></div>
-
-      <p class="foot">no key? contact your seller.<br>your time starts when you connect.</p>
-    </div>
-
-    <div id="dashboardView" class="hidden">
-      <!-- YOUR LOGO — TOP MIDDLE -->
-      <div class="top-logo small">
-        <img src="logo/logo.png" alt="CYBER X SILENT">
-      </div>
-
-      <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('proxyTab', this)">Proxy</button>
-        <button class="tab-btn" onclick="switchTab('setupTab', this)">Setup</button>
-        <button class="tab-btn" onclick="switchTab('contactTab', this)">Contact</button>
-      </div>
-
-      <div id="proxyTab">
-        <div class="status"><span class="dot"></span> Active Subscription</div>
-        <div class="panel-box">
-          <div class="row"><span class="k">Access Key</span><span class="v" id="displayKey">CYBER-XXXXXX</span></div>
-          <div class="row"><span class="k">Time Left</span><span class="v live" id="displayLeft">—</span></div>
-          <div class="row"><span class="k">Auto Refresh</span><span class="v">Every 1 Hour</span></div>
-          <div class="row"><span class="k">Expires At</span><span class="v" id="displayExpiry">Loading...</span></div>
-          <div class="row"><span class="k">Security</span><span class="v" id="displaySec">Standard</span></div>
+      <!-- MAINTENANCE MODE CONTROL SECTION -->
+      <div class="section-card">
+        <div class="section-title">Maintenance Mode Control</div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="maintStatus">
+            <option value="false">OFF (Normal Operation)</option>
+            <option value="true">ON (Maintenance Active)</option>
+          </select>
         </div>
-        <div class="feature">🎯 Aimbot Legit + Moco</div>
-        <button class="btn btn-primary" onclick="openHappApp()">🚀 ADD TO HAPP</button>
-      </div>
-
-      <div id="setupTab" class="hidden">
-        <div class="setup-box">
-          <h3>How to Connect</h3>
-          <ol>
-            <li>Go back to the <b>PROXY</b> tab and tap <b>Add to Happ</b>.</li>
-            <li>Happ opens and the subscription is added automatically.</li>
-            <li>If it doesn't, open Happ, tap the add (<b>+</b>) icon and choose <b>Clipboard</b>.</li>
-          </ol>
+        <div class="form-group">
+          <label>Maintenance Custom Message</label>
+          <textarea id="maintMessage" rows="3" placeholder="Write message shown to users when maintenance is ON..."></textarea>
         </div>
+        <button class="btn btn-maintenance" onclick="updateMaintenance()">Save & Apply Maintenance State</button>
       </div>
 
-      <div id="contactTab" class="hidden">
-        <div class="contact-card"><div class="t">Telegram</div><div class="c">CYBER X SILENT</div></div>
-        <div class="contact-card"><div class="t">WhatsApp</div><div class="c">CYBER X SILENT</div></div>
+      <!-- KEY GENERATOR SECTION -->
+      <div class="section-card">
+        <div class="section-title">Generate Access Key</div>
+        <div class="form-group">
+          <label>Key Validity Duration (starts when user activates it)</label>
+          <select id="duration">
+            <option value="1">1 Hour Trial</option>
+            <option value="24" selected>24 Hours (1 Day)</option>
+            <option value="168">7 Days</option>
+            <option value="720">30 Days</option>
+          </select>
+        </div>
+        <button class="btn btn-create" onclick="createKey()">Generate New Key</button>
       </div>
+
+      <!-- ALL KEYS TABLE -->
+      <div class="section-card">
+        <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
+          <span>All Database Keys <span id="keyCount" class="key-count"></span></span>
+          <button onclick="loadDashboardData()" style="width: auto; padding: 0.4rem 1rem; background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; font-size: 0.8rem; cursor: pointer;">Refresh List</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Generated Key</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Expires At</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="keyTable">
+            <tr><td colspan="5" style="text-align:center; color:#6b7280;">Loading keys...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
     </div>
   </div>
 
   <script>
     const BACKEND_URL = "https://cyber-x-silent-server.onrender.com";
-    const STORAGE_KEY = "cyber_x_silent_session";
+    let storedAdminPass = "";
 
-    let rawSubUrl = "";
-    let happLink = "";
-    let activeKey = "";
-    let expiryTimer = null;
-    let countdownTimer = null;
-    let expiresAtMs = 0;
+    async function adminLogin() {
+      const pass = document.getElementById('adminPassInput').value.trim();
+      const errBox = document.getElementById('loginError');
+      errBox.innerText = "";
 
-    /* ============ LOGO (no status text) ============ */
-    const LOGO_FILE = "";
-    const NAMES = [
-      "logo.png","logo.jpg","logo.jpeg","logo.webp","logo.gif","logo.svg",
-      "logo.avif","logo.ico","logo.bmp","logo.jfif","logo","LOGO.png","Logo.png","logo.PNG","logo.JPG"
-    ];
-    const DIRS = ["logo/", "../logo/", "", "../"];
-    const CANDIDATES = LOGO_FILE ? [LOGO_FILE] : DIRS.flatMap(d => NAMES.map(n => d + n));
-
-    function applyLogo(url){
-      document.querySelectorAll('.top-logo img').forEach(i => i.src = url);
-      let fav = document.querySelector("link[rel='icon']");
-      if(!fav){ fav = document.createElement('link'); fav.rel='icon'; document.head.appendChild(fav); }
-      fav.href = url;
-    }
-    function probe(url){
-      return new Promise(res => {
-        const im = new Image();
-        im.onload  = () => res(im.naturalWidth > 0 ? url : null);
-        im.onerror = () => res(null);
-        im.src = url;
-      });
-    }
-    async function findLogo(){
-      if (LOGO_FILE && await probe(LOGO_FILE)) return applyLogo(LOGO_FILE);
-      for (const url of CANDIDATES) { if (await probe(url)) return applyLogo(url); }
-    }
-
-    /* ============ SESSION ============ */
-    function saveSession(key, expiresAt){
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ key, expiresAt })); } catch(e){}
-    }
-    function readSession(){
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if(!raw) return null;
-        const obj = JSON.parse(raw);
-        return (obj && obj.key) ? obj : null;
-      } catch(e){ return null; }
-    }
-    function clearSession(){ try { localStorage.removeItem(STORAGE_KEY); } catch(e){} }
-
-    /* ============ LIVE COUNTDOWN ============ */
-    function startCountdown(){
-      if(countdownTimer) clearInterval(countdownTimer);
-      updateLeft();
-      countdownTimer = setInterval(updateLeft, 1000);
-    }
-    function stopCountdown(){ if(countdownTimer) clearInterval(countdownTimer); countdownTimer = null; }
-    function updateLeft(){
-      const el = document.getElementById('displayLeft');
-      if(!el) return;
-      if(!expiresAtMs){ el.innerText = "—"; return; }
-      let ms = expiresAtMs - Date.now();
-      if(ms <= 0){ el.innerText = "EXPIRED"; return; }
-      const d = Math.floor(ms / 86400000);
-      const h = Math.floor((ms % 86400000) / 3600000);
-      const m = Math.floor((ms % 3600000) / 60000);
-      const s = Math.floor((ms % 60000) / 1000);
-      el.innerText = `${d > 0 ? d + "d " : ""}${h}h ${m}m ${s}s`;
-    }
-
-    /* ============ VIEWS ============ */
-    function showUnlock(){
-      stopCountdown();
-      document.getElementById('dashboardView').classList.add('hidden');
-      document.getElementById('maintenanceView').classList.add('hidden');
-      document.getElementById('unlockView').classList.remove('hidden');
-    }
-    function showMaintenance(msg){
-      document.getElementById('unlockView').classList.add('hidden');
-      document.getElementById('dashboardView').classList.add('hidden');
-      document.getElementById('maintenanceMsgText').innerText = msg || "System under maintenance.";
-      document.getElementById('maintenanceView').classList.remove('hidden');
-    }
-    function showDashboard(key, expiresAt){
-      const changed = (activeKey !== key);
-      activeKey = key;
-      rawSubUrl = `${BACKEND_URL}/sub?key=${encodeURIComponent(key)}`;
-
-      if (changed){ happLink = ""; loadHappLink(key); }
-
-      expiresAtMs = expiresAt ? new Date(expiresAt).getTime() : 0;
-      document.getElementById('displayKey').innerText = key;
-      document.getElementById('displayExpiry').innerText = expiresAt ? new Date(expiresAt).toLocaleString() : "—";
-      document.getElementById('displaySec').innerText = happLink ? "🔒 Encrypted" : "Standard";
-      document.getElementById('maintenanceView').classList.add('hidden');
-      document.getElementById('unlockView').classList.add('hidden');
-      document.getElementById('dashboardView').classList.remove('hidden');
-
-      startCountdown();
-      scheduleExpiry(expiresAt);
-    }
-    function scheduleExpiry(expiresAt){
-      if(expiryTimer) clearTimeout(expiryTimer);
-      if(!expiresAt) return;
-      const ms = new Date(expiresAt).getTime() - Date.now();
-      if(ms <= 0){ logout(); return; }
-      expiryTimer = setTimeout(revalidate, Math.min(ms, 3600000));
-    }
-    function logout(){
-      clearSession();
-      stopCountdown();
-      activeKey = ""; rawSubUrl = ""; happLink = ""; expiresAtMs = 0;
-      document.getElementById('errorMsg').innerText = "";
-      showUnlock();
-    }
-
-    /* ============ NETWORK ============ */
-    async function checkKey(key){
-      const res = await fetch(`${BACKEND_URL}/api/check-key?key=${encodeURIComponent(key)}`);
-      return res.json();
-    }
-    async function getMaintenance(){
-      try { const r = await fetch(`${BACKEND_URL}/api/maintenance-status`); return r.json(); }
-      catch(e){ return { enabled:false }; }
-    }
-    async function loadHappLink(key){
-      try {
-        const r = await fetch(`${BACKEND_URL}/api/happ-link?key=${encodeURIComponent(key)}`);
-        const d = await r.json();
-        if (d && d.ok && d.link) {
-          happLink = d.link;
-          const sec = document.getElementById('displaySec');
-          if (sec) sec.innerText = "🔒 Encrypted";
-        }
-      } catch(e){}
-    }
-
-    function normalizeKey(v){ return (v || "").replace(/\s+/g, "").toUpperCase(); }
-
-    /* ============ AUTH FLOW ============ */
-    async function unlockPortal(){
-      const input = document.getElementById('keyInput');
-      const errorMsg = document.getElementById('errorMsg');
-      errorMsg.innerText = "";
-
-      const key = normalizeKey(input.value);
-      input.value = key;
-      if(!key){ errorMsg.innerText = "Please enter your access key."; return; }
-
-      try {
-        const data = await checkKey(key);
-        if(data.maintenance){ showMaintenance(data.message); return; }
-        if(data.valid){
-          saveSession(data.key, data.expiresAt);
-          showDashboard(data.key, data.expiresAt);
-        } else {
-          errorMsg.innerText = data.message || "Invalid key.";
-        }
-      } catch(err){
-        errorMsg.innerText = "Connection error. Check your server status.";
-      }
-    }
-
-    async function revalidate(){
-      const s = readSession();
-      const key = s ? s.key : activeKey;
-
-      if(!key){
-        const m = await getMaintenance();
-        if(m && !m.enabled) showUnlock();
+      if (!pass) {
+        errBox.innerText = "Please enter the admin password.";
         return;
       }
-      try {
-        const data = await checkKey(key);
-        if(data.maintenance){ showMaintenance(data.message); return; }
-        if(!data.valid){ logout(); return; }
-        saveSession(data.key, data.expiresAt);
-        showDashboard(data.key, data.expiresAt);
-      } catch(err){}
-    }
 
-    async function restoreSession(){
-      const s = readSession();
-      if(!s) return false;
-      if(s.expiresAt && new Date(s.expiresAt).getTime() <= Date.now()){ clearSession(); return false; }
       try {
-        const data = await checkKey(s.key);
-        if(data.maintenance){ showMaintenance(data.message); return true; }
-        if(data.valid){ saveSession(data.key, data.expiresAt); showDashboard(data.key, data.expiresAt); return true; }
-        clearSession();
-        return false;
-      } catch(err){
-        showDashboard(s.key, s.expiresAt);
-        return true;
+        const res = await fetch(`${BACKEND_URL}/api/admin/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminPass: pass })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          storedAdminPass = pass;
+          document.getElementById('loginView').classList.add('hidden');
+          document.getElementById('adminDashboard').classList.remove('hidden');
+          loadDashboardData();
+        } else {
+          errBox.innerText = "Invalid Admin Password! (Hint: ANSHU-BHAI-CYBER)";
+        }
+      } catch (err) {
+        errBox.innerText = "Connection error to backend server.";
       }
     }
 
-    /* ============ BOOT ============ */
-    window.addEventListener('DOMContentLoaded', async () => {
-      findLogo();
+    async function loadDashboardData() {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/admin/list-keys`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminPass: storedAdminPass })
+        });
+        const data = await res.json();
 
-      const m = await getMaintenance();
-      if(m && m.enabled){
-        showMaintenance(m.message);
+        if (data.keys) {
+          if (data.maintenance) {
+            document.getElementById('maintStatus').value = data.maintenance.enabled ? "true" : "false";
+            document.getElementById('maintMessage').value = data.maintenance.message;
+          }
+
+          const table = document.getElementById('keyTable');
+          const countEl = document.getElementById('keyCount');
+          const now = Date.now();
+          const active = data.keys.filter(k => k.expiresAt && new Date(k.expiresAt).getTime() > now).length;
+          const pending = data.keys.filter(k => !k.expiresAt).length;
+
+          countEl.innerText = `(${data.keys.length} total · ${active} active · ${pending} pending)`;
+
+          if (data.keys.length === 0) {
+            table.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#6b7280;">No keys found.</td></tr>`;
+            return;
+          }
+
+          table.innerHTML = data.keys.map(k => {
+            let badge;
+            if (!k.expiresAt) badge = `<span class="badge badge-pending">Pending</span>`;
+            else if (new Date(k.expiresAt).getTime() <= now) badge = `<span class="badge badge-expired">Expired</span>`;
+            else badge = `<span class="badge badge-active">Active</span>`;
+
+            const created = k.createdAt ? new Date(k.createdAt).toLocaleString() : "—";
+            const expires = k.expiresAt ? new Date(k.expiresAt).toLocaleString() : "starts on activation";
+            return `
+              <tr>
+                <td class="key-code">${k.key}</td>
+                <td>${badge}</td>
+                <td>${created}</td>
+                <td>${expires}</td>
+                <td><button class="btn-revoke" onclick="revokeKey('${k.key}')">Revoke</button></td>
+              </tr>
+            `;
+          }).join('');
+        }
+      } catch (err) {
+        console.error("Failed to load dashboard data");
+      }
+    }
+
+    async function createKey() {
+      const durationHours = document.getElementById('duration').value;
+
+      const res = await fetch(`${BACKEND_URL}/api/admin/create-key`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPass: storedAdminPass, durationHours })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert(`Success! Generated Key: ${data.record.key}`);
+        loadDashboardData();
       } else {
-        const ok = await restoreSession();
-        if(!ok) showUnlock();
+        alert("Failed to create key.");
       }
-
-      setInterval(revalidate, 60000);
-      document.addEventListener('visibilitychange', () => { if(!document.hidden) revalidate(); });
-    });
-
-    /* ============ ACTIONS ============ */
-    function pasteKey(){
-      const input = document.getElementById('keyInput');
-      if (navigator.clipboard && navigator.clipboard.readText) {
-        navigator.clipboard.readText().then(t => { input.value = normalizeKey(t); }).catch(() => input.focus());
-      } else { input.focus(); }
     }
 
-    function switchTab(tabId, btnElement){
-      document.getElementById('proxyTab').classList.add('hidden');
-      document.getElementById('setupTab').classList.add('hidden');
-      document.getElementById('contactTab').classList.add('hidden');
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      document.getElementById(tabId).classList.remove('hidden');
-      btnElement.classList.add('active');
+    async function revokeKey(key) {
+      if (!confirm(`Are you sure you want to instantly revoke ${key}? The user will be cut off immediately.`)) return;
+
+      const res = await fetch(`${BACKEND_URL}/api/admin/revoke-key`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPass: storedAdminPass, key })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert(`Key ${key} revoked successfully.`);
+        loadDashboardData();
+      } else {
+        alert(data.error || "Failed to revoke key.");
+      }
     }
 
-    // Opens Happ and imports (encrypted link preferred, raw deep link fallback)
-    function openHappApp(){
-      const deep = happLink ? happLink : (rawSubUrl ? `happ://add/${rawSubUrl}` : "happ://");
-      const a = document.createElement('a');
-      a.href = deep;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+    async function updateMaintenance() {
+      const enabled = document.getElementById('maintStatus').value === "true";
+      const message = document.getElementById('maintMessage').value;
+
+      const res = await fetch(`${BACKEND_URL}/api/admin/maintenance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPass: storedAdminPass, enabled, message })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert("Maintenance mode updated successfully! Live client portals will reflect this instantly.");
+        loadDashboardData();
+      } else {
+        alert("Failed to update maintenance mode.");
+      }
     }
   </script>
 </body>
