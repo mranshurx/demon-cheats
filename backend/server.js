@@ -13,8 +13,8 @@ const KEYS_FILE = path.join(__dirname, 'keys.json');
 const MAINTENANCE_FILE = path.join(__dirname, 'maintenance.json');
 const ADMIN_SECRET_PASS = "ANSHU-BHAI-CYBER";
 
-// Optional but recommended: paste your happ-proxy.com Provider ID.
-const HAPP_PROVIDER_ID = ""; // e.g. "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+// Optional: paste your happ-proxy.com Provider ID (enables the extra hide-settings lock).
+const HAPP_PROVIDER_ID = "";
 
 // YOUR HYSTERIA & GAME ROUTING CONFIGURATION
 const BASE_CONFIG = {
@@ -101,9 +101,32 @@ function readMaintenance() {
 }
 
 /* ============================================================
-   HAPP ENCRYPTED LINK  (hides the URL + the JSON config in-app)
+   KEY RESOLUTION
+   The countdown does NOT start at creation. The clock starts the
+   first time the key is used (activated) on the website.
    ============================================================ */
-const happLinkCache = new Map(); // key -> happ://crypt5/... link
+function findActiveKey(key) {
+  const keys = readKeys();
+  const record = keys.find(k => k.key === key);
+  if (!record) return null;
+
+  // First activation -> stamp activatedAt + compute expiresAt from activation
+  if (!record.activatedAt) {
+    record.activatedAt = new Date().toISOString();
+    const exp = new Date(record.activatedAt);
+    exp.setHours(exp.getHours() + parseInt(record.durationHours || 24));
+    record.expiresAt = exp.toISOString();
+    fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2));
+  }
+
+  if (new Date() > new Date(record.expiresAt)) return null; // expired
+  return record;
+}
+
+/* ============================================================
+   HAPP ENCRYPTED LINK
+   ============================================================ */
+const happLinkCache = new Map();
 
 function baseUrl(req) {
   const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
@@ -117,10 +140,7 @@ function encryptHappLink(subUrl) {
       hostname: 'crypto.happ.su',
       path: '/api-v2.php',
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body)
-      }
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
     }, (res) => {
       let data = '';
       res.on('data', c => data += c);
@@ -142,13 +162,13 @@ app.get('/api/maintenance-status', (req, res) => {
   res.json(readMaintenance());
 });
 
-// Returns the encrypted happ:// link for a valid key (cached).
+// Returns the encrypted happ:// link for a valid key (activates on first use).
 app.get('/api/happ-link', async (req, res) => {
   const { key } = req.query;
   if (!key) return res.json({ ok: false, reason: 'no-key' });
 
-  const record = readKeys().find(k => k.key === key);
-  if (!record || new Date() > new Date(record.expiresAt)) return res.json({ ok: false, reason: 'invalid' });
+  const record = findActiveKey(key);
+  if (!record) return res.json({ ok: false, reason: 'invalid' });
 
   const subUrl = `${baseUrl(req)}/sub?key=${encodeURIComponent(key)}`;
 
@@ -156,7 +176,6 @@ app.get('/api/happ-link', async (req, res) => {
 
   const link = await encryptHappLink(subUrl);
   if (link) happLinkCache.set(key, link);
-  // If Happ's service is down, fall back to the raw URL (frontend still works).
   return res.json({ ok: !!link, link: link || subUrl, raw: subUrl, encrypted: !!link });
 });
 
@@ -166,11 +185,10 @@ app.get('/api/happ-link', async (req, res) => {
 app.get('/sub', (req, res) => {
   const m = readMaintenance();
 
-  // ---- Happ client-management headers ----
-  res.setHeader('profile-update-interval', '1');                 // auto-update every 1 hour
+  res.setHeader('profile-update-interval', '1');
   res.setHeader('subscription-auto-update-enable', '1');
-  res.setHeader('subscription-auto-update-open-enable', '1');    // refresh on every app launch
-  res.setHeader('hide-settings', '1');                           // hide config (needs provider id)
+  res.setHeader('subscription-auto-update-open-enable', '1');
+  res.setHeader('hide-settings', '1');
   if (HAPP_PROVIDER_ID) res.setHeader('providerid', HAPP_PROVIDER_ID);
   res.setHeader('content-disposition', 'attachment; filename="cyber-x-silent"');
   res.setHeader('Content-Type', 'application/json');
@@ -184,12 +202,10 @@ app.get('/sub', (req, res) => {
     const { key } = req.query;
     if (!key) targetConfig = EXPIRED_CONFIG;
     else {
-      const keys = readKeys();
-      const keyRecord = keys.find(k => k.key === key);
-      if (!keyRecord || new Date() > new Date(keyRecord.expiresAt)) {
-        targetConfig = EXPIRED_CONFIG;
-      } else {
-        const expiresAt = new Date(keyRecord.expiresAt);
+      const record = findActiveKey(key);
+      if (!record) targetConfig = EXPIRED_CONFIG;
+      else {
+        const expiresAt = new Date(record.expiresAt);
         res.setHeader('subscription-userinfo', `upload=0; download=0; total=107374182400; expire=${Math.floor(expiresAt.getTime() / 1000)}`);
       }
     }
@@ -198,7 +214,7 @@ app.get('/sub', (req, res) => {
   return res.status(200).send(JSON.stringify(targetConfig));
 });
 
-// CLIENT PORTAL KEY CHECK API
+// CLIENT PORTAL KEY CHECK API (activates the key on first unlock)
 app.get('/api/check-key', (req, res) => {
   const m = readMaintenance();
   if (m.enabled) return res.json({ valid: false, maintenance: true, message: m.message });
@@ -206,13 +222,21 @@ app.get('/api/check-key', (req, res) => {
   const { key } = req.query;
   if (!key) return res.json({ valid: false, message: "Please enter an access key." });
 
-  const keys = readKeys();
-  const record = keys.find(k => k.key === key);
-  if (!record || new Date() > new Date(record.expiresAt)) {
-    return res.json({ valid: false, message: "Invalid key or key has expired/been revoked." });
-  }
+  const all = readKeys();
+  if (!all.find(k => k.key === key)) return res.json({ valid: false, message: "Invalid key." });
 
-  return res.json({ valid: true, key: record.key, expiresAt: record.expiresAt, message: "Access Key Validated!" });
+  const record = findActiveKey(key); // activates if new
+  if (!record) return res.json({ valid: false, message: "Key has expired." });
+
+  const remainingMs = new Date(record.expiresAt).getTime() - Date.now();
+  return res.json({
+    valid: true,
+    key: record.key,
+    activatedAt: record.activatedAt,
+    expiresAt: record.expiresAt,
+    remainingMs,
+    message: "Access Key Validated!"
+  });
 });
 
 // ADMIN APIs
@@ -228,10 +252,15 @@ app.post('/api/admin/create-key', (req, res) => {
 
   const keys = readKeys();
   const randomKey = "CYBER-" + Math.random().toString(36).substring(2, 8).toUpperCase();
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + parseInt(durationHours || 24));
 
-  const newRecord = { key: randomKey, expiresAt: expiresAt.toISOString(), createdAt: new Date().toISOString() };
+  // NOTE: no expiresAt yet — the clock starts when the user activates it on the site.
+  const newRecord = {
+    key: randomKey,
+    durationHours: parseInt(durationHours || 24),
+    createdAt: new Date().toISOString(),
+    activatedAt: null,
+    expiresAt: null
+  };
   keys.push(newRecord);
   fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2));
   return res.json({ success: true, record: newRecord });
