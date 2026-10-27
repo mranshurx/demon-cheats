@@ -42,6 +42,19 @@
     .top-logo.small{margin:0 0 1.4rem}
     .top-logo.small img{height:46px;filter:none}
 
+    /* ---------- DASHBOARD TOP BAR + LOGOUT ---------- */
+    .dash-top{position:relative;display:flex;justify-content:center;align-items:center;margin:0 0 1.4rem}
+    .dash-top .top-logo.small{margin:0}
+    .logout-btn{
+      position:absolute;right:0;top:50%;transform:translateY(-50%);
+      background:transparent;border:1px solid var(--line-2);color:#cfcfcf;
+      font-family:var(--mono);font-size:.6rem;font-weight:700;letter-spacing:.16em;
+      text-transform:uppercase;padding:.42rem .62rem;cursor:pointer;white-space:nowrap;
+      transition:background .18s,border-color .18s,color .18s;
+    }
+    .logout-btn:hover{background:#141414;border-color:#fff;color:#fff}
+    .logout-btn:active{transform:translateY(-50%) scale(.96)}
+
     .brand{font-family:var(--display);font-weight:900;font-size:2.05rem;line-height:1;text-align:center;letter-spacing:.03em;color:#fff;margin-bottom:1.05rem;text-transform:uppercase}
     .tagline{text-align:center;font-size:.68rem;font-weight:500;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;margin-bottom:2.2rem}
     .field-label{display:flex;align-items:center;gap:.55rem;font-size:.7rem;font-weight:700;letter-spacing:.22em;color:#dcdcdc;text-transform:uppercase;margin-bottom:.7rem}
@@ -127,9 +140,12 @@
     </div>
 
     <div id="dashboardView" class="hidden">
-      <!-- YOUR LOGO — TOP MIDDLE -->
-      <div class="top-logo small">
-        <img src="logo/logo.png" alt="CYBER X SILENT">
+      <!-- YOUR LOGO — TOP MIDDLE + LOGOUT TOP RIGHT -->
+      <div class="dash-top">
+        <div class="top-logo small">
+          <img src="logo/logo.png" alt="CYBER X SILENT">
+        </div>
+        <button class="logout-btn" onclick="confirmLogout()" title="Log out" aria-label="Log out">Log out</button>
       </div>
 
       <div class="tabs">
@@ -284,8 +300,14 @@
       clearSession();
       stopCountdown();
       activeKey = ""; rawSubUrl = ""; happLink = ""; expiresAtMs = 0;
+      const ki = document.getElementById('keyInput');
+      if(ki) ki.value = "";
       document.getElementById('errorMsg').innerText = "";
       showUnlock();
+    }
+    /* Manual logout from the top bar — asks first */
+    function confirmLogout(){
+      if(confirm("Log out of this device?")) logout();
     }
 
     /* ============ NETWORK ============ */
