@@ -95,9 +95,24 @@
     .setup-box h3{font-size:.75rem;letter-spacing:.2em;text-transform:uppercase;color:#fff;margin-bottom:1rem;font-weight:700}
     .setup-box ol{padding-left:1.15rem;color:var(--dim);font-size:.78rem;line-height:2}
     .setup-box ol b{color:#fff}
+
+    /* ---------- CONTACT ---------- */
     .contact-card{background:#0a0a0a;border:1px solid var(--line);padding:1.15rem;margin-bottom:.9rem}
     .contact-card .t{font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim-2);margin-bottom:.4rem;font-weight:700}
     .contact-card .c{font-size:.95rem;font-weight:700;color:#fff;letter-spacing:.06em}
+
+    /* the LOGO itself is the link */
+    .tg-logo-link{display:inline-flex;align-items:center;gap:.7rem;text-decoration:none;
+      cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .12s,opacity .18s}
+    .tg-logo-link:hover{opacity:.85}
+    .tg-logo-link:active{transform:scale(.96)}
+    .tg-logo{width:36px;height:36px;display:block;flex:none;
+      filter:drop-shadow(0 0 14px rgba(41,169,235,.35))}
+    .tg-handle{font-size:.88rem;font-weight:700;color:#fff;letter-spacing:.06em}
+
+    .dev-credit{margin-top:1.6rem;text-align:center;font-size:.72rem;font-weight:800;
+      letter-spacing:.18em;text-transform:uppercase;color:#fff;line-height:1.9}
+
     .maint{border:1px solid #ffffff;background:#0a0a0a;padding:2rem 1.5rem;text-align:center;margin-top:1rem}
     .maint h3{font-family:var(--display);font-size:1.05rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.9rem}
     .maint p{color:var(--dim);font-size:.8rem;line-height:1.8;letter-spacing:.04em}
@@ -179,8 +194,21 @@
       </div>
 
       <div id="contactTab" class="hidden">
-        <div class="contact-card"><div class="t">Telegram</div><div class="c">CYBER X SILENT</div></div>
+        <!-- TELEGRAM — the LOGO is the link. Tap it -> t.me/cyberxsilent -->
+        <div class="contact-card">
+          <div class="t">Telegram</div>
+          <a class="tg-logo-link" href="https://t.me/cyberxsilent" onclick="return openTelegram()">
+            <svg class="tg-logo" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="#29A9EB" d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161l-1.97 9.289c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.933z"/>
+            </svg>
+            <span class="tg-handle">@cyberxsilent</span>
+          </a>
+        </div>
+
         <div class="contact-card"><div class="t">WhatsApp</div><div class="c">CYBER X SILENT</div></div>
+
+        <!-- DEVELOPER CREDIT -->
+        <div class="dev-credit">DEVELOPER- CYBER ANXHU</div>
       </div>
     </div>
   </div>
@@ -188,6 +216,7 @@
   <script>
     const BACKEND_URL = "https://cyber-x-silent-server.onrender.com";
     const STORAGE_KEY = "cyber_x_silent_session";
+    const TELEGRAM_URL = "https://t.me/cyberxsilent";
 
     let rawSubUrl = "";
     let happLink = "";
@@ -195,6 +224,13 @@
     let expiryTimer = null;
     let countdownTimer = null;
     let expiresAtMs = 0;
+
+    /* ============ TELEGRAM LOGO CLICK ============ */
+    function openTelegram(){
+      /* works even inside in-app WebViews that ignore target="_blank" */
+      window.location.href = TELEGRAM_URL;
+      return false; /* stop the default anchor navigation double-firing */
+    }
 
     /* ============ LOGO (no status text) ============ */
     const LOGO_FILE = "";
