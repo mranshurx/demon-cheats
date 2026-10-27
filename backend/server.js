@@ -13,8 +13,13 @@ const KEYS_FILE = path.join(__dirname, 'keys.json');
 const MAINTENANCE_FILE = path.join(__dirname, 'maintenance.json');
 const ADMIN_SECRET_PASS = "ANSHU-BHAI-CYBER";
 
-// Optional: paste your happ-proxy.com Provider ID (enables the extra hide-settings lock).
+// Optional: paste your happ-proxy.com Provider ID.
 const HAPP_PROVIDER_ID = "";
+
+// Where the frontend lives (works whether Render root is repo root or /backend)
+const FRONTEND_DIR = fs.existsSync(path.join(__dirname, '..', 'frontend'))
+  ? path.join(__dirname, '..', 'frontend')
+  : path.join(__dirname, 'frontend');
 
 // YOUR HYSTERIA & GAME ROUTING CONFIGURATION
 const BASE_CONFIG = {
@@ -100,17 +105,12 @@ function readMaintenance() {
   try { return JSON.parse(fs.readFileSync(MAINTENANCE_FILE, 'utf8')); } catch (e) { return { enabled: false, message: "System under maintenance." }; }
 }
 
-/* ============================================================
-   KEY RESOLUTION
-   The countdown does NOT start at creation. The clock starts the
-   first time the key is used (activated) on the website.
-   ============================================================ */
+/* KEY RESOLUTION — clock starts on first activation, not creation */
 function findActiveKey(key) {
   const keys = readKeys();
   const record = keys.find(k => k.key === key);
   if (!record) return null;
 
-  // First activation -> stamp activatedAt + compute expiresAt from activation
   if (!record.activatedAt) {
     record.activatedAt = new Date().toISOString();
     const exp = new Date(record.activatedAt);
@@ -119,13 +119,11 @@ function findActiveKey(key) {
     fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2));
   }
 
-  if (new Date() > new Date(record.expiresAt)) return null; // expired
+  if (new Date() > new Date(record.expiresAt)) return null;
   return record;
 }
 
-/* ============================================================
-   HAPP ENCRYPTED LINK
-   ============================================================ */
+/* HAPP ENCRYPTED LINK */
 const happLinkCache = new Map();
 
 function baseUrl(req) {
@@ -158,11 +156,11 @@ function encryptHappLink(subUrl) {
   });
 }
 
+/* ---------------- API ROUTES ---------------- */
 app.get('/api/maintenance-status', (req, res) => {
   res.json(readMaintenance());
 });
 
-// Returns the encrypted happ:// link for a valid key (activates on first use).
 app.get('/api/happ-link', async (req, res) => {
   const { key } = req.query;
   if (!key) return res.json({ ok: false, reason: 'no-key' });
@@ -179,9 +177,6 @@ app.get('/api/happ-link', async (req, res) => {
   return res.json({ ok: !!link, link: link || subUrl, raw: subUrl, encrypted: !!link });
 });
 
-// -------------------------------------------------------------
-// PUBLIC SUBSCRIPTION ENDPOINT
-// -------------------------------------------------------------
 app.get('/sub', (req, res) => {
   const m = readMaintenance();
 
@@ -214,7 +209,6 @@ app.get('/sub', (req, res) => {
   return res.status(200).send(JSON.stringify(targetConfig));
 });
 
-// CLIENT PORTAL KEY CHECK API (activates the key on first unlock)
 app.get('/api/check-key', (req, res) => {
   const m = readMaintenance();
   if (m.enabled) return res.json({ valid: false, maintenance: true, message: m.message });
@@ -225,7 +219,7 @@ app.get('/api/check-key', (req, res) => {
   const all = readKeys();
   if (!all.find(k => k.key === key)) return res.json({ valid: false, message: "Invalid key." });
 
-  const record = findActiveKey(key); // activates if new
+  const record = findActiveKey(key);
   if (!record) return res.json({ valid: false, message: "Key has expired." });
 
   const remainingMs = new Date(record.expiresAt).getTime() - Date.now();
@@ -239,7 +233,7 @@ app.get('/api/check-key', (req, res) => {
   });
 });
 
-// ADMIN APIs
+/* ---------------- ADMIN API ---------------- */
 app.post('/api/admin/login', (req, res) => {
   const { adminPass } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ success: false, error: "Invalid Admin Password." });
@@ -253,7 +247,6 @@ app.post('/api/admin/create-key', (req, res) => {
   const keys = readKeys();
   const randomKey = "CYBER-" + Math.random().toString(36).substring(2, 8).toUpperCase();
 
-  // NOTE: no expiresAt yet — the clock starts when the user activates it on the site.
   const newRecord = {
     key: randomKey,
     durationHours: parseInt(durationHours || 24),
@@ -292,6 +285,17 @@ app.post('/api/admin/maintenance', (req, res) => {
   fs.writeFileSync(MAINTENANCE_FILE, JSON.stringify(updateData, null, 2));
   return res.json({ success: true, maintenance: updateData });
 });
+
+/* ---------------- FRONTEND ROUTES ----------------
+   /        -> client portal (index.html)
+   /admin   -> admin panel (admin.html)
+   /logo/.. -> logo files
+---------------------------------------------------- */
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(FRONTEND_DIR, 'admin.html'));
+});
+
+app.use(express.static(FRONTEND_DIR)); // serves index.html at "/" and /logo/*
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server active on port ${PORT}`));
