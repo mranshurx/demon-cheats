@@ -64,7 +64,10 @@ async function ghPutFile(contentStr) {
   return { sha: j.content ? j.content.sha : null };
 }
 
-function normalizeHours(h) { const n = parseInt(h, 10); return (Number.isFinite(n) && n > 0) ? n : 24; }
+function normalizeHours(h) {
+  const n = parseInt(h, 10);
+  return (Number.isFinite(n) && n > 0) ? n : 24;
+}
 function migrateRecord(r) {
   if (r.durationHours == null) {
     if (r.expiresAt && r.createdAt) {
@@ -117,12 +120,12 @@ async function preload() {
     try { db = f.content ? JSON.parse(f.content) : {}; } catch (e) { db = {}; }
     keysCache = Array.isArray(db.keys) ? db.keys : [];
     maintCache = db.maintenance || { ...DEFAULT_MAINT };
-    console.log(`[db] loaded ${keysCache.length} keys from ${GITHUB_REPO}:${GITHUB_DB_PATH}`);
+    console.log(`[db] GITHUB MODE — loaded ${keysCache.length} keys from ${GITHUB_REPO}:${GITHUB_DB_PATH}`);
   } else {
     try { keysCache = fs.existsSync(path.join(__dirname, 'keys.json')) ? JSON.parse(fs.readFileSync(path.join(__dirname, 'keys.json'), 'utf8')) : []; }
     catch (e) { keysCache = []; }
     maintCache = { ...DEFAULT_MAINT };
-    console.log('[db] local file mode (no GitHub env vars)');
+    console.warn('[db] LOCAL FILE MODE (no GitHub env vars) — keys are wiped on every restart!');
   }
   if (!Array.isArray(keysCache)) keysCache = [];
   keysCache.forEach(migrateRecord);
@@ -212,6 +215,7 @@ function findActiveKey(key) {
     r.durationHours = normalizeHours(r.durationHours);
     r.expiresAt = new Date(now + r.durationHours * 3600000).toISOString();
     scheduleSave();
+    console.log(`[key] activated ${r.key} -> ${r.durationHours}h, expires ${r.expiresAt}`);
   }
   if (!r.expiresAt || Date.now() > new Date(r.expiresAt).getTime()) return null;
   return r;
@@ -308,6 +312,7 @@ app.get('/api/check-key', (req, res) => {
     key: record.key,
     activatedAt: record.activatedAt,
     expiresAt: record.expiresAt,
+    durationHours: record.durationHours,
     remainingMs,
     message: "Access Key Validated!"
   });
@@ -320,9 +325,37 @@ app.post('/api/admin/login', (req, res) => {
   return res.json({ success: true });
 });
 
-app.post('/api/admin/create-key', (req, res) => {
-  const { adminPass, durationHours } = req.body;
+/* Diagnostic — tells you where keys are actually being stored */
+app.post('/api/admin/diag', (req, res) => {
+  const { adminPass } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
+  return res.json({
+    storageMode: USE_GITHUB ? 'github' : 'LOCAL-FILE (volatile!)',
+    githubRepo: GITHUB_REPO || null,
+    githubBranch: GITHUB_BRANCH,
+    githubDbPath: GITHUB_DB_PATH,
+    keysInMemory: readKeys().length,
+    maintenance: readMaintenance(),
+    hasDbSha: !!dbSha,
+    hint: USE_GITHUB
+      ? 'Good — keys persist in GitHub.'
+      : 'Set GITHUB_TOKEN + GITHUB_REPO on Render, otherwise keys vanish on every restart.'
+  });
+});
+
+app.post('/api/admin/create-key', (req, res) => {
+  const { adminPass } = req.body;
+  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
+
+  /* Accept several field names / units so any panel version works */
+  let rawHours = req.body.durationHours;
+  if (rawHours == null) rawHours = req.body.duration;   // hours
+  if (rawHours == null) rawHours = req.body.hours;      // hours
+  if (rawHours == null && req.body.days != null) rawHours = Number(req.body.days) * 24;
+
+  const durationHours = normalizeHours(rawHours);
+
+  console.log('[create-key] body =', JSON.stringify(req.body), '=> durationHours =', durationHours);
 
   const keys = readKeys();
   let randomKey;
@@ -331,14 +364,14 @@ app.post('/api/admin/create-key', (req, res) => {
 
   const newRecord = {
     key: randomKey,
-    durationHours: normalizeHours(durationHours),
+    durationHours,
     createdAt: new Date().toISOString(),
     activatedAt: null,
     expiresAt: null
   };
   keys.push(newRecord);
   scheduleSave();
-  return res.json({ success: true, record: newRecord });
+  return res.json({ success: true, record: newRecord, durationHours });
 });
 
 app.post('/api/admin/list-keys', (req, res) => {
@@ -360,9 +393,25 @@ app.post('/api/admin/revoke-key', (req, res) => {
   return res.json({ success: true, message: `Key ${key} revoked instantly.` });
 });
 
+/* Repair a key: set a new duration and re-arm the clock */
+app.post('/api/admin/repair-key', (req, res) => {
+  const { adminPass, key, durationHours } = req.body;
+  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized" });
+
+  const r = readKeys().find(k => k.key === key);
+  if (!r) return res.status(404).json({ error: "Key not found." });
+
+  r.durationHours = normalizeHours(durationHours);
+  r.activatedAt = null;
+  r.expiresAt = null;
+  scheduleSave();
+  happLinkCache.delete(key);
+  return res.json({ success: true, record: r });
+});
+
 app.post('/api/admin/maintenance', (req, res) => {
   const { adminPass, enabled, message } = req.body;
-  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized" });
+  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
 
   maintCache = { enabled: !!enabled, message: message || "System under maintenance." };
   scheduleSave();
