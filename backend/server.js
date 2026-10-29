@@ -9,12 +9,11 @@ app.set('trust proxy', true);
 app.use(express.json());
 app.use(cors());
 
-/* ================= STORAGE: GitHub repo as the database ================= */
-const GITHUB_TOKEN   = process.env.GITHUB_TOKEN || '';
-const GITHUB_REPO    = process.env.GITHUB_REPO || '';
-const GITHUB_BRANCH  = process.env.GITHUB_BRANCH || 'main';
-const GITHUB_DB_PATH = process.env.GITHUB_DB_PATH || 'data/db.json';
-const USE_GITHUB     = !!(GITHUB_TOKEN && GITHUB_REPO);
+/* ================= STORAGE: Upstash Redis (REST) as the database ================= */
+const KV_URL   = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || 'https://flying-poodle-243357.upstash.io';
+const KV_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || '';
+const KV_KEY   = process.env.KV_DB_KEY || 'cyberx:db';
+const USE_GITHUB = !!(KV_URL && KV_TOKEN);   // name kept — now means "remote DB enabled"
 
 const ADMIN_SECRET_PASS = process.env.ADMIN_PASS || "ANSHU-BHAI-CYBER";
 
@@ -36,32 +35,26 @@ let dirty = false;
 
 function ghHeaders() {
   return {
-    Authorization: `Bearer ${GITHUB_TOKEN}`,
-    Accept: 'application/vnd.github+json',
-    'User-Agent': 'cyber-x-silent'
+    Authorization: `Bearer ${KV_TOKEN}`,
+    'Content-Type': 'application/json'
   };
 }
 async function ghGetFile() {
-  const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_DB_PATH}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
-  const r = await fetch(url, { headers: ghHeaders() });
+  const r = await fetch(`${KV_URL}/get/${encodeURIComponent(KV_KEY)}`, { headers: ghHeaders() });
   if (r.status === 404) return { content: null, sha: null };
-  if (!r.ok) throw new Error(`GitHub GET ${r.status}`);
+  if (!r.ok) throw new Error(`KV GET ${r.status}`);
   const j = await r.json();
-  return { content: Buffer.from(j.content || '', 'base64').toString('utf8'), sha: j.sha };
+  return { content: j && j.result ? j.result : null, sha: null };
 }
 async function ghPutFile(contentStr) {
-  const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_DB_PATH}`;
-  const body = {
-    message: 'chore(db): sync keys [skip render]',
-    content: Buffer.from(contentStr, 'utf8').toString('base64'),
-    branch: GITHUB_BRANCH
-  };
-  if (dbSha) body.sha = dbSha;
-  const r = await fetch(url, { method: 'PUT', headers: ghHeaders(), body: JSON.stringify(body) });
+  const r = await fetch(`${KV_URL}/set/${encodeURIComponent(KV_KEY)}`, {
+    method: 'POST',
+    headers: ghHeaders(),
+    body: contentStr
+  });
   if (r.status === 409 || r.status === 422) return { conflict: true };
-  if (!r.ok) throw new Error(`GitHub PUT ${r.status} ${await r.text()}`);
-  const j = await r.json();
-  return { sha: j.content ? j.content.sha : null };
+  if (!r.ok) throw new Error(`KV PUT ${r.status} ${await r.text()}`);
+  return { sha: null };
 }
 
 function normalizeHours(h) {
@@ -102,7 +95,7 @@ async function flush() {
       res = await ghPutFile(data);
     }
     if (res && res.sha) dbSha = res.sha;
-    console.log('[db] synced to GitHub');
+    console.log('[db] synced to remote DB');
   } catch (e) {
     dirty = true;
     console.error('[db] sync failed:', e.message);
@@ -120,12 +113,12 @@ async function preload() {
     try { db = f.content ? JSON.parse(f.content) : {}; } catch (e) { db = {}; }
     keysCache = Array.isArray(db.keys) ? db.keys : [];
     maintCache = db.maintenance || { ...DEFAULT_MAINT };
-    console.log(`[db] GITHUB MODE — loaded ${keysCache.length} keys from ${GITHUB_REPO}:${GITHUB_DB_PATH}`);
+    console.log(`[db] REMOTE MODE — loaded ${keysCache.length} keys from ${KV_KEY}`);
   } else {
     try { keysCache = fs.existsSync(path.join(__dirname, 'keys.json')) ? JSON.parse(fs.readFileSync(path.join(__dirname, 'keys.json'), 'utf8')) : []; }
     catch (e) { keysCache = []; }
     maintCache = { ...DEFAULT_MAINT };
-    console.warn('[db] LOCAL FILE MODE (no GitHub env vars) — keys are wiped on every restart!');
+    console.warn('[db] LOCAL FILE MODE (no KV env vars) — keys are wiped on every restart!');
   }
   if (!Array.isArray(keysCache)) keysCache = [];
   keysCache.forEach(migrateRecord);
@@ -330,16 +323,15 @@ app.post('/api/admin/diag', (req, res) => {
   const { adminPass } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
   return res.json({
-    storageMode: USE_GITHUB ? 'github' : 'LOCAL-FILE (volatile!)',
-    githubRepo: GITHUB_REPO || null,
-    githubBranch: GITHUB_BRANCH,
-    githubDbPath: GITHUB_DB_PATH,
+    storageMode: USE_GITHUB ? 'remote-db' : 'LOCAL-FILE (volatile!)',
+    dbUrlSet: !!KV_URL,
+    dbKey: KV_KEY,
     keysInMemory: readKeys().length,
     maintenance: readMaintenance(),
     hasDbSha: !!dbSha,
     hint: USE_GITHUB
-      ? 'Good — keys persist in GitHub.'
-      : 'Set GITHUB_TOKEN + GITHUB_REPO on Render, otherwise keys vanish on every restart.'
+      ? 'Good — keys persist in the remote DB.'
+      : 'Set KV_REST_API_URL + KV_REST_API_TOKEN, otherwise keys vanish on every restart.'
   });
 });
 
@@ -396,7 +388,7 @@ app.post('/api/admin/revoke-key', (req, res) => {
 /* Repair a key: set a new duration and re-arm the clock */
 app.post('/api/admin/repair-key', (req, res) => {
   const { adminPass, key, durationHours } = req.body;
-  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized" });
+  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
 
   const r = readKeys().find(k => k.key === key);
   if (!r) return res.status(404).json({ error: "Key not found." });
