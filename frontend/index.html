@@ -96,6 +96,22 @@
     .setup-box ol{padding-left:1.15rem;color:var(--dim);font-size:.78rem;line-height:2}
     .setup-box ol b{color:#fff}
 
+    /* ---------- FEATURE SWITCHES ---------- */
+    .toggles-wrap{margin:.3rem 0 1.1rem}
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;
+      background:#0a0a0a;border:1px solid var(--line);padding:.85rem 1.15rem;margin-bottom:.55rem}
+    .toggle-row:last-child{margin-bottom:0}
+    .toggle-title{font-size:.72rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#eaeaea}
+    .toggle-note{font-size:.6rem;letter-spacing:.05em;color:var(--dim-2);margin-top:.35rem;line-height:1.6;text-transform:lowercase}
+    .switch{position:relative;flex:none;width:46px;height:25px;border-radius:99px;border:1px solid var(--line-2);
+      background:#0f0f0f;cursor:pointer;padding:0;transition:background .18s,border-color .18s;
+      -webkit-tap-highlight-color:transparent}
+    .switch::after{content:"";position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;
+      background:#5a5a5a;transition:transform .18s,background .18s}
+    .switch[aria-checked="true"]{background:#ffffff;border-color:#ffffff}
+    .switch[aria-checked="true"]::after{transform:translateX(21px);background:#000000}
+    .switch:active{transform:scale(.97)}
+
     /* ---------- CONTACT ---------- */
     .contact-card{background:#0a0a0a;border:1px solid var(--line);padding:1.15rem;margin-bottom:.9rem}
     .contact-card .t{font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim-2);margin-bottom:.4rem;font-weight:700}
@@ -178,7 +194,25 @@
           <div class="row"><span class="k">Expires At</span><span class="v" id="displayExpiry">Loading...</span></div>
           <div class="row"><span class="k">Security</span><span class="v" id="displaySec">Standard</span></div>
         </div>
-        <div class="feature">🎯 Aimbot Legit + Moco</div>
+
+        <div class="toggles-wrap">
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-title">Aimbot</div>
+            </div>
+            <button class="switch" id="swAimbot" role="switch" aria-checked="true"
+                    aria-label="Toggle aimbot" onclick="toggleFeature('aimbot')"></button>
+          </div>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-title">Location</div>
+              <div class="toggle-note">{ use at own risk location may give ban }</div>
+            </div>
+            <button class="switch" id="swLocation" role="switch" aria-checked="false"
+                    aria-label="Toggle location" onclick="toggleFeature('location')"></button>
+          </div>
+        </div>
+
         <button class="btn btn-primary" onclick="openHappApp()">🚀 ADD TO HAPP</button>
       </div>
 
@@ -274,6 +308,38 @@
     }
     function clearSession(){ try { localStorage.removeItem(STORAGE_KEY); } catch(e){} }
 
+    /* ============ FEATURE SWITCHES ============ */
+    const FEATURES_KEY = "cyber_x_features";
+    const FEATURES_DEFAULT = { aimbot: true, location: false };
+
+    function readFeatures(){
+      try{
+        const raw = localStorage.getItem(FEATURES_KEY);
+        if(!raw) return { ...FEATURES_DEFAULT };
+        const o = JSON.parse(raw) || {};
+        return {
+          aimbot:   typeof o.aimbot   === "boolean" ? o.aimbot   : FEATURES_DEFAULT.aimbot,
+          location: typeof o.location === "boolean" ? o.location : FEATURES_DEFAULT.location
+        };
+      }catch(e){ return { ...FEATURES_DEFAULT }; }
+    }
+    function saveFeatures(o){ try{ localStorage.setItem(FEATURES_KEY, JSON.stringify(o)); }catch(e){} }
+
+    function paintFeatures(){
+      const f = readFeatures();
+      const a = document.getElementById("swAimbot");
+      const l = document.getElementById("swLocation");
+      if(a) a.setAttribute("aria-checked", f.aimbot ? "true" : "false");
+      if(l) l.setAttribute("aria-checked", f.location ? "true" : "false");
+    }
+
+    function toggleFeature(name){
+      const f = readFeatures();
+      f[name] = !f[name];
+      saveFeatures(f);
+      paintFeatures();
+    }
+
     /* ============ LIVE COUNTDOWN ============ */
     function startCountdown(){
       if(countdownTimer) clearInterval(countdownTimer);
@@ -322,6 +388,7 @@
       document.getElementById('unlockView').classList.add('hidden');
       document.getElementById('dashboardView').classList.remove('hidden');
 
+      paintFeatures();
       startCountdown();
       scheduleExpiry(expiresAt);
     }
@@ -430,6 +497,7 @@
     /* ============ BOOT ============ */
     window.addEventListener('DOMContentLoaded', async () => {
       findLogo();
+      paintFeatures();
 
       const m = await getMaintenance();
       if(m && m.enabled){
