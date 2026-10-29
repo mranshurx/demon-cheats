@@ -76,6 +76,7 @@
     .tab-btn:hover{color:#bdbdbd}
     .tab-btn.active{color:#fff}
     .tab-btn.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#fff}
+    .tabs .tab-btn{font-size:.68rem;letter-spacing:.1em}
     .status{display:inline-flex;align-items:center;gap:.55rem;font-size:.68rem;font-weight:700;letter-spacing:.2em;color:#e6e6e6;text-transform:uppercase;margin-bottom:1.3rem}
     .dot{width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 12px rgba(255,255,255,.7);animation:pulse 1.8s infinite}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
@@ -136,6 +137,20 @@
     .dev-credit{margin-top:1.6rem;text-align:center;font-size:.72rem;font-weight:800;
       letter-spacing:.18em;text-transform:uppercase;color:#fff;line-height:1.9}
 
+    /* ---------- UPDATES ---------- */
+    .updates-box{background:#0a0a0a;border:1px solid var(--line);padding:1.4rem}
+    .updates-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;
+      padding-bottom:.9rem;margin-bottom:1.1rem;border-bottom:1px solid var(--line)}
+    .updates-head .t{font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim-2);font-weight:700}
+    .updates-refresh{background:transparent;border:1px solid var(--line-2);color:#cfcfcf;
+      font-family:var(--mono);font-size:.6rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+      padding:.4rem .62rem;cursor:pointer;transition:background .18s,border-color .18s,color .18s}
+    .updates-refresh:hover{background:#141414;border-color:#fff;color:#fff}
+    .updates-refresh:active{transform:scale(.97)}
+    .updates-body{font-family:var(--mono);font-size:.78rem;line-height:1.95;color:#d4d4d4;
+      letter-spacing:.02em;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}
+    .updates-body.muted{color:var(--dim-2)}
+
     .maint{border:1px solid #ffffff;background:#0a0a0a;padding:2rem 1.5rem;text-align:center;margin-top:1rem}
     .maint h3{font-family:var(--display);font-size:1.05rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.9rem}
     .maint p{color:var(--dim);font-size:.8rem;line-height:1.8;letter-spacing:.04em}
@@ -190,6 +205,7 @@
         <button class="tab-btn active" onclick="switchTab('proxyTab', this)">Proxy</button>
         <button class="tab-btn" onclick="switchTab('setupTab', this)">Setup</button>
         <button class="tab-btn" onclick="switchTab('contactTab', this)">Contact</button>
+        <button class="tab-btn" onclick="switchTab('updatesTab', this)">Updates</button>
       </div>
 
       <div id="proxyTab">
@@ -261,6 +277,16 @@
         <!-- DEVELOPER CREDIT -->
         <div class="dev-credit">DEVELOPER- CYBER ANXHU</div>
       </div>
+
+      <div id="updatesTab" class="hidden">
+        <div class="updates-box">
+          <div class="updates-head">
+            <span class="t">Latest Updates</span>
+            <button class="updates-refresh" onclick="loadUpdates(true)">Refresh</button>
+          </div>
+          <div class="updates-body muted" id="updatesBody">Loading…</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -269,6 +295,7 @@
     const STORAGE_KEY = "cyber_x_silent_session";
     const TELEGRAM_URL = "https://t.me/cyberxsilent";
     const WHATSAPP_URL = "https://whatsapp.com/channel/0029Vb9C6unB4hdWExyDTA2h";
+    const UPDATES_URL = "updates/update.txt";
 
     let rawSubUrl = "";
     let happLink = "";
@@ -276,6 +303,7 @@
     let expiryTimer = null;
     let countdownTimer = null;
     let expiresAtMs = 0;
+    let updatesLoaded = false;
 
     /* ============ TELEGRAM LOGO CLICK ============ */
     function openTelegram(){
@@ -362,6 +390,32 @@
       f[name] = !f[name];
       saveFeatures(f);
       paintFeatures();
+    }
+
+    /* ============ UPDATES ============ */
+    async function loadUpdates(force){
+      const box = document.getElementById('updatesBody');
+      if(!box) return;
+      if(updatesLoaded && !force) return;
+
+      box.classList.add('muted');
+      box.textContent = "Loading…";
+      try{
+        const r = await fetch(`${UPDATES_URL}?t=${Date.now()}`, { cache: "no-store" });
+        if(!r.ok) throw new Error(r.status);
+        const txt = (await r.text()).trim();
+        if(!txt){
+          box.classList.add('muted');
+          box.textContent = "No updates posted yet.";
+          return;
+        }
+        box.classList.remove('muted');
+        box.textContent = txt;
+        updatesLoaded = true;
+      }catch(e){
+        box.classList.add('muted');
+        box.textContent = "Could not load updates.";
+      }
     }
 
     /* ============ LIVE COUNTDOWN ============ */
@@ -555,9 +609,11 @@
       document.getElementById('proxyTab').classList.add('hidden');
       document.getElementById('setupTab').classList.add('hidden');
       document.getElementById('contactTab').classList.add('hidden');
+      document.getElementById('updatesTab').classList.add('hidden');
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.getElementById(tabId).classList.remove('hidden');
       btnElement.classList.add('active');
+      if(tabId === 'updatesTab') loadUpdates(false);
     }
 
     // Opens Happ and imports (encrypted link preferred, raw deep link fallback)
