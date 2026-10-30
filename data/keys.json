@@ -36,9 +36,9 @@
       "key": "CYBER-IAWU3M",
       "durationHours": 1,
       "createdAt": "2026-10-30T15:49:48.661Z",
-      "startedAt": null,
-      "activatedAt": null,
-      "expiresAt": null
+      "startedAt": "2026-10-30T15:58:18.726Z",
+      "activatedAt": "2026-10-30T15:58:18.726Z",
+      "expiresAt": "2026-10-30T16:58:18.726Z"
     }
   ],
   "maintenance": {
