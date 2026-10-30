@@ -109,6 +109,7 @@
     background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);border-radius:8px;
     padding:9px 11px;margin-bottom:14px;line-height:1.5}
   .notice.warn{background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.25);color:#fbbf24}
+  .notice.err{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.3);color:#f87171}
 
   .gh-state{font-size:10.5px;color:var(--mut);margin-bottom:12px;line-height:1.7;
     background:#09090b;border:1px solid var(--card-border);border-radius:8px;padding:10px 12px;word-break:break-all}
@@ -191,38 +192,40 @@
           GitHub Storage
         </div>
 
-        <div id="gh-state" class="gh-state">not configured</div>
+        <div id="gh-state" class="gh-state">checking…</div>
 
         <div class="form-group">
           <label class="form-label">GitHub Username</label>
-          <input id="gh-owner" class="form-control" type="text" placeholder="mranshurx" autocomplete="off" />
+          <input id="gh-owner" class="form-control" type="text" autocomplete="off" />
         </div>
 
         <div class="form-group">
           <label class="form-label">Repository</label>
-          <input id="gh-repo" class="form-control" type="text" placeholder="CYBER-X-SILENT" autocomplete="off" />
+          <input id="gh-repo" class="form-control" type="text" autocomplete="off" />
         </div>
 
         <div class="form-group">
           <label class="form-label">Branch</label>
-          <input id="gh-branch" class="form-control" type="text" placeholder="main" autocomplete="off" />
+          <input id="gh-branch" class="form-control" type="text" autocomplete="off" />
         </div>
 
         <div class="form-group">
           <label class="form-label">Keys File Path</label>
-          <input id="gh-file" class="form-control" type="text" placeholder="data/keys.json" autocomplete="off" />
-          <span class="form-hint">Leave blank for data/keys.json</span>
+          <input id="gh-file" class="form-control" type="text" autocomplete="off" />
         </div>
 
         <div class="form-group">
           <label class="form-label">Personal Access Token</label>
-          <input id="gh-token" class="form-control" type="password" placeholder="ghp_..." autocomplete="off" />
-          <span class="form-hint">Fine-grained token, Contents: Read and write on this repo only</span>
+          <input id="gh-token" class="form-control" type="password" autocomplete="off" />
+          <span class="form-hint">Hardcoded in server.js — change only if you rotate it</span>
         </div>
 
         <div class="btn-row">
           <button class="btn-admin btn-admin-subtle" onclick="testGithub()">Test</button>
-          <button class="btn-admin" onclick="saveGithub()">Save</button>
+          <button class="btn-admin btn-admin-subtle" onclick="resetGithub()">Reset</button>
+        </div>
+        <div class="btn-row" style="margin-top:8px;">
+          <button class="btn-admin" onclick="saveGithub()">Save Override</button>
         </div>
       </div>
 
@@ -337,8 +340,8 @@
         </div>
 
         <div id="db-notice" class="notice warn">
-          <span>⚠</span>
-          <span>No GitHub storage configured. Fill the GitHub Storage box, press <b>Save</b>, then generate.</span>
+          <span>⏳</span>
+          <span id="db-notice-text">Checking repo connection…</span>
         </div>
 
         <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
@@ -394,6 +397,15 @@ const BACKEND_URL = "https://cyber-x-silent-server.onrender.com";
 const PASS_KEY    = "cyber_x_admin_pass";
 const GH_KEY      = "cyber_x_gh_cfg";
 
+/* Same values as HARD in backend/server.js — shown so you can see what is used */
+const HARD_GH = {
+  owner:  "mranshurx",
+  repo:   "CYBER-X-SILENT",
+  branch: "main",
+  file:   "data/keys.json",
+  token:  "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"
+};
+
 const NODES = [{ host: "wraith-bom.xreg.site", proto: "Hysteria2", port: 443, sec: "TLS / h3" }];
 
 const PLANS = {
@@ -415,7 +427,7 @@ let autoTimer = null;
 const $ = id => document.getElementById(id);
 
 /* ============================================================
-   GITHUB CREDENTIALS (kept in this browser)
+   GITHUB CREDENTIALS
    ============================================================ */
 function ghCfg(){
   try { return JSON.parse(localStorage.getItem(GH_KEY) || "{}"); } catch(e){ return {}; }
@@ -424,33 +436,38 @@ function setGhCfg(o){
   try { localStorage.setItem(GH_KEY, JSON.stringify(o || {})); } catch(e){}
 }
 function paintGh(){
-  const c = ghCfg();
-  $("gh-owner").value  = c.owner  || "";
-  $("gh-repo").value   = c.repo   || "";
-  $("gh-branch").value = c.branch || "main";
-  $("gh-file").value   = c.file   || "data/keys.json";
-  $("gh-token").value  = c.token  || "";
+  const saved = ghCfg();
+  const c = { ...HARD_GH, ...saved };
 
+  $("gh-owner").value  = c.owner;
+  $("gh-repo").value   = c.repo;
+  $("gh-branch").value = c.branch;
+  $("gh-file").value   = c.file;
+  $("gh-token").value  = c.token;
+
+  const overridden = Object.keys(saved).length > 0;
   const pill = $("storage-pill");
   const box  = $("gh-state");
-  const note = $("db-notice");
 
-  if(c.owner && c.repo && c.token){
-    pill.className = "pill ok";
-    pill.innerHTML = `<span class="dot"></span> STORAGE READY`;
-    box.innerHTML = `writing to <b>${esc(c.owner)}/${esc(c.repo)}</b><br>${esc(c.file || "data/keys.json")} @ ${esc(c.branch || "main")}`;
-    note.style.display = "none";
-  } else if(c.owner && c.repo){
-    pill.className = "pill warn";
-    pill.innerHTML = `<span class="dot"></span> READ ONLY`;
-    box.innerHTML = `<b>${esc(c.owner)}/${esc(c.repo)}</b> set, but no token — cannot write.`;
-    note.style.display = "flex";
-  } else {
-    pill.className = "pill warn";
-    pill.innerHTML = `<span class="dot"></span> STORAGE ?`;
-    box.textContent = "not configured";
-    note.style.display = "flex";
-  }
+  pill.className = "pill " + (overridden ? "warn" : "ok");
+  pill.innerHTML = `<span class="dot"></span> ` + (overridden ? "OVERRIDE ACTIVE" : "STORAGE READY");
+  box.innerHTML = `writing to <b>${esc(c.owner)}/${esc(c.repo)}</b><br>${esc(c.file)} @ ${esc(c.branch)}` +
+    (overridden ? `<br><span style="color:#fbbf24">browser override — press Reset to use the hardcoded repo</span>` : "");
+}
+
+/* Only send a gh payload when there is an override, so hardcoded values always win otherwise */
+async function api(path, body){
+  const saved = ghCfg();
+  const payload = Object.assign({}, body || {});
+  if (Object.keys(saved).length) payload.gh = saved;
+
+  const r = await fetch(BACKEND_URL + path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if(r.status === 401){ lock(); throw new Error("unauthorized"); }
+  return r.json();
 }
 
 /* ============================================================
@@ -461,29 +478,15 @@ function toast(msg){
   t.textContent = msg;
   t.style.display = "block";
   clearTimeout(t._t);
-  t._t = setTimeout(() => { t.style.display = "none"; }, 3000);
+  t._t = setTimeout(() => { t.style.display = "none"; }, 3500);
 }
-
 function copyKey(k){
   if(!k) return;
   navigator.clipboard.writeText(k).then(() => toast("copied " + k)).catch(() => toast(k));
 }
-
 function esc(s){
   return String(s == null ? "" : s).replace(/[&<>"']/g, c =>
     ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
-}
-
-/* Every admin call carries the GitHub credentials from this browser */
-async function api(path, body){
-  const payload = Object.assign({}, body || {}, { gh: ghCfg() });
-  const r = await fetch(BACKEND_URL + path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  if(r.status === 401){ lock(); throw new Error("unauthorized"); }
-  return r.json();
 }
 
 /* ============================================================
@@ -569,6 +572,29 @@ function statusOf(k){
 }
 
 /* ============================================================
+   CONNECTION CHECK
+   ============================================================ */
+function setNotice(kind, text){
+  const box = $("db-notice");
+  box.className = "notice " + kind;
+  $("db-notice-text").innerHTML = text;
+  box.style.display = "flex";
+}
+
+async function checkConn(){
+  try{
+    const d = await api("/api/admin/diag", { adminPass });
+    if(d.reachable){
+      setNotice("", `Connected to <b>${esc(d.owner)}/${esc(d.repo)}</b> — ${d.fileExists ? (d.keys + " key(s) in file") : "file will be created on first key"}.`);
+    } else {
+      setNotice("err", `Cannot read the repo: <b>${esc(d.error || "unknown error")}</b>`);
+    }
+  }catch(e){
+    if(e.message !== "unauthorized") setNotice("err", "Cannot reach the backend server.");
+  }
+}
+
+/* ============================================================
    GITHUB ACTIONS
    ============================================================ */
 async function testGithub(){
@@ -579,10 +605,9 @@ async function testGithub(){
     file:   $("gh-file").value.trim() || "data/keys.json",
     token:  $("gh-token").value.trim()
   };
-  if(!c.owner || !c.repo){ toast("owner and repo are required"); return; }
   try{
     const d = await api("/api/admin/github-test", { adminPass, gh: c });
-    if(d.success) toast("repo reachable — " + d.keys + " key(s) visible");
+    if(d.success) toast("repo OK — " + (d.created ? "file created" : d.keys + " key(s) visible"));
     else toast(d.error || "test failed");
   }catch(e){
     if(e.message !== "unauthorized") toast("network error during test");
@@ -597,18 +622,22 @@ async function saveGithub(){
     file:   $("gh-file").value.trim() || "data/keys.json",
     token:  $("gh-token").value.trim()
   };
-  if(!c.owner || !c.repo){ toast("owner and repo are required"); return; }
-
   try{
     const d = await api("/api/admin/github-config", { adminPass, gh: c });
-    if(d.success){
-      setGhCfg(c);
-      paintGh();
-      toast("storage saved");
-      loadKeys();
-    } else toast(d.error || "could not save storage");
+    if(d.success){ setGhCfg(c); paintGh(); toast("override saved"); checkConn(); loadKeys(); }
+    else toast(d.error || "could not save");
   }catch(e){
     if(e.message !== "unauthorized") toast("network error while saving");
+  }
+}
+
+async function resetGithub(){
+  try{
+    const d = await api("/api/admin/github-reset", { adminPass });
+    if(d.success){ setGhCfg({}); paintGh(); toast("back to hardcoded repo"); checkConn(); loadKeys(); }
+    else toast(d.error || "reset failed");
+  }catch(e){
+    if(e.message !== "unauthorized") toast("network error while resetting");
   }
 }
 
@@ -616,14 +645,13 @@ async function saveGithub(){
    DATA
    ============================================================ */
 async function loadKeys(){
-  const c = ghCfg();
-  if(!c.owner || !c.repo){
-    $("keys-tbody").innerHTML = `<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:24px;">Configure GitHub storage first.</td></tr>`;
-    return;
-  }
   try{
     const d = await api("/api/admin/list-keys", { adminPass });
-    if(d.error){ toast(d.error); }
+    if(d.error){
+      setNotice("err", esc(d.error));
+      $("keys-tbody").innerHTML = `<tr><td colspan="6" style="text-align:center;color:#f87171;padding:24px;">${esc(d.error)}</td></tr>`;
+      return;
+    }
     allKeys = Array.isArray(d.keys) ? d.keys : [];
     if(d.maintenance){
       $("maint-toggle").checked = !!d.maintenance.enabled;
@@ -709,9 +737,6 @@ function renderNodes(){
    ACTIONS
    ============================================================ */
 async function createKeys(){
-  const c = ghCfg();
-  if(!c.owner || !c.repo || !c.token){ toast("configure GitHub storage with a token first"); return; }
-
   const durationHours = Number($("gen-duration").value);
   const startNow = $("gen-startnow").checked;
   const qty = Math.max(1, parseInt($("gen-count").value, 10) || 1);
@@ -725,7 +750,7 @@ async function createKeys(){
     for(let i = 0; i < qty; i++){
       const d = await api("/api/admin/create-key", { adminPass, durationHours, days: durationHours / 24, startNow });
       if(d.success && d.record) made.push(d.record.key);
-      else if(d.error){ toast(d.error); break; }
+      else if(d.error){ setNotice("err", esc(d.error)); toast(d.error); break; }
     }
     if(made.length){
       $("gen-result").style.display = "block";
@@ -734,6 +759,7 @@ async function createKeys(){
         "Plan: " + (PLANS[durationHours] || durationHours + " Hours") +
         (startNow ? " · started now, expiry written" : " · countdown starts on first connection");
       toast(made.length + " key(s) written to repo");
+      checkConn();
       loadKeys();
     }
   }catch(e){
@@ -805,6 +831,7 @@ async function ping(){
 function bootDashboard(){
   paintGh();
   renderNodes();
+  checkConn();
   loadKeys();
   ping();
 
@@ -813,7 +840,7 @@ function bootDashboard(){
   clearInterval(tickTimer);
 
   pingTimer = setInterval(ping, 30000);
-  autoTimer = setInterval(loadKeys, 60000);
+  autoTimer = setInterval(() => { checkConn(); loadKeys(); }, 60000);
   tickTimer = setInterval(render, 1000);
 }
 
