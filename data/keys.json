@@ -12,9 +12,9 @@
       "key": "CYBER-R6UOH8",
       "durationHours": 1,
       "createdAt": "2026-10-30T05:45:09.448Z",
-      "startedAt": null,
-      "activatedAt": null,
-      "expiresAt": null
+      "startedAt": "2026-10-30T05:45:17.608Z",
+      "activatedAt": "2026-10-30T05:45:17.608Z",
+      "expiresAt": "2026-10-30T06:45:17.608Z"
     }
   ],
   "maintenance": {
