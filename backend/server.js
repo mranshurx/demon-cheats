@@ -20,6 +20,7 @@ const HARD = {
 };
 
 const LOCAL_CFG = path.join(__dirname, 'github.json');
+const REPO_CFG_PATH = 'data/config.json';
 
 function envOverrides() {
   const o = {};
@@ -40,12 +41,54 @@ function loadCfg() {
       for (const k of ['owner', 'repo', 'branch', 'file', 'token']) {
         if (saved[k]) cfg[k] = String(saved[k]).trim();
       }
+      console.log('[cfg] loaded from local github.json');
     }
   } catch (e) { console.warn('[cfg] could not read github.json:', e.message); }
 }
 function saveCfg() {
   try { fs.writeFileSync(LOCAL_CFG, JSON.stringify(cfg, null, 2)); }
   catch (e) { console.warn('[cfg] could not persist github.json:', e.message); }
+}
+
+/* Persist the storage config into the repo so it survives Render restarts. */
+async function pushCfgToRepo(creds, snapshot) {
+  const c = creds || cfg;
+  const body = snapshot || cfg;
+  if (!c.token) return;
+  try {
+    const url = `https://api.github.com/repos/${c.owner}/${c.repo}/contents/${REPO_CFG_PATH}`;
+    const cur = await fetch(url, { headers: apiHeaders(c, false) });
+    let sha = null;
+    if (cur.ok) {
+      const j = await cur.json().catch(() => ({}));
+      sha = j.sha || null;
+    }
+    const put = {
+      message: 'chore(cfg): update storage config',
+      content: Buffer.from(JSON.stringify(body, null, 2), 'utf8').toString('base64'),
+      branch: c.branch
+    };
+    if (sha) put.sha = sha;
+    const r = await fetch(url, { method: 'PUT', headers: apiHeaders(c, true), body: JSON.stringify(put) });
+    if (!r.ok) console.warn('[cfg] repo persist failed:', r.status);
+    else console.log('[cfg] storage config mirrored to repo');
+  } catch (e) { console.warn('[cfg] repo persist failed:', e.message); }
+}
+
+/* Restore the storage config from the repo when the disk copy is gone. */
+async function pullCfgFromRepo() {
+  if (cfg.token) return;
+  try {
+    const raw = `https://raw.githubusercontent.com/${HARD.owner}/${HARD.repo}/${HARD.branch}/${REPO_CFG_PATH}?t=${Date.now()}`;
+    const r = await fetch(raw, { headers: { 'User-Agent': 'cyber-x-silent' } });
+    if (!r.ok) return;
+    const j = await r.json();
+    for (const k of ['owner', 'repo', 'branch', 'file', 'token']) {
+      if (j[k]) cfg[k] = String(j[k]).trim();
+    }
+    saveCfg();
+    console.log('[cfg] storage config restored from repo');
+  } catch (e) { console.warn('[cfg] repo restore failed:', e.message); }
 }
 
 function credsFrom(req) {
@@ -199,7 +242,7 @@ async function ghWriteOnce(c, text, sha, useBranch) {
 
 async function ghWrite(c, text, sha) {
   if (!ready(c)) throw new Error('GitHub storage not configured');
-  if (!c.token) throw new Error('No GitHub token — set GITHUB_TOKEN in Render env');
+  if (!c.token) throw new Error('No GitHub token — save one in the admin panel');
 
   let r = await ghWriteOnce(c, text, sha, true);
 
@@ -581,16 +624,20 @@ app.post('/api/admin/github-config', async (req, res) => {
   saveCfg();
   cache = { data: null, sha: null, at: 0, sig: '' };
   console.log(`[cfg] storage set to ${cfg.owner}/${cfg.repo}:${cfg.file}`);
-  return res.json({ success: true, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, file: cfg.file });
+  await pushCfgToRepo(cfg, cfg);
+  return res.json({ success: true, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, file: cfg.file, persisted: true });
 });
 
 app.post('/api/admin/github-reset', async (req, res) => {
   const state = await requireAdmin(req, res);
   if (!state) return;
+
+  const prev = { ...cfg };
   cfg = { ...HARD, ...envOverrides() };
   try { fs.unlinkSync(LOCAL_CFG); } catch (e) {}
   cache = { data: null, sha: null, at: 0, sig: '' };
   console.log('[cfg] reset to hardcoded repo + env token');
+  if (prev.token) await pushCfgToRepo(prev, { ...cfg, token: '' });
   return res.json({ success: true, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, file: cfg.file });
 });
 
@@ -725,11 +772,15 @@ app.use(express.static(FRONTEND_DIR));
 
 /* ================= BOOT ================= */
 const PORT = process.env.PORT || 3000;
-loadCfg();
-app.listen(PORT, () => {
-  console.log(`Server active on port ${PORT}`);
-  console.log(`[cfg] storage -> ${cfg.owner}/${cfg.repo}:${cfg.file}`);
-  console.log(`[cfg] token -> ${tokenShape(cfg.token)}`);
-  console.log(`[admin] key source -> ${ADMIN_KEY_URL}`);
-  getAdminKey(true);
-});
+
+(async () => {
+  loadCfg();
+  await pullCfgFromRepo();
+  app.listen(PORT, () => {
+    console.log(`Server active on port ${PORT}`);
+    console.log(`[cfg] storage -> ${cfg.owner}/${cfg.repo}:${cfg.file}`);
+    console.log(`[cfg] token -> ${tokenShape(cfg.token)}`);
+    console.log(`[admin] key source -> ${ADMIN_KEY_URL}`);
+    getAdminKey(true);
+  });
+})();
