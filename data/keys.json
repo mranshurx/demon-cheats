@@ -36,9 +36,9 @@
       "key": "CYBER-KQ8K37",
       "durationHours": 24,
       "createdAt": "2026-10-30T09:03:45.934Z",
-      "startedAt": null,
-      "activatedAt": null,
-      "expiresAt": null
+      "startedAt": "2026-10-30T09:04:18.915Z",
+      "activatedAt": "2026-10-30T09:04:18.915Z",
+      "expiresAt": "2026-10-31T09:04:18.915Z"
     }
   ],
   "maintenance": {
