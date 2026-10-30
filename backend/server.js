@@ -9,24 +9,37 @@ app.set('trust proxy', true);
 app.use(express.json({ limit: '1mb' }));
 app.use(cors());
 
-/* ================= STORAGE: your GitHub repo ================= */
+/* ================= STORAGE: hardcoded GitHub repo ================= */
+const HARD = {
+  owner:  'mranshurx',
+  repo:   'CYBER-X-SILENT',
+  branch: 'main',
+  file:   'data/keys.json',
+  token:  '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'
+};
+
 const LOCAL_CFG = path.join(__dirname, 'github.json');
 
-function envCfg() {
-  return {
-    owner:  process.env.GITHUB_OWNER || '',
-    repo:   process.env.GITHUB_REPO || '',
-    branch: process.env.GITHUB_BRANCH || 'main',
-    file:   process.env.GITHUB_KEYS_PATH || 'data/keys.json',
-    token:  process.env.GITHUB_TOKEN || ''
-  };
+function envOverrides() {
+  const o = {};
+  if (process.env.GITHUB_OWNER) o.owner = process.env.GITHUB_OWNER;
+  if (process.env.GITHUB_REPO) o.repo = process.env.GITHUB_REPO;
+  if (process.env.GITHUB_BRANCH) o.branch = process.env.GITHUB_BRANCH;
+  if (process.env.GITHUB_KEYS_PATH) o.file = process.env.GITHUB_KEYS_PATH;
+  if (process.env.GITHUB_TOKEN) o.token = process.env.GITHUB_TOKEN;
+  return o;
 }
 
-let cfg = envCfg();
+let cfg = { ...HARD, ...envOverrides() };
 
 function loadCfg() {
   try {
-    if (fs.existsSync(LOCAL_CFG)) Object.assign(cfg, JSON.parse(fs.readFileSync(LOCAL_CFG, 'utf8')));
+    if (fs.existsSync(LOCAL_CFG)) {
+      const saved = JSON.parse(fs.readFileSync(LOCAL_CFG, 'utf8'));
+      for (const k of ['owner', 'repo', 'branch', 'file', 'token']) {
+        if (saved[k]) cfg[k] = String(saved[k]).trim();
+      }
+    }
   } catch (e) { console.warn('[cfg] could not read github.json:', e.message); }
 }
 function saveCfg() {
@@ -34,18 +47,21 @@ function saveCfg() {
   catch (e) { console.warn('[cfg] could not persist github.json:', e.message); }
 }
 
-/* Panel values win over env values for this request */
+/* Panel values override, but only when actually present */
 function credsFrom(req) {
   const out = { ...cfg };
-  const gh = (req.body && req.body.gh) || req.query || {};
+  const gh = (req.body && req.body.gh) || {};
   for (const k of ['owner', 'repo', 'branch', 'file', 'token']) {
-    if (gh[k]) out[k] = String(gh[k]).trim();
+    if (gh[k] && String(gh[k]).trim()) out[k] = String(gh[k]).trim();
   }
   if (!out.branch) out.branch = 'main';
   if (!out.file) out.file = 'data/keys.json';
+  if (!out.owner) out.owner = HARD.owner;
+  if (!out.repo) out.repo = HARD.repo;
+  if (!out.token) out.token = HARD.token;
   return out;
 }
-function sigOf(c) { return `${c.owner}/${c.repo}@${c.branch}:${c.file}:${c.token ? 't' : 'a'}`; }
+function sigOf(c) { return `${c.owner}/${c.repo}@${c.branch}:${c.file}:${c.token}`; }
 function ready(c) { return !!(c.owner && c.repo); }
 
 const ADMIN_SECRET_PASS = process.env.ADMIN_PASS || "ANSHU-BHAI-CYBER";
@@ -60,16 +76,23 @@ const EMPTY_DB = () => ({ keys: [], maintenance: { ...DEFAULT_MAINT } });
 
 /* ================= GITHUB API ================= */
 function apiHeaders(c, json) {
-  const h = { 'User-Agent': 'cyber-x-silent', Accept: 'application/vnd.github+json' };
+  const h = {
+    'User-Agent': 'cyber-x-silent',
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28'
+  };
   if (c.token) h.Authorization = `Bearer ${c.token}`;
   if (json) h['Content-Type'] = 'application/json';
   return h;
 }
 
-/* Read the keys file. Falls back to the public raw URL when no token is set. */
+function ghPath(c) {
+  return c.file.split('/').map(encodeURIComponent).join('/');
+}
+
 async function ghRead(c) {
   if (!ready(c)) return null;
-  const encoded = c.file.split('/').map(encodeURIComponent).join('/');
+  const encoded = ghPath(c);
 
   if (!c.token) {
     const raw = `https://raw.githubusercontent.com/${c.owner}/${c.repo}/${encodeURIComponent(c.branch)}/${encoded}?t=${Date.now()}`;
@@ -82,22 +105,20 @@ async function ghRead(c) {
   const url = `https://api.github.com/repos/${c.owner}/${c.repo}/contents/${encoded}?ref=${encodeURIComponent(c.branch)}`;
   const r = await fetch(url, { headers: apiHeaders(c, false) });
   if (r.status === 404) return { text: null, sha: null };
-  if (!r.ok) throw new Error(`GitHub GET ${r.status}`);
+  if (r.status === 401) throw new Error('GitHub token rejected (401) — token is invalid or expired');
+  if (r.status === 403) throw new Error('GitHub refused access (403) — token lacks Contents permission or rate limit hit');
+  if (!r.ok) throw new Error(`GitHub GET ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const j = await r.json();
   return { text: Buffer.from(j.content || '', 'base64').toString('utf8'), sha: j.sha || null };
 }
 
-/* Write the keys file. Returns { ok, sha } or { conflict: true }. */
-async function ghWrite(c, text, sha) {
-  if (!ready(c)) throw new Error('GitHub storage not configured');
-  if (!c.token) throw new Error('A GitHub token is required to write keys');
-
-  const encoded = c.file.split('/').map(encodeURIComponent).join('/');
+async function ghWriteOnce(c, text, sha, useBranch) {
+  const encoded = ghPath(c);
   const body = {
     message: 'chore(keys): update license database',
-    content: Buffer.from(text, 'utf8').toString('base64'),
-    branch: c.branch
+    content: Buffer.from(text, 'utf8').toString('base64')
   };
+  if (useBranch) body.branch = c.branch;
   if (sha) body.sha = sha;
 
   const r = await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}/contents/${encoded}`, {
@@ -105,10 +126,28 @@ async function ghWrite(c, text, sha) {
     headers: apiHeaders(c, true),
     body: JSON.stringify(body)
   });
-  if (r.status === 409 || r.status === 422) return { conflict: true };
-  if (!r.ok) throw new Error(`GitHub PUT ${r.status} ${await r.text()}`);
+  if (r.status === 409 || r.status === 422) {
+    return { conflict: true, status: r.status, detail: (await r.text()).slice(0, 300) };
+  }
+  if (r.status === 401) throw new Error('GitHub token rejected (401) — token is invalid or expired');
+  if (r.status === 403) throw new Error('GitHub refused write (403) — token needs Contents: Read and write');
+  if (!r.ok) throw new Error(`GitHub PUT ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const j = await r.json().catch(() => ({}));
   return { ok: true, sha: (j.content && j.content.sha) || null };
+}
+
+async function ghWrite(c, text, sha) {
+  if (!ready(c)) throw new Error('GitHub storage not configured');
+  if (!c.token) throw new Error('A GitHub token is required to write');
+
+  let r = await ghWriteOnce(c, text, sha, true);
+
+  /* 422 on an empty repo / unknown branch: retry without the branch field */
+  if (r && r.conflict && r.status === 422) {
+    console.warn('[gh] 422 with branch, retrying without it:', r.detail);
+    r = await ghWriteOnce(c, text, sha, false);
+  }
+  return r;
 }
 
 /* ================= CACHE + SERIALIZED WRITES ================= */
@@ -157,7 +196,6 @@ async function putDb(db, c) {
   });
 }
 
-/* Read fresh, mutate, write back */
 async function mutate(c, fn) {
   const db = await getDb(true, c);
   const out = await fn(db);
@@ -423,31 +461,33 @@ app.post('/api/admin/diag', async (req, res) => {
   const c = credsFrom(req);
   const info = {
     storage: 'github',
-    owner: c.owner || null,
-    repo: c.repo || null,
+    owner: c.owner,
+    repo: c.repo,
     branch: c.branch,
     file: c.file,
     tokenSet: !!c.token,
-    writable: !!(c.token && c.owner && c.repo),
-    envSeed: !!(process.env.GITHUB_TOKEN && process.env.GITHUB_REPO)
+    tokenSource: (cfg.token === HARD.token) ? 'hardcoded' : 'panel/env'
   };
 
   try {
-    const db = await getDb(true, c);
-    info.keys = db.keys.length;
-    info.ok = true;
-    info.hint = info.writable
-      ? 'Storage OK — keys are written straight to your repo.'
-      : 'Read works, but a token is required to create or revoke keys.';
+    const f = await ghRead(c);
+    info.reachable = true;
+    info.fileExists = f ? f.text !== null : false;
+    if (f && f.text) {
+      try { info.keys = JSON.parse(f.text).keys.length; } catch (e) { info.keys = 'unparsable JSON'; }
+    } else {
+      info.keys = 0;
+    }
+    info.hint = 'Read OK. If writes fail, the token needs Contents: Read and write.';
   } catch (e) {
-    info.ok = false;
+    info.reachable = false;
     info.error = e.message;
-    info.hint = 'Check owner, repo, branch and path. The token needs Contents: Read and write.';
+    info.hint = 'Read failed — check owner/repo/branch/path and that the token is valid.';
   }
   return res.json(info);
 });
 
-/* Save credentials from the panel and verify them */
+/* Save panel override and verify it */
 app.post('/api/admin/github-config', async (req, res) => {
   const { adminPass } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
@@ -455,27 +495,34 @@ app.post('/api/admin/github-config', async (req, res) => {
   const incoming = req.body.gh || {};
   const next = { ...cfg };
   for (const k of ['owner', 'repo', 'branch', 'file', 'token']) {
-    if (incoming[k] !== undefined && incoming[k] !== '') next[k] = String(incoming[k]).trim();
+    if (incoming[k] && String(incoming[k]).trim()) next[k] = String(incoming[k]).trim();
   }
-  if (!next.branch) next.branch = 'main';
-  if (!next.file) next.file = 'data/keys.json';
-
-  if (!next.owner || !next.repo) return res.status(400).json({ success: false, error: "Owner and repo are required." });
 
   try {
     const f = await ghRead(next);
-    if (f.text === null && next.token) {
+    if (f && f.text === null) {
       await ghWrite(next, JSON.stringify(EMPTY_DB(), null, 2), null);
     }
   } catch (e) {
-    return res.status(400).json({ success: false, error: "Could not reach that repo: " + e.message });
+    return res.status(400).json({ success: false, error: e.message });
   }
 
   cfg = next;
   saveCfg();
   cache = { data: null, sha: null, at: 0, sig: '' };
   console.log(`[cfg] storage set to ${cfg.owner}/${cfg.repo}:${cfg.file}`);
-  return res.json({ success: true, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, file: cfg.file, tokenSet: !!cfg.token });
+  return res.json({ success: true, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, file: cfg.file });
+});
+
+/* Drop any saved override and go back to the hardcoded repo */
+app.post('/api/admin/github-reset', async (req, res) => {
+  const { adminPass } = req.body;
+  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
+  cfg = { ...HARD, ...envOverrides() };
+  try { fs.unlinkSync(LOCAL_CFG); } catch (e) {}
+  cache = { data: null, sha: null, at: 0, sig: '' };
+  console.log('[cfg] reset to hardcoded repo');
+  return res.json({ success: true, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, file: cfg.file });
 });
 
 app.post('/api/admin/github-test', async (req, res) => {
@@ -483,6 +530,13 @@ app.post('/api/admin/github-test', async (req, res) => {
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
   const c = credsFrom(req);
   try {
+    const f = await ghRead(c);
+    if (f && f.text === null) {
+      const w = await ghWrite(c, JSON.stringify(EMPTY_DB(), null, 2), null);
+      if (!w.ok) return res.json({ success: false, error: 'read ok, write failed' });
+      cache = { data: null, sha: null, at: 0, sig: '' };
+      return res.json({ success: true, created: true, keys: 0, writable: true });
+    }
     const db = await getDb(true, c);
     return res.json({ success: true, keys: db.keys.length, writable: !!c.token });
   } catch (e) {
@@ -495,8 +549,6 @@ app.post('/api/admin/create-key', async (req, res) => {
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
 
   const c = credsFrom(req);
-  if (!c.token) return res.status(400).json({ error: "No GitHub token configured — cannot write." });
-
   const durationHours = parseDuration(req.body);
   console.log('[create-key] body =', JSON.stringify(req.body), '=> durationHours =', durationHours);
 
@@ -541,7 +593,6 @@ app.post('/api/admin/revoke-key', async (req, res) => {
   const { adminPass, key } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized" });
   const c = credsFrom(req);
-  if (!c.token) return res.status(400).json({ error: "No GitHub token configured." });
 
   try {
     await mutate(c, db => {
@@ -559,8 +610,6 @@ app.post('/api/admin/repair-key', async (req, res) => {
   const { adminPass, key } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
   const c = credsFrom(req);
-  if (!c.token) return res.status(400).json({ error: "No GitHub token configured." });
-
   const durationHours = parseDuration(req.body);
 
   try {
@@ -585,7 +634,6 @@ app.post('/api/admin/maintenance', async (req, res) => {
   const { adminPass, enabled, message } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
   const c = credsFrom(req);
-  if (!c.token) return res.status(400).json({ error: "No GitHub token configured." });
 
   try {
     const m = await mutate(c, db => {
@@ -607,7 +655,5 @@ const PORT = process.env.PORT || 3000;
 loadCfg();
 app.listen(PORT, () => {
   console.log(`Server active on port ${PORT}`);
-  console.log(ready(cfg)
-    ? `[cfg] storage -> ${cfg.owner}/${cfg.repo}:${cfg.file} (${cfg.token ? 'token' : 'no token'})`
-    : '[cfg] no GitHub storage configured yet — set it in the admin panel');
+  console.log(`[cfg] storage -> ${cfg.owner}/${cfg.repo}:${cfg.file} (${cfg.token ? 'token set' : 'NO TOKEN'})`);
 });
