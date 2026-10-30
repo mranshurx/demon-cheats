@@ -3,6 +3,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const crypto = require('crypto');
 
 const app = express();
 app.set('trust proxy', true);
@@ -72,7 +73,59 @@ function tokenShape(t) {
   return 'unknown prefix';
 }
 
-const ADMIN_SECRET_PASS = process.env.ADMIN_PASS || "ANSHU-BHAI-CYBER";
+/* ================= ADMIN KEY (remote — no hardcoded secret) ================= */
+const ADMIN_KEY_URL = process.env.ADMIN_KEY_URL ||
+  'https://raw.githubusercontent.com/mranshurx/CYBER-X-SILENT/refs/heads/main/adminkey.txt';
+const ADMIN_KEY_TTL = 30000;
+
+let adminKeyState = { value: '', ver: '', at: 0 };
+
+function parseAdminKey(raw) {
+  const first = (raw || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean)[0] || '';
+  let v = first.replace(/^[A-Za-z _-]{0,24}\s*[:=]\s*/, '');
+  v = v.replace(/^["'`]+|["'`]+$/g, '').trim();
+  return v;
+}
+
+function verOf(v) {
+  return crypto.createHash('sha256').update(v).digest('hex').slice(0, 16);
+}
+
+async function getAdminKey(force) {
+  const fresh = adminKeyState.value && Date.now() - adminKeyState.at < ADMIN_KEY_TTL;
+  if (!force && fresh) return adminKeyState;
+
+  try {
+    const url = `${ADMIN_KEY_URL}${ADMIN_KEY_URL.includes('?') ? '&' : '?'}t=${Date.now()}`;
+    const r = await fetch(url, {
+      headers: { 'User-Agent': 'cyber-x-silent', 'Cache-Control': 'no-cache' },
+      cache: 'no-store'
+    });
+    if (!r.ok) throw new Error(`GET ${r.status}`);
+    const value = parseAdminKey(await r.text());
+    if (!value) throw new Error('empty key file');
+    if (value !== adminKeyState.value) console.log(`[admin] key rotated -> ${verOf(value)}`);
+    adminKeyState = { value, ver: verOf(value), at: Date.now() };
+  } catch (e) {
+    console.warn('[admin] key source unreachable:', e.message, '— using last known key');
+  }
+  return adminKeyState;
+}
+
+async function requireAdmin(req, res) {
+  const state = await getAdminKey(false);
+  if (!state.value) {
+    res.status(503).json({ error: 'Admin key source unreachable. Try again shortly.' });
+    return null;
+  }
+  const supplied = String((req.body && req.body.adminPass) || '').trim();
+  if (supplied !== state.value) {
+    res.status(401).json({ error: 'Invalid Admin Password.' });
+    return null;
+  }
+  return state;
+}
+
 const HAPP_PROVIDER_ID = "";
 
 const FRONTEND_DIR = fs.existsSync(path.join(__dirname, '..', 'frontend'))
@@ -455,15 +508,21 @@ app.get('/api/check-key', async (req, res) => {
 });
 
 /* ================= ADMIN ================= */
-app.post('/api/admin/login', (req, res) => {
-  const { adminPass } = req.body;
-  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ success: false, error: "Invalid Admin Password." });
-  return res.json({ success: true });
+app.post('/api/admin/login', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  return res.json({ success: true, ver: state.ver });
+});
+
+app.post('/api/admin/verify', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  return res.json({ success: true, ver: state.ver });
 });
 
 app.post('/api/admin/diag', async (req, res) => {
-  const { adminPass } = req.body;
-  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
+  const state = await requireAdmin(req, res);
+  if (!state) return;
 
   const c = credsFrom(req);
   const info = {
@@ -477,7 +536,8 @@ app.post('/api/admin/diag', async (req, res) => {
     tokenShape: tokenShape(c.token),
     tokenSource: process.env.GITHUB_TOKEN && c.token === process.env.GITHUB_TOKEN.trim()
       ? 'env GITHUB_TOKEN'
-      : (c.token === HARD.token ? 'hardcoded' : 'panel override')
+      : (c.token === HARD.token ? 'hardcoded' : 'panel override'),
+    adminKeyVer: state.ver
   };
 
   try {
@@ -499,8 +559,8 @@ app.post('/api/admin/diag', async (req, res) => {
 });
 
 app.post('/api/admin/github-config', async (req, res) => {
-  const { adminPass } = req.body;
-  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
+  const state = await requireAdmin(req, res);
+  if (!state) return;
 
   const incoming = req.body.gh || {};
   const next = { ...cfg };
@@ -525,8 +585,8 @@ app.post('/api/admin/github-config', async (req, res) => {
 });
 
 app.post('/api/admin/github-reset', async (req, res) => {
-  const { adminPass } = req.body;
-  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
+  const state = await requireAdmin(req, res);
+  if (!state) return;
   cfg = { ...HARD, ...envOverrides() };
   try { fs.unlinkSync(LOCAL_CFG); } catch (e) {}
   cache = { data: null, sha: null, at: 0, sig: '' };
@@ -535,8 +595,8 @@ app.post('/api/admin/github-reset', async (req, res) => {
 });
 
 app.post('/api/admin/github-test', async (req, res) => {
-  const { adminPass } = req.body;
-  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
+  const state = await requireAdmin(req, res);
+  if (!state) return;
   const c = credsFrom(req);
   try {
     const f = await ghRead(c);
@@ -554,9 +614,10 @@ app.post('/api/admin/github-test', async (req, res) => {
 });
 
 app.post('/api/admin/create-key', async (req, res) => {
-  const { adminPass, startNow } = req.body;
-  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
+  const state = await requireAdmin(req, res);
+  if (!state) return;
 
+  const { startNow } = req.body;
   const c = credsFrom(req);
   const durationHours = parseDuration(req.body);
   console.log('[create-key] body =', JSON.stringify(req.body), '=> durationHours =', durationHours);
@@ -587,8 +648,8 @@ app.post('/api/admin/create-key', async (req, res) => {
 });
 
 app.post('/api/admin/list-keys', async (req, res) => {
-  const { adminPass } = req.body;
-  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized" });
+  const state = await requireAdmin(req, res);
+  if (!state) return;
   try {
     const db = await getDb(true, credsFrom(req));
     const keys = [...db.keys].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
@@ -599,8 +660,9 @@ app.post('/api/admin/list-keys', async (req, res) => {
 });
 
 app.post('/api/admin/revoke-key', async (req, res) => {
-  const { adminPass, key } = req.body;
-  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized" });
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  const { key } = req.body;
   const c = credsFrom(req);
 
   try {
@@ -616,8 +678,9 @@ app.post('/api/admin/revoke-key', async (req, res) => {
 });
 
 app.post('/api/admin/repair-key', async (req, res) => {
-  const { adminPass, key } = req.body;
-  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  const { key } = req.body;
   const c = credsFrom(req);
   const durationHours = parseDuration(req.body);
 
@@ -640,8 +703,9 @@ app.post('/api/admin/repair-key', async (req, res) => {
 });
 
 app.post('/api/admin/maintenance', async (req, res) => {
-  const { adminPass, enabled, message } = req.body;
-  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  const { enabled, message } = req.body;
   const c = credsFrom(req);
 
   try {
@@ -666,4 +730,6 @@ app.listen(PORT, () => {
   console.log(`Server active on port ${PORT}`);
   console.log(`[cfg] storage -> ${cfg.owner}/${cfg.repo}:${cfg.file}`);
   console.log(`[cfg] token -> ${tokenShape(cfg.token)}`);
+  console.log(`[admin] key source -> ${ADMIN_KEY_URL}`);
+  getAdminKey(true);
 });
