@@ -1,14 +1,5 @@
 {
-  "keys": [
-    {
-      "key": "CYBER-6ABPGP",
-      "durationHours": 24,
-      "createdAt": "2026-10-30T04:37:43.349Z",
-      "startedAt": null,
-      "activatedAt": null,
-      "expiresAt": null
-    }
-  ],
+  "keys": [],
   "maintenance": {
     "enabled": false,
     "message": "System under maintenance."
