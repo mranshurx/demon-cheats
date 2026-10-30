@@ -57,16 +57,52 @@ async function ghPutFile(contentStr) {
   return { sha: null };
 }
 
-function normalizeHours(h) {
-  const n = parseInt(h, 10);
-  return (Number.isFinite(n) && n > 0) ? n : 24;
+/* ================= DURATION PARSING (strict) ================= */
+/*
+  Rules:
+  - `days` wins if present (multiples of 24)
+  - then `durationHours` / `duration` / `hours` read as HOURS
+  - 24h is used only when the body carries nothing usable, and it is logged loudly
+*/
+function parseDuration(body) {
+  body = body || {};
+
+  if (body.days != null) {
+    const d = Number(body.days);
+    if (Number.isFinite(d) && d > 0) return Math.round(d * 24);
+  }
+
+  for (const field of ['durationHours', 'duration', 'hours']) {
+    if (body[field] != null) {
+      const n = Number(body[field]);
+      if (Number.isFinite(n) && n > 0) return Math.round(n);
+    }
+  }
+
+  console.warn('[duration] no valid duration in body — falling back to 24h:', JSON.stringify(body));
+  return 24;
 }
+
+/* Last-resort guard used at activation time (record already exists) */
+function normalizeHours(h) {
+  const n = Number(h);
+  return (Number.isFinite(n) && n > 0) ? Math.round(n) : 24;
+}
+
+/* Never clobber a real duration on boot — only fill in what is genuinely missing */
 function migrateRecord(r) {
   if (r.durationHours == null) {
-    if (r.expiresAt && r.createdAt) {
-      const d = (new Date(r.expiresAt).getTime() - new Date(r.createdAt).getTime()) / 3600000;
-      r.durationHours = d > 0 ? Math.round(d) : 24;
-    } else r.durationHours = 24;
+    const c = r.createdAt ? new Date(r.createdAt).getTime() : 0;
+    const e = r.expiresAt ? new Date(r.expiresAt).getTime() : 0;
+    const d = (e - c) / 3600000;
+    r.durationHours = (d > 0 && Math.round(d) !== 24) ? Math.round(d) : 24;
+    console.log(`[migrate] ${r.key} -> ${r.durationHours}h (derived)`);
+  } else {
+    const fixed = normalizeHours(r.durationHours);
+    if (fixed !== r.durationHours) {
+      console.warn(`[migrate] ${r.key} repaired ${r.durationHours} -> ${fixed}`);
+      r.durationHours = fixed;
+    }
   }
   if (r.expiresAt && !r.activatedAt) r.activatedAt = r.createdAt || new Date().toISOString();
 }
@@ -339,14 +375,7 @@ app.post('/api/admin/create-key', (req, res) => {
   const { adminPass } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
 
-  /* Accept several field names / units so any panel version works */
-  let rawHours = req.body.durationHours;
-  if (rawHours == null) rawHours = req.body.duration;   // hours
-  if (rawHours == null) rawHours = req.body.hours;      // hours
-  if (rawHours == null && req.body.days != null) rawHours = Number(req.body.days) * 24;
-
-  const durationHours = normalizeHours(rawHours);
-
+  const durationHours = parseDuration(req.body);
   console.log('[create-key] body =', JSON.stringify(req.body), '=> durationHours =', durationHours);
 
   const keys = readKeys();
@@ -387,18 +416,20 @@ app.post('/api/admin/revoke-key', (req, res) => {
 
 /* Repair a key: set a new duration and re-arm the clock */
 app.post('/api/admin/repair-key', (req, res) => {
-  const { adminPass, key, durationHours } = req.body;
+  const { adminPass, key } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
 
   const r = readKeys().find(k => k.key === key);
   if (!r) return res.status(404).json({ error: "Key not found." });
 
-  r.durationHours = normalizeHours(durationHours);
+  const durationHours = parseDuration(req.body);
+  r.durationHours = durationHours;
   r.activatedAt = null;
   r.expiresAt = null;
   scheduleSave();
   happLinkCache.delete(key);
-  return res.json({ success: true, record: r });
+  console.log(`[repair-key] ${key} -> ${durationHours}h, clock re-armed`);
+  return res.json({ success: true, record: r, durationHours });
 });
 
 app.post('/api/admin/maintenance', (req, res) => {
