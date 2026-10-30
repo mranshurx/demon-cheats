@@ -9,24 +9,27 @@ app.set('trust proxy', true);
 app.use(express.json({ limit: '1mb' }));
 app.use(cors());
 
-/* ================= STORAGE: hardcoded GitHub repo ================= */
+/* ================= STORAGE: hardcoded repo, token from env ================= */
 const HARD = {
   owner:  'mranshurx',
   repo:   'CYBER-X-SILENT',
   branch: 'main',
   file:   'data/keys.json',
-  token:  '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'
+  /* Leave empty. A classic ghp_ token committed to a public repo is auto-revoked
+     by GitHub secret scanning. Put it in Render env as GITHUB_TOKEN instead. */
+  token:  ''
 };
 
 const LOCAL_CFG = path.join(__dirname, 'github.json');
 
+/* Environment wins over the hardcoded fallbacks */
 function envOverrides() {
   const o = {};
   if (process.env.GITHUB_OWNER) o.owner = process.env.GITHUB_OWNER;
   if (process.env.GITHUB_REPO) o.repo = process.env.GITHUB_REPO;
   if (process.env.GITHUB_BRANCH) o.branch = process.env.GITHUB_BRANCH;
   if (process.env.GITHUB_KEYS_PATH) o.file = process.env.GITHUB_KEYS_PATH;
-  if (process.env.GITHUB_TOKEN) o.token = process.env.GITHUB_TOKEN;
+  if (process.env.GITHUB_TOKEN) o.token = process.env.GITHUB_TOKEN.trim();
   return o;
 }
 
@@ -58,11 +61,21 @@ function credsFrom(req) {
   if (!out.file) out.file = 'data/keys.json';
   if (!out.owner) out.owner = HARD.owner;
   if (!out.repo) out.repo = HARD.repo;
-  if (!out.token) out.token = HARD.token;
+  if (!out.token) out.token = HARD.token || process.env.GITHUB_TOKEN || '';
+  out.token = out.token.trim();
   return out;
 }
 function sigOf(c) { return `${c.owner}/${c.repo}@${c.branch}:${c.file}:${c.token}`; }
 function ready(c) { return !!(c.owner && c.repo); }
+
+/* Classic = 40 chars, fine-grained = 93+. Catches truncated pastes early. */
+function tokenShape(t) {
+  if (!t) return 'missing';
+  if (t.startsWith('ghp_')) return t.length === 40 ? 'classic (looks valid)' : `classic but ${t.length} chars, expected 40 — likely truncated`;
+  if (t.startsWith('github_pat_')) return 'fine-grained';
+  if (t.startsWith('gho_')) return 'oauth';
+  return 'unknown prefix';
+}
 
 const ADMIN_SECRET_PASS = process.env.ADMIN_PASS || "ANSHU-BHAI-CYBER";
 const HAPP_PROVIDER_ID = "";
@@ -105,8 +118,8 @@ async function ghRead(c) {
   const url = `https://api.github.com/repos/${c.owner}/${c.repo}/contents/${encoded}?ref=${encodeURIComponent(c.branch)}`;
   const r = await fetch(url, { headers: apiHeaders(c, false) });
   if (r.status === 404) return { text: null, sha: null };
-  if (r.status === 401) throw new Error('GitHub token rejected (401) — token is invalid or expired');
-  if (r.status === 403) throw new Error('GitHub refused access (403) — token lacks Contents permission or rate limit hit');
+  if (r.status === 401) throw new Error('401 bad credentials — token revoked, expired, or mistyped. Classic tokens are auto-revoked when committed to a public repo.');
+  if (r.status === 403) throw new Error('403 forbidden — token lacks Contents permission, or rate limit hit');
   if (!r.ok) throw new Error(`GitHub GET ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const j = await r.json();
   return { text: Buffer.from(j.content || '', 'base64').toString('utf8'), sha: j.sha || null };
@@ -129,8 +142,8 @@ async function ghWriteOnce(c, text, sha, useBranch) {
   if (r.status === 409 || r.status === 422) {
     return { conflict: true, status: r.status, detail: (await r.text()).slice(0, 300) };
   }
-  if (r.status === 401) throw new Error('GitHub token rejected (401) — token is invalid or expired');
-  if (r.status === 403) throw new Error('GitHub refused write (403) — token needs Contents: Read and write');
+  if (r.status === 401) throw new Error('401 bad credentials — token revoked, expired, or mistyped');
+  if (r.status === 403) throw new Error('403 forbidden — token needs Contents: Read and write');
   if (!r.ok) throw new Error(`GitHub PUT ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const j = await r.json().catch(() => ({}));
   return { ok: true, sha: (j.content && j.content.sha) || null };
@@ -138,7 +151,7 @@ async function ghWriteOnce(c, text, sha, useBranch) {
 
 async function ghWrite(c, text, sha) {
   if (!ready(c)) throw new Error('GitHub storage not configured');
-  if (!c.token) throw new Error('A GitHub token is required to write');
+  if (!c.token) throw new Error('No GitHub token — set GITHUB_TOKEN in Render env');
 
   let r = await ghWriteOnce(c, text, sha, true);
 
@@ -466,7 +479,11 @@ app.post('/api/admin/diag', async (req, res) => {
     branch: c.branch,
     file: c.file,
     tokenSet: !!c.token,
-    tokenSource: (cfg.token === HARD.token) ? 'hardcoded' : 'panel/env'
+    tokenLength: c.token ? c.token.length : 0,
+    tokenShape: tokenShape(c.token),
+    tokenSource: process.env.GITHUB_TOKEN && c.token === process.env.GITHUB_TOKEN.trim()
+      ? 'env GITHUB_TOKEN'
+      : (c.token === HARD.token ? 'hardcoded' : 'panel override')
   };
 
   try {
@@ -482,7 +499,7 @@ app.post('/api/admin/diag', async (req, res) => {
   } catch (e) {
     info.reachable = false;
     info.error = e.message;
-    info.hint = 'Read failed — check owner/repo/branch/path and that the token is valid.';
+    info.hint = 'Read failed. 401 = token dead or mistyped. 403 = permissions. 404 = wrong owner/repo/path/branch.';
   }
   return res.json(info);
 });
@@ -514,14 +531,14 @@ app.post('/api/admin/github-config', async (req, res) => {
   return res.json({ success: true, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, file: cfg.file });
 });
 
-/* Drop any saved override and go back to the hardcoded repo */
+/* Drop any saved override and go back to hardcoded repo + env token */
 app.post('/api/admin/github-reset', async (req, res) => {
   const { adminPass } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
   cfg = { ...HARD, ...envOverrides() };
   try { fs.unlinkSync(LOCAL_CFG); } catch (e) {}
   cache = { data: null, sha: null, at: 0, sig: '' };
-  console.log('[cfg] reset to hardcoded repo');
+  console.log('[cfg] reset to hardcoded repo + env token');
   return res.json({ success: true, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, file: cfg.file });
 });
 
@@ -655,5 +672,6 @@ const PORT = process.env.PORT || 3000;
 loadCfg();
 app.listen(PORT, () => {
   console.log(`Server active on port ${PORT}`);
-  console.log(`[cfg] storage -> ${cfg.owner}/${cfg.repo}:${cfg.file} (${cfg.token ? 'token set' : 'NO TOKEN'})`);
+  console.log(`[cfg] storage -> ${cfg.owner}/${cfg.repo}:${cfg.file}`);
+  console.log(`[cfg] token -> ${tokenShape(cfg.token)}`);
 });
