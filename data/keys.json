@@ -1,5 +1,14 @@
 {
-  "keys": [],
+  "keys": [
+    {
+      "key": "CYBER-0RRTKP",
+      "durationHours": 24,
+      "createdAt": "2026-10-30T05:34:42.383Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
+    }
+  ],
   "maintenance": {
     "enabled": false,
     "message": "System under maintenance."
