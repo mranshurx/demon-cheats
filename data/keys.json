@@ -1,5 +1,14 @@
 {
-  "keys": [],
+  "keys": [
+    {
+      "key": "CYBER-JNTP9G",
+      "durationHours": 24,
+      "createdAt": "2026-10-30T05:36:02.756Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
+    }
+  ],
   "maintenance": {
     "enabled": false,
     "message": "System under maintenance."
