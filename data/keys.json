@@ -1,4 +1,16 @@
 {
-  "keys": [],
-  "maintenance": { "enabled": false, "message": "System under maintenance." }
+  "keys": [
+    {
+      "key": "CYBER-WYJXF1",
+      "durationHours": 24,
+      "createdAt": "2026-10-30T04:21:41.483Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
+    }
+  ],
+  "maintenance": {
+    "enabled": false,
+    "message": "System under maintenance."
+  }
 }
