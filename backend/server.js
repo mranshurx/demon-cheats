@@ -6,161 +6,224 @@ const https = require('https');
 
 const app = express();
 app.set('trust proxy', true);
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(cors());
 
-/* ================= STORAGE: Upstash Redis (REST) as the database ================= */
-const KV_URL   = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || 'https://flying-poodle-243357.upstash.io';
-const KV_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || '';
-const KV_KEY   = process.env.KV_DB_KEY || 'cyberx:db';
-const USE_GITHUB = !!(KV_URL && KV_TOKEN);   // name kept — now means "remote DB enabled"
+/* ================= STORAGE: your GitHub repo ================= */
+const LOCAL_CFG = path.join(__dirname, 'github.json');
+
+function envCfg() {
+  return {
+    owner:  process.env.GITHUB_OWNER || '',
+    repo:   process.env.GITHUB_REPO || '',
+    branch: process.env.GITHUB_BRANCH || 'main',
+    file:   process.env.GITHUB_KEYS_PATH || 'data/keys.json',
+    token:  process.env.GITHUB_TOKEN || ''
+  };
+}
+
+let cfg = envCfg();
+
+function loadCfg() {
+  try {
+    if (fs.existsSync(LOCAL_CFG)) Object.assign(cfg, JSON.parse(fs.readFileSync(LOCAL_CFG, 'utf8')));
+  } catch (e) { console.warn('[cfg] could not read github.json:', e.message); }
+}
+function saveCfg() {
+  try { fs.writeFileSync(LOCAL_CFG, JSON.stringify(cfg, null, 2)); }
+  catch (e) { console.warn('[cfg] could not persist github.json:', e.message); }
+}
+
+/* Panel values win over env values for this request */
+function credsFrom(req) {
+  const out = { ...cfg };
+  const gh = (req.body && req.body.gh) || req.query || {};
+  for (const k of ['owner', 'repo', 'branch', 'file', 'token']) {
+    if (gh[k]) out[k] = String(gh[k]).trim();
+  }
+  if (!out.branch) out.branch = 'main';
+  if (!out.file) out.file = 'data/keys.json';
+  return out;
+}
+function sigOf(c) { return `${c.owner}/${c.repo}@${c.branch}:${c.file}:${c.token ? 't' : 'a'}`; }
+function ready(c) { return !!(c.owner && c.repo); }
 
 const ADMIN_SECRET_PASS = process.env.ADMIN_PASS || "ANSHU-BHAI-CYBER";
-
-// Optional: paste your happ-proxy.com Provider ID.
 const HAPP_PROVIDER_ID = "";
 
 const FRONTEND_DIR = fs.existsSync(path.join(__dirname, '..', 'frontend'))
   ? path.join(__dirname, '..', 'frontend')
   : path.join(__dirname, 'frontend');
 
-/* ================= DB STATE ================= */
 const DEFAULT_MAINT = { enabled: false, message: 'System under maintenance.' };
-let keysCache = null;
-let maintCache = null;
-let dbSha = null;
-let saveTimer = null;
-let saving = false;
-let dirty = false;
+const EMPTY_DB = () => ({ keys: [], maintenance: { ...DEFAULT_MAINT } });
 
-function ghHeaders() {
-  return {
-    Authorization: `Bearer ${KV_TOKEN}`,
-    'Content-Type': 'application/json'
-  };
+/* ================= GITHUB API ================= */
+function apiHeaders(c, json) {
+  const h = { 'User-Agent': 'cyber-x-silent', Accept: 'application/vnd.github+json' };
+  if (c.token) h.Authorization = `Bearer ${c.token}`;
+  if (json) h['Content-Type'] = 'application/json';
+  return h;
 }
-async function ghGetFile() {
-  const r = await fetch(`${KV_URL}/get/${encodeURIComponent(KV_KEY)}`, { headers: ghHeaders() });
-  if (r.status === 404) return { content: null, sha: null };
-  if (!r.ok) throw new Error(`KV GET ${r.status}`);
+
+/* Read the keys file. Falls back to the public raw URL when no token is set. */
+async function ghRead(c) {
+  if (!ready(c)) return null;
+  const encoded = c.file.split('/').map(encodeURIComponent).join('/');
+
+  if (!c.token) {
+    const raw = `https://raw.githubusercontent.com/${c.owner}/${c.repo}/${encodeURIComponent(c.branch)}/${encoded}?t=${Date.now()}`;
+    const r = await fetch(raw, { headers: { 'User-Agent': 'cyber-x-silent' } });
+    if (r.status === 404) return { text: null, sha: null };
+    if (!r.ok) throw new Error(`raw GET ${r.status}`);
+    return { text: await r.text(), sha: null };
+  }
+
+  const url = `https://api.github.com/repos/${c.owner}/${c.repo}/contents/${encoded}?ref=${encodeURIComponent(c.branch)}`;
+  const r = await fetch(url, { headers: apiHeaders(c, false) });
+  if (r.status === 404) return { text: null, sha: null };
+  if (!r.ok) throw new Error(`GitHub GET ${r.status}`);
   const j = await r.json();
-  return { content: j && j.result ? j.result : null, sha: null };
+  return { text: Buffer.from(j.content || '', 'base64').toString('utf8'), sha: j.sha || null };
 }
-async function ghPutFile(contentStr) {
-  const r = await fetch(`${KV_URL}/set/${encodeURIComponent(KV_KEY)}`, {
-    method: 'POST',
-    headers: ghHeaders(),
-    body: contentStr
+
+/* Write the keys file. Returns { ok, sha } or { conflict: true }. */
+async function ghWrite(c, text, sha) {
+  if (!ready(c)) throw new Error('GitHub storage not configured');
+  if (!c.token) throw new Error('A GitHub token is required to write keys');
+
+  const encoded = c.file.split('/').map(encodeURIComponent).join('/');
+  const body = {
+    message: 'chore(keys): update license database',
+    content: Buffer.from(text, 'utf8').toString('base64'),
+    branch: c.branch
+  };
+  if (sha) body.sha = sha;
+
+  const r = await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}/contents/${encoded}`, {
+    method: 'PUT',
+    headers: apiHeaders(c, true),
+    body: JSON.stringify(body)
   });
   if (r.status === 409 || r.status === 422) return { conflict: true };
-  if (!r.ok) throw new Error(`KV PUT ${r.status} ${await r.text()}`);
-  return { sha: null };
+  if (!r.ok) throw new Error(`GitHub PUT ${r.status} ${await r.text()}`);
+  const j = await r.json().catch(() => ({}));
+  return { ok: true, sha: (j.content && j.content.sha) || null };
 }
 
-/* ================= DURATION PARSING (strict) ================= */
-/*
-  Rules:
-  - `days` wins if present (multiples of 24)
-  - then `durationHours` / `duration` / `hours` read as HOURS
-  - 24h is used only when the body carries nothing usable, and it is logged loudly
-*/
+/* ================= CACHE + SERIALIZED WRITES ================= */
+let cache = { data: null, sha: null, at: 0, sig: '' };
+const TTL = 5000;
+let queue = Promise.resolve();
+function enqueue(fn) { queue = queue.then(fn, fn); return queue; }
+
+async function getDb(force, c) {
+  c = c || cfg;
+  if (!ready(c)) return EMPTY_DB();
+  const sig = sigOf(c);
+
+  if (!force && cache.data && cache.sig === sig && Date.now() - cache.at < TTL) return cache.data;
+
+  const f = await ghRead(c);
+  let db;
+  try { db = f && f.text ? JSON.parse(f.text) : null; } catch (e) { db = null; }
+  if (!db || typeof db !== 'object') db = EMPTY_DB();
+  if (!Array.isArray(db.keys)) db.keys = [];
+  if (!db.maintenance) db.maintenance = { ...DEFAULT_MAINT };
+  db.keys.forEach(migrateRecord);
+
+  cache = { data: db, sha: f ? f.sha : null, at: Date.now(), sig };
+  return db;
+}
+
+async function putDb(db, c) {
+  c = c || cfg;
+  const text = JSON.stringify(db, null, 2);
+  const sig = sigOf(c);
+  return enqueue(async () => {
+    let sha = (cache.sig === sig) ? cache.sha : null;
+    if (!sha) {
+      const f = await ghRead(c);
+      sha = f ? f.sha : null;
+    }
+    let r = await ghWrite(c, text, sha);
+    if (r && r.conflict) {
+      const f = await ghRead(c);
+      r = await ghWrite(c, text, f ? f.sha : null);
+    }
+    if (!r || !r.ok) throw new Error('GitHub write failed');
+    cache = { data: db, sha: r.sha, at: Date.now(), sig };
+    return r;
+  });
+}
+
+/* Read fresh, mutate, write back */
+async function mutate(c, fn) {
+  const db = await getDb(true, c);
+  const out = await fn(db);
+  await putDb(db, c);
+  return out;
+}
+
+/* ================= DURATION ================= */
 function parseDuration(body) {
   body = body || {};
-
   if (body.days != null) {
     const d = Number(body.days);
     if (Number.isFinite(d) && d > 0) return Math.round(d * 24);
   }
-
   for (const field of ['durationHours', 'duration', 'hours']) {
     if (body[field] != null) {
       const n = Number(body[field]);
       if (Number.isFinite(n) && n > 0) return Math.round(n);
     }
   }
-
-  console.warn('[duration] no valid duration in body — falling back to 24h:', JSON.stringify(body));
+  console.warn('[duration] nothing usable in body — defaulting to 24h:', JSON.stringify(body));
   return 24;
 }
-
-/* Last-resort guard used at activation time (record already exists) */
 function normalizeHours(h) {
   const n = Number(h);
   return (Number.isFinite(n) && n > 0) ? Math.round(n) : 24;
 }
-
-/* Never clobber a real duration on boot — only fill in what is genuinely missing */
 function migrateRecord(r) {
   if (r.durationHours == null) {
     const c = r.createdAt ? new Date(r.createdAt).getTime() : 0;
     const e = r.expiresAt ? new Date(r.expiresAt).getTime() : 0;
     const d = (e - c) / 3600000;
     r.durationHours = (d > 0 && Math.round(d) !== 24) ? Math.round(d) : 24;
-    console.log(`[migrate] ${r.key} -> ${r.durationHours}h (derived)`);
   } else {
-    const fixed = normalizeHours(r.durationHours);
-    if (fixed !== r.durationHours) {
-      console.warn(`[migrate] ${r.key} repaired ${r.durationHours} -> ${fixed}`);
-      r.durationHours = fixed;
-    }
+    r.durationHours = normalizeHours(r.durationHours);
   }
+  if (r.startedAt == null) r.startedAt = r.activatedAt || null;
   if (r.expiresAt && !r.activatedAt) r.activatedAt = r.createdAt || new Date().toISOString();
 }
 
-function readKeys() { return keysCache || []; }
-function readMaintenance() { return maintCache || DEFAULT_MAINT; }
+/* ================= KEY RESOLUTION ================= */
+async function findActiveKey(key, c) {
+  let db = await getDb(false, c);
+  let r = db.keys.find(k => k.key === key);
+  if (!r) return null;
 
-function saveLocal() {
-  fs.writeFileSync(path.join(__dirname, 'keys.json'), JSON.stringify(keysCache, null, 2));
-  fs.writeFileSync(path.join(__dirname, 'maintenance.json'), JSON.stringify(maintCache, null, 2));
-}
-function scheduleSave() {
-  if (!USE_GITHUB) { saveLocal(); return; }
-  dirty = true;
-  if (saveTimer) return;
-  saveTimer = setTimeout(() => { saveTimer = null; flush(); }, 4000);
-}
-async function flush() {
-  if (!USE_GITHUB || saving || !dirty) return;
-  saving = true; dirty = false;
-  const data = JSON.stringify({ keys: keysCache, maintenance: maintCache }, null, 2);
-  try {
-    let res = await ghPutFile(data);
-    if (res && res.conflict) {
-      dbSha = (await ghGetFile()).sha;
-      res = await ghPutFile(data);
-    }
-    if (res && res.sha) dbSha = res.sha;
-    console.log('[db] synced to remote DB');
-  } catch (e) {
-    dirty = true;
-    console.error('[db] sync failed:', e.message);
-  } finally {
-    saving = false;
-    if (dirty && !saveTimer) saveTimer = setTimeout(() => { saveTimer = null; flush(); }, 5000);
+  if (!r.activatedAt) {
+    r = await mutate(c, fresh => {
+      const rec = fresh.keys.find(k => k.key === key);
+      if (!rec || rec.activatedAt) return rec || null;
+      const now = Date.now();
+      rec.activatedAt = new Date(now).toISOString();
+      rec.startedAt = rec.activatedAt;
+      rec.durationHours = normalizeHours(rec.durationHours);
+      rec.expiresAt = new Date(now + rec.durationHours * 3600000).toISOString();
+      console.log(`[key] activated ${rec.key} -> ${rec.durationHours}h, expires ${rec.expiresAt}`);
+      return rec;
+    });
+    if (!r) return null;
   }
+
+  if (!r.expiresAt || Date.now() > new Date(r.expiresAt).getTime()) return null;
+  return r;
 }
 
-async function preload() {
-  if (USE_GITHUB) {
-    const f = await ghGetFile();
-    dbSha = f.sha;
-    let db = {};
-    try { db = f.content ? JSON.parse(f.content) : {}; } catch (e) { db = {}; }
-    keysCache = Array.isArray(db.keys) ? db.keys : [];
-    maintCache = db.maintenance || { ...DEFAULT_MAINT };
-    console.log(`[db] REMOTE MODE — loaded ${keysCache.length} keys from ${KV_KEY}`);
-  } else {
-    try { keysCache = fs.existsSync(path.join(__dirname, 'keys.json')) ? JSON.parse(fs.readFileSync(path.join(__dirname, 'keys.json'), 'utf8')) : []; }
-    catch (e) { keysCache = []; }
-    maintCache = { ...DEFAULT_MAINT };
-    console.warn('[db] LOCAL FILE MODE (no KV env vars) — keys are wiped on every restart!');
-  }
-  if (!Array.isArray(keysCache)) keysCache = [];
-  keysCache.forEach(migrateRecord);
-}
-
-/* ================= YOUR HYSTERIA & GAME ROUTING CONFIGURATION ================= */
+/* ================= ROUTING CONFIG ================= */
 const BASE_CONFIG = {
   "remarks": "CYBER X SILENT [Secured]",
   "profile-update-interval": 1,
@@ -234,23 +297,7 @@ const EXPIRED_CONFIG = {
   "routing": { "rules": [] }
 };
 
-/* KEY RESOLUTION — clock starts on first activation, exact ms math */
-function findActiveKey(key) {
-  const r = readKeys().find(k => k.key === key);
-  if (!r) return null;
-  if (!r.activatedAt) {
-    const now = Date.now();
-    r.activatedAt = new Date(now).toISOString();
-    r.durationHours = normalizeHours(r.durationHours);
-    r.expiresAt = new Date(now + r.durationHours * 3600000).toISOString();
-    scheduleSave();
-    console.log(`[key] activated ${r.key} -> ${r.durationHours}h, expires ${r.expiresAt}`);
-  }
-  if (!r.expiresAt || Date.now() > new Date(r.expiresAt).getTime()) return null;
-  return r;
-}
-
-/* ================= HAPP ENCRYPTED LINK ================= */
+/* ================= HAPP LINK ================= */
 const happLinkCache = new Map();
 function baseUrl(req) {
   const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
@@ -273,26 +320,34 @@ function encryptHappLink(subUrl) {
   });
 }
 
-/* ================= API ROUTES ================= */
-app.get('/api/maintenance-status', (req, res) => {
-  res.json(readMaintenance());
+/* ================= PUBLIC API ================= */
+app.get('/api/maintenance-status', async (req, res) => {
+  try {
+    const db = await getDb(false, credsFrom(req));
+    res.json(db.maintenance || DEFAULT_MAINT);
+  } catch (e) {
+    res.json(DEFAULT_MAINT);
+  }
 });
 
 app.get('/api/happ-link', async (req, res) => {
   const { key } = req.query;
   if (!key) return res.json({ ok: false, reason: 'no-key' });
-  const record = findActiveKey(key);
-  if (!record) return res.json({ ok: false, reason: 'invalid' });
-  const subUrl = `${baseUrl(req)}/sub?key=${encodeURIComponent(key)}`;
-  if (happLinkCache.has(key)) return res.json({ ok: true, link: happLinkCache.get(key), raw: subUrl });
-  const link = await encryptHappLink(subUrl);
-  if (link) happLinkCache.set(key, link);
-  return res.json({ ok: !!link, link: link || subUrl, raw: subUrl, encrypted: !!link });
+  try {
+    const c = credsFrom(req);
+    const record = await findActiveKey(key, c);
+    if (!record) return res.json({ ok: false, reason: 'invalid' });
+    const subUrl = `${baseUrl(req)}/sub?key=${encodeURIComponent(key)}`;
+    if (happLinkCache.has(key)) return res.json({ ok: true, link: happLinkCache.get(key), raw: subUrl });
+    const link = await encryptHappLink(subUrl);
+    if (link) happLinkCache.set(key, link);
+    return res.json({ ok: !!link, link: link || subUrl, raw: subUrl, encrypted: !!link });
+  } catch (e) {
+    return res.json({ ok: false, reason: 'storage-error', detail: e.message });
+  }
 });
 
-app.get('/sub', (req, res) => {
-  const m = readMaintenance();
-
+app.get('/sub', async (req, res) => {
   res.setHeader('profile-update-interval', '1');
   res.setHeader('subscription-auto-update-enable', '1');
   res.setHeader('subscription-auto-update-open-enable', '1');
@@ -302,162 +357,257 @@ app.get('/sub', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
 
   let targetConfig = BASE_CONFIG;
+  try {
+    const c = credsFrom(req);
+    const db = await getDb(false, c);
+    const m = db.maintenance || DEFAULT_MAINT;
 
-  if (m.enabled) {
-    targetConfig = { ...EXPIRED_CONFIG };
-    targetConfig.remarks = `⚠️ MAINTENANCE: ${m.message}`;
-  } else {
-    const { key } = req.query;
-    if (!key) targetConfig = EXPIRED_CONFIG;
-    else {
-      const record = findActiveKey(key);
+    if (m.enabled) {
+      targetConfig = { ...EXPIRED_CONFIG, remarks: `⚠️ MAINTENANCE: ${m.message}` };
+    } else {
+      const { key } = req.query;
+      const record = key ? await findActiveKey(key, c) : null;
       if (!record) targetConfig = EXPIRED_CONFIG;
       else {
         const expiresAt = new Date(record.expiresAt);
         res.setHeader('subscription-userinfo', `upload=0; download=0; total=107374182400; expire=${Math.floor(expiresAt.getTime() / 1000)}`);
       }
     }
+  } catch (e) {
+    targetConfig = EXPIRED_CONFIG;
   }
 
   return res.status(200).send(JSON.stringify(targetConfig));
 });
 
-app.get('/api/check-key', (req, res) => {
-  const m = readMaintenance();
-  if (m.enabled) return res.json({ valid: false, maintenance: true, message: m.message });
+app.get('/api/check-key', async (req, res) => {
+  try {
+    const c = credsFrom(req);
+    const db = await getDb(false, c);
+    const m = db.maintenance || DEFAULT_MAINT;
+    if (m.enabled) return res.json({ valid: false, maintenance: true, message: m.message });
 
-  const { key } = req.query;
-  if (!key) return res.json({ valid: false, message: "Please enter an access key." });
+    const { key } = req.query;
+    if (!key) return res.json({ valid: false, message: "Please enter an access key." });
+    if (!db.keys.find(k => k.key === key)) return res.json({ valid: false, message: "Invalid key." });
 
-  const all = readKeys();
-  if (!all.find(k => k.key === key)) return res.json({ valid: false, message: "Invalid key." });
+    const record = await findActiveKey(key, c);
+    if (!record) return res.json({ valid: false, message: "Key has expired." });
 
-  const record = findActiveKey(key);
-  if (!record) return res.json({ valid: false, message: "Key has expired." });
-
-  const remainingMs = new Date(record.expiresAt).getTime() - Date.now();
-  return res.json({
-    valid: true,
-    key: record.key,
-    activatedAt: record.activatedAt,
-    expiresAt: record.expiresAt,
-    durationHours: record.durationHours,
-    remainingMs,
-    message: "Access Key Validated!"
-  });
+    return res.json({
+      valid: true,
+      key: record.key,
+      startedAt: record.startedAt || record.activatedAt,
+      activatedAt: record.activatedAt,
+      expiresAt: record.expiresAt,
+      durationHours: record.durationHours,
+      remainingMs: new Date(record.expiresAt).getTime() - Date.now(),
+      message: "Access Key Validated!"
+    });
+  } catch (e) {
+    return res.json({ valid: false, message: "Storage error: " + e.message });
+  }
 });
 
-/* ================= ADMIN API ================= */
+/* ================= ADMIN ================= */
 app.post('/api/admin/login', (req, res) => {
   const { adminPass } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ success: false, error: "Invalid Admin Password." });
   return res.json({ success: true });
 });
 
-/* Diagnostic — tells you where keys are actually being stored */
-app.post('/api/admin/diag', (req, res) => {
+app.post('/api/admin/diag', async (req, res) => {
   const { adminPass } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
-  return res.json({
-    storageMode: USE_GITHUB ? 'remote-db' : 'LOCAL-FILE (volatile!)',
-    dbUrlSet: !!KV_URL,
-    dbKey: KV_KEY,
-    keysInMemory: readKeys().length,
-    maintenance: readMaintenance(),
-    hasDbSha: !!dbSha,
-    hint: USE_GITHUB
-      ? 'Good — keys persist in the remote DB.'
-      : 'Set KV_REST_API_URL + KV_REST_API_TOKEN, otherwise keys vanish on every restart.'
-  });
+
+  const c = credsFrom(req);
+  const info = {
+    storage: 'github',
+    owner: c.owner || null,
+    repo: c.repo || null,
+    branch: c.branch,
+    file: c.file,
+    tokenSet: !!c.token,
+    writable: !!(c.token && c.owner && c.repo),
+    envSeed: !!(process.env.GITHUB_TOKEN && process.env.GITHUB_REPO)
+  };
+
+  try {
+    const db = await getDb(true, c);
+    info.keys = db.keys.length;
+    info.ok = true;
+    info.hint = info.writable
+      ? 'Storage OK — keys are written straight to your repo.'
+      : 'Read works, but a token is required to create or revoke keys.';
+  } catch (e) {
+    info.ok = false;
+    info.error = e.message;
+    info.hint = 'Check owner, repo, branch and path. The token needs Contents: Read and write.';
+  }
+  return res.json(info);
 });
 
-app.post('/api/admin/create-key', (req, res) => {
+/* Save credentials from the panel and verify them */
+app.post('/api/admin/github-config', async (req, res) => {
   const { adminPass } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
+
+  const incoming = req.body.gh || {};
+  const next = { ...cfg };
+  for (const k of ['owner', 'repo', 'branch', 'file', 'token']) {
+    if (incoming[k] !== undefined && incoming[k] !== '') next[k] = String(incoming[k]).trim();
+  }
+  if (!next.branch) next.branch = 'main';
+  if (!next.file) next.file = 'data/keys.json';
+
+  if (!next.owner || !next.repo) return res.status(400).json({ success: false, error: "Owner and repo are required." });
+
+  try {
+    const f = await ghRead(next);
+    if (f.text === null && next.token) {
+      await ghWrite(next, JSON.stringify(EMPTY_DB(), null, 2), null);
+    }
+  } catch (e) {
+    return res.status(400).json({ success: false, error: "Could not reach that repo: " + e.message });
+  }
+
+  cfg = next;
+  saveCfg();
+  cache = { data: null, sha: null, at: 0, sig: '' };
+  console.log(`[cfg] storage set to ${cfg.owner}/${cfg.repo}:${cfg.file}`);
+  return res.json({ success: true, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, file: cfg.file, tokenSet: !!cfg.token });
+});
+
+app.post('/api/admin/github-test', async (req, res) => {
+  const { adminPass } = req.body;
+  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
+  const c = credsFrom(req);
+  try {
+    const db = await getDb(true, c);
+    return res.json({ success: true, keys: db.keys.length, writable: !!c.token });
+  } catch (e) {
+    return res.json({ success: false, error: e.message });
+  }
+});
+
+app.post('/api/admin/create-key', async (req, res) => {
+  const { adminPass, startNow } = req.body;
+  if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
+
+  const c = credsFrom(req);
+  if (!c.token) return res.status(400).json({ error: "No GitHub token configured — cannot write." });
 
   const durationHours = parseDuration(req.body);
   console.log('[create-key] body =', JSON.stringify(req.body), '=> durationHours =', durationHours);
 
-  const keys = readKeys();
-  let randomKey;
-  do { randomKey = "CYBER-" + Math.random().toString(36).substring(2, 8).toUpperCase(); }
-  while (keys.find(k => k.key === randomKey));
+  try {
+    const record = await mutate(c, db => {
+      let key;
+      do { key = "CYBER-" + Math.random().toString(36).substring(2, 8).toUpperCase(); }
+      while (db.keys.find(k => k.key === key));
 
-  const newRecord = {
-    key: randomKey,
-    durationHours,
-    createdAt: new Date().toISOString(),
-    activatedAt: null,
-    expiresAt: null
-  };
-  keys.push(newRecord);
-  scheduleSave();
-  return res.json({ success: true, record: newRecord, durationHours });
+      const now = Date.now();
+      const started = !!startNow;
+      const rec = {
+        key,
+        durationHours,
+        createdAt: new Date(now).toISOString(),
+        startedAt: started ? new Date(now).toISOString() : null,
+        activatedAt: started ? new Date(now).toISOString() : null,
+        expiresAt: started ? new Date(now + durationHours * 3600000).toISOString() : null
+      };
+      db.keys.push(rec);
+      return rec;
+    });
+    return res.json({ success: true, record, durationHours });
+  } catch (e) {
+    return res.status(500).json({ error: "Write failed: " + e.message });
+  }
 });
 
-app.post('/api/admin/list-keys', (req, res) => {
+app.post('/api/admin/list-keys', async (req, res) => {
   const { adminPass } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized" });
-  const keys = [...readKeys()].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-  return res.json({ keys, maintenance: readMaintenance() });
+  try {
+    const db = await getDb(true, credsFrom(req));
+    const keys = [...db.keys].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    return res.json({ keys, maintenance: db.maintenance });
+  } catch (e) {
+    return res.status(500).json({ error: "Read failed: " + e.message, keys: [] });
+  }
 });
 
-app.post('/api/admin/revoke-key', (req, res) => {
+app.post('/api/admin/revoke-key', async (req, res) => {
   const { adminPass, key } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized" });
+  const c = credsFrom(req);
+  if (!c.token) return res.status(400).json({ error: "No GitHub token configured." });
 
-  const keys = readKeys();
-  const idx = keys.findIndex(k => k.key === key);
-  if (idx >= 0) keys.splice(idx, 1);
-  scheduleSave();
-  happLinkCache.delete(key);
-  return res.json({ success: true, message: `Key ${key} revoked instantly.` });
+  try {
+    await mutate(c, db => {
+      const idx = db.keys.findIndex(k => k.key === key);
+      if (idx >= 0) db.keys.splice(idx, 1);
+    });
+    happLinkCache.delete(key);
+    return res.json({ success: true, message: `Key ${key} revoked.` });
+  } catch (e) {
+    return res.status(500).json({ error: "Write failed: " + e.message });
+  }
 });
 
-/* Repair a key: set a new duration and re-arm the clock */
-app.post('/api/admin/repair-key', (req, res) => {
+app.post('/api/admin/repair-key', async (req, res) => {
   const { adminPass, key } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
-
-  const r = readKeys().find(k => k.key === key);
-  if (!r) return res.status(404).json({ error: "Key not found." });
+  const c = credsFrom(req);
+  if (!c.token) return res.status(400).json({ error: "No GitHub token configured." });
 
   const durationHours = parseDuration(req.body);
-  r.durationHours = durationHours;
-  r.activatedAt = null;
-  r.expiresAt = null;
-  scheduleSave();
-  happLinkCache.delete(key);
-  console.log(`[repair-key] ${key} -> ${durationHours}h, clock re-armed`);
-  return res.json({ success: true, record: r, durationHours });
+
+  try {
+    const rec = await mutate(c, db => {
+      const r = db.keys.find(k => k.key === key);
+      if (!r) return null;
+      r.durationHours = durationHours;
+      r.activatedAt = null;
+      r.startedAt = null;
+      r.expiresAt = null;
+      return r;
+    });
+    if (!rec) return res.status(404).json({ error: "Key not found." });
+    happLinkCache.delete(key);
+    return res.json({ success: true, record: rec, durationHours });
+  } catch (e) {
+    return res.status(500).json({ error: "Write failed: " + e.message });
+  }
 });
 
-app.post('/api/admin/maintenance', (req, res) => {
+app.post('/api/admin/maintenance', async (req, res) => {
   const { adminPass, enabled, message } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
+  const c = credsFrom(req);
+  if (!c.token) return res.status(400).json({ error: "No GitHub token configured." });
 
-  maintCache = { enabled: !!enabled, message: message || "System under maintenance." };
-  scheduleSave();
-  return res.json({ success: true, maintenance: readMaintenance() });
+  try {
+    const m = await mutate(c, db => {
+      db.maintenance = { enabled: !!enabled, message: message || "System under maintenance." };
+      return db.maintenance;
+    });
+    return res.json({ success: true, maintenance: m });
+  } catch (e) {
+    return res.status(500).json({ error: "Write failed: " + e.message });
+  }
 });
 
-/* ================= FRONTEND ROUTES ================= */
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(FRONTEND_DIR, 'admin.html'));
-});
-
+/* ================= FRONTEND ================= */
+app.get('/admin', (req, res) => res.sendFile(path.join(FRONTEND_DIR, 'admin.html')));
 app.use(express.static(FRONTEND_DIR));
 
 /* ================= BOOT ================= */
 const PORT = process.env.PORT || 3000;
-(async () => {
-  await preload();
-  app.listen(PORT, () => console.log(`Server active on port ${PORT}`));
-})();
-
-process.on('SIGTERM', async () => {
-  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-  await flush();
-  process.exit(0);
+loadCfg();
+app.listen(PORT, () => {
+  console.log(`Server active on port ${PORT}`);
+  console.log(ready(cfg)
+    ? `[cfg] storage -> ${cfg.owner}/${cfg.repo}:${cfg.file} (${cfg.token ? 'token' : 'no token'})`
+    : '[cfg] no GitHub storage configured yet — set it in the admin panel');
 });
-process.on('SIGINT', () => process.exit(0));
