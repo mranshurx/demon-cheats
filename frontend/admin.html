@@ -465,7 +465,7 @@ async function saveGh(){
     /* server persists this and hands it to client-side requests too */
     const d = await api("/api/admin/github-config", {});
     if(d.success){
-      ghOut("connected → " + d.owner + "/" + d.repo + " : " + d.file + "\ntoken stored server-side");
+      ghOut("Connected to config");
       toast("token saved");
       loadKeys();
     } else {
