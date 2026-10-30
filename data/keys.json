@@ -7,6 +7,14 @@
       "startedAt": null,
       "activatedAt": null,
       "expiresAt": null
+    },
+    {
+      "key": "CYBER-R6UOH8",
+      "durationHours": 1,
+      "createdAt": "2026-10-30T05:45:09.448Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
     }
   ],
   "maintenance": {
