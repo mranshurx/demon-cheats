@@ -86,6 +86,7 @@
   .cell-sub{font-size:10px;margin-top:2px;display:block}
   .plan-tag{display:inline-flex;padding:3px 9px;border-radius:6px;font-size:10.5px;font-weight:700;
     background:rgba(255,255,255,.06);border:1px solid var(--card-border);color:#e4e4e7;white-space:nowrap}
+  .plan-tag.bad{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.35);color:#f87171}
   .action-group{display:flex;gap:6px;justify-content:flex-end}
   .btn-action{padding:5px 9px;font-size:10.5px;border-radius:6px;background:rgba(255,255,255,.05);
     border:1px solid var(--card-border);color:#cacaca;cursor:pointer;font-family:inherit;white-space:nowrap}
@@ -199,6 +200,7 @@
             <option value="8760">365 Days (1 Year)</option>
             <option value="999999">Lifetime Permanent</option>
           </select>
+          <span class="form-hint">Sent as exact hours — server never re-rounds it</span>
         </div>
 
         <div class="form-group">
@@ -402,13 +404,20 @@ async function api(path, body){
    FORMATTERS
    ============================================================ */
 function hoursOf(k){
-  const h = parseInt(k && k.durationHours, 10);
-  return (Number.isFinite(h) && h > 0) ? h : 24;
+  const h = Number(k && k.durationHours);
+  return (Number.isFinite(h) && h > 0) ? Math.round(h) : 24;
 }
 
 function planLabel(k){
   const h = hoursOf(k);
   return PLANS[h] || (h + " Hours");
+}
+
+/* A plan that silently lost its duration shows up in red instead of hiding */
+function planTag(k){
+  const h = hoursOf(k);
+  const suspect = (h === 24 && !PLANS[k && k.durationHours]);
+  return `<span class="plan-tag${suspect ? " bad" : ""}">${esc(planLabel(k))}</span>`;
 }
 
 function fmtDate(v){
@@ -551,12 +560,13 @@ function render(){
     return `<tr>
       <td class="key-code">${key}</td>
       <td><span class="badge badge-${st}">${st}</span></td>
-      <td><span class="plan-tag">${esc(planLabel(k))}</span></td>
+      <td>${planTag(k)}</td>
       <td class="dim">${esc(fmtDate(k.createdAt))}</td>
       <td>${expiresCell(k)}</td>
       <td>
         <div class="action-group">
           <button class="btn-action" onclick="copyKey('${key}')">Copy</button>
+          <button class="btn-action" onclick="repairKey('${key}')">Repair</button>
           <button class="btn-action danger" onclick="revokeKey('${key}')">Revoke</button>
         </div>
       </td>
@@ -579,7 +589,8 @@ function renderNodes(){
    ACTIONS
    ============================================================ */
 async function createKeys(){
-  const durationHours = $("gen-duration").value;
+  /* Number() so the server receives a real number, never a string or a label */
+  const durationHours = Number($("gen-duration").value);
   const qty = Math.max(1, parseInt($("gen-count").value, 10) || 1);
   const btn = $("gen-btn");
 
@@ -589,16 +600,16 @@ async function createKeys(){
   const made = [];
   try{
     for(let i = 0; i < qty; i++){
-      const d = await api("/api/admin/create-key", { adminPass, durationHours });
+      const d = await api("/api/admin/create-key", { adminPass, durationHours, days: durationHours / 24 });
       if(d.success && d.record) made.push(d.record.key);
     }
     if(made.length){
       $("gen-result").style.display = "block";
       $("gen-result-key").textContent = made.join(", ");
       $("gen-result-plan").textContent =
-        "Plan: " + (PLANS[parseInt(durationHours,10)] || durationHours + " Hours") +
+        "Plan: " + (PLANS[durationHours] || durationHours + " Hours") +
         " · countdown starts on the buyer's first connection";
-      toast(made.length + " key(s) created");
+      toast(made.length + " key(s) created at " + (PLANS[durationHours] || durationHours + "h"));
       loadKeys();
     } else {
       toast("failed to create key");
@@ -608,6 +619,23 @@ async function createKeys(){
   }finally{
     btn.disabled = false;
     btn.textContent = "+ Generate License Key";
+  }
+}
+
+async function repairKey(key){
+  const raw = prompt(`Repair ${key}\n\nNew duration in HOURS (168 = 7 days):`, "168");
+  if(raw == null) return;
+  const hours = Number(raw);
+  if(!Number.isFinite(hours) || hours <= 0){ toast("invalid duration"); return; }
+
+  try{
+    const d = await api("/api/admin/repair-key", { adminPass, key, durationHours: hours, days: hours / 24 });
+    if(d.success){
+      toast(key + " repaired to " + hours + "h, clock re-armed");
+      loadKeys();
+    } else toast(d.error || "failed to repair key");
+  }catch(e){
+    if(e.message !== "unauthorized") toast("network error while repairing");
   }
 }
 
