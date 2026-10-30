@@ -215,9 +215,10 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Personal Access Token</label>
-          <input id="gh-token" class="form-control" type="password" autocomplete="off" />
-          <span class="form-hint">Hardcoded in server.js — change only if you rotate it</span>
+          <label class="form-label">Token Override (optional)</label>
+          <input id="gh-token" class="form-control" type="password" autocomplete="off"
+                 placeholder="leave blank to use GITHUB_TOKEN from Render env" />
+          <span class="form-hint">Only needed if you want a different token at runtime. Do not commit a token to the repo.</span>
         </div>
 
         <div class="btn-row">
@@ -397,13 +398,13 @@ const BACKEND_URL = "https://cyber-x-silent-server.onrender.com";
 const PASS_KEY    = "cyber_x_admin_pass";
 const GH_KEY      = "cyber_x_gh_cfg";
 
-/* Same values as HARD in backend/server.js — shown so you can see what is used */
+/* Repo only — no token. The token comes from Render env as GITHUB_TOKEN. */
 const HARD_GH = {
   owner:  "mranshurx",
   repo:   "CYBER-X-SILENT",
   branch: "main",
   file:   "data/keys.json",
-  token:  "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"
+  token:  ""
 };
 
 const NODES = [{ host: "wraith-bom.xreg.site", proto: "Hysteria2", port: 443, sec: "TLS / h3" }];
@@ -443,7 +444,7 @@ function paintGh(){
   $("gh-repo").value   = c.repo;
   $("gh-branch").value = c.branch;
   $("gh-file").value   = c.file;
-  $("gh-token").value  = c.token;
+  $("gh-token").value  = c.token || "";
 
   const overridden = Object.keys(saved).length > 0;
   const pill = $("storage-pill");
@@ -452,10 +453,11 @@ function paintGh(){
   pill.className = "pill " + (overridden ? "warn" : "ok");
   pill.innerHTML = `<span class="dot"></span> ` + (overridden ? "OVERRIDE ACTIVE" : "STORAGE READY");
   box.innerHTML = `writing to <b>${esc(c.owner)}/${esc(c.repo)}</b><br>${esc(c.file)} @ ${esc(c.branch)}` +
+    (c.token ? `<br>token supplied from browser` : `<br>token from server env`) +
     (overridden ? `<br><span style="color:#fbbf24">browser override — press Reset to use the hardcoded repo</span>` : "");
 }
 
-/* Only send a gh payload when there is an override, so hardcoded values always win otherwise */
+/* Send a gh payload only when an override exists, so env/hardcoded values win otherwise */
 async function api(path, body){
   const saved = ghCfg();
   const payload = Object.assign({}, body || {});
@@ -585,7 +587,7 @@ async function checkConn(){
   try{
     const d = await api("/api/admin/diag", { adminPass });
     if(d.reachable){
-      setNotice("", `Connected to <b>${esc(d.owner)}/${esc(d.repo)}</b> — ${d.fileExists ? (d.keys + " key(s) in file") : "file will be created on first key"}.`);
+      setNotice("", `Connected to <b>${esc(d.owner)}/${esc(d.repo)}</b> — ${d.fileExists ? (d.keys + " key(s) in file") : "file will be created on first key"} · token ${esc(d.tokenShape)} (${esc(d.tokenSource)})`);
     } else {
       setNotice("err", `Cannot read the repo: <b>${esc(d.error || "unknown error")}</b>`);
     }
@@ -597,16 +599,19 @@ async function checkConn(){
 /* ============================================================
    GITHUB ACTIONS
    ============================================================ */
-async function testGithub(){
-  const c = {
+function readForm(){
+  return {
     owner:  $("gh-owner").value.trim(),
     repo:   $("gh-repo").value.trim(),
     branch: $("gh-branch").value.trim() || "main",
     file:   $("gh-file").value.trim() || "data/keys.json",
     token:  $("gh-token").value.trim()
   };
+}
+
+async function testGithub(){
   try{
-    const d = await api("/api/admin/github-test", { adminPass, gh: c });
+    const d = await api("/api/admin/github-test", { adminPass, gh: readForm() });
     if(d.success) toast("repo OK — " + (d.created ? "file created" : d.keys + " key(s) visible"));
     else toast(d.error || "test failed");
   }catch(e){
@@ -615,16 +620,9 @@ async function testGithub(){
 }
 
 async function saveGithub(){
-  const c = {
-    owner:  $("gh-owner").value.trim(),
-    repo:   $("gh-repo").value.trim(),
-    branch: $("gh-branch").value.trim() || "main",
-    file:   $("gh-file").value.trim() || "data/keys.json",
-    token:  $("gh-token").value.trim()
-  };
   try{
-    const d = await api("/api/admin/github-config", { adminPass, gh: c });
-    if(d.success){ setGhCfg(c); paintGh(); toast("override saved"); checkConn(); loadKeys(); }
+    const d = await api("/api/admin/github-config", { adminPass, gh: readForm() });
+    if(d.success){ setGhCfg(readForm()); paintGh(); toast("override saved"); checkConn(); loadKeys(); }
     else toast(d.error || "could not save");
   }catch(e){
     if(e.message !== "unauthorized") toast("network error while saving");
@@ -634,7 +632,7 @@ async function saveGithub(){
 async function resetGithub(){
   try{
     const d = await api("/api/admin/github-reset", { adminPass });
-    if(d.success){ setGhCfg({}); paintGh(); toast("back to hardcoded repo"); checkConn(); loadKeys(); }
+    if(d.success){ setGhCfg({}); paintGh(); toast("back to hardcoded repo + env token"); checkConn(); loadKeys(); }
     else toast(d.error || "reset failed");
   }catch(e){
     if(e.message !== "unauthorized") toast("network error while resetting");
@@ -865,7 +863,7 @@ $("admin-password").addEventListener("keydown", e => {
 });
 
 document.addEventListener("visibilitychange", () => {
-  if(!document.hidden && adminPass) loadKeys();
+  if(!hidden && adminPass) loadKeys();
 });
 
 window.addEventListener("DOMContentLoaded", () => {
