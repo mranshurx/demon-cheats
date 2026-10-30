@@ -9,20 +9,17 @@ app.set('trust proxy', true);
 app.use(express.json({ limit: '1mb' }));
 app.use(cors());
 
-/* ================= STORAGE: hardcoded repo, token from env ================= */
+/* ================= STORAGE ================= */
 const HARD = {
   owner:  'mranshurx',
   repo:   'CYBER-X-SILENT',
   branch: 'main',
   file:   'data/keys.json',
-  /* Leave empty. A classic ghp_ token committed to a public repo is auto-revoked
-     by GitHub secret scanning. Put it in Render env as GITHUB_TOKEN instead. */
   token:  ''
 };
 
 const LOCAL_CFG = path.join(__dirname, 'github.json');
 
-/* Environment wins over the hardcoded fallbacks */
 function envOverrides() {
   const o = {};
   if (process.env.GITHUB_OWNER) o.owner = process.env.GITHUB_OWNER;
@@ -50,7 +47,6 @@ function saveCfg() {
   catch (e) { console.warn('[cfg] could not persist github.json:', e.message); }
 }
 
-/* Panel values override, but only when actually present */
 function credsFrom(req) {
   const out = { ...cfg };
   const gh = (req.body && req.body.gh) || {};
@@ -68,10 +64,9 @@ function credsFrom(req) {
 function sigOf(c) { return `${c.owner}/${c.repo}@${c.branch}:${c.file}:${c.token}`; }
 function ready(c) { return !!(c.owner && c.repo); }
 
-/* Classic = 40 chars, fine-grained = 93+. Catches truncated pastes early. */
 function tokenShape(t) {
   if (!t) return 'missing';
-  if (t.startsWith('ghp_')) return t.length === 40 ? 'classic (looks valid)' : `classic but ${t.length} chars, expected 40 — likely truncated`;
+  if (t.startsWith('ghp_')) return t.length === 40 ? 'classic (looks valid)' : `classic but ${t.length} chars, expected 40`;
   if (t.startsWith('github_pat_')) return 'fine-grained';
   if (t.startsWith('gho_')) return 'oauth';
   return 'unknown prefix';
@@ -155,7 +150,6 @@ async function ghWrite(c, text, sha) {
 
   let r = await ghWriteOnce(c, text, sha, true);
 
-  /* 422 on an empty repo / unknown branch: retry without the branch field */
   if (r && r.conflict && r.status === 422) {
     console.warn('[gh] 422 with branch, retrying without it:', r.detail);
     r = await ghWriteOnce(c, text, sha, false);
@@ -504,7 +498,6 @@ app.post('/api/admin/diag', async (req, res) => {
   return res.json(info);
 });
 
-/* Save panel override and verify it */
 app.post('/api/admin/github-config', async (req, res) => {
   const { adminPass } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
@@ -531,7 +524,6 @@ app.post('/api/admin/github-config', async (req, res) => {
   return res.json({ success: true, owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, file: cfg.file });
 });
 
-/* Drop any saved override and go back to hardcoded repo + env token */
 app.post('/api/admin/github-reset', async (req, res) => {
   const { adminPass } = req.body;
   if (adminPass !== ADMIN_SECRET_PASS) return res.status(401).json({ error: "Unauthorized." });
