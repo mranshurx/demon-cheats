@@ -179,14 +179,14 @@
         <div class="panel-card-title">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
-          GitHub Storage
+          Storage
         </div>
 
         <div class="form-group">
-          <label class="form-label">GitHub Token</label>
-          <input id="gh-token" class="form-control" type="password" placeholder="ghp_... / github_pat_..."
+          <label class="form-label">Storage Token</label>
+          <input id="gh-token" class="form-control" type="password" placeholder="paste storage token"
                  autocomplete="off" spellcheck="false" />
-          <span class="form-hint">Writes keys to <b>data/keys.json</b>. Needs a fine-grained PAT with
+          <span class="form-hint">Writes keys to <b>data/keys.json</b>. Needs a token with
             Contents: Read and write on this repo.</span>
         </div>
 
@@ -418,8 +418,10 @@ function esc(s){
     ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 }
 
+/* adminPass is attached to EVERY call — this is what the save/test/clear buttons were missing */
 async function api(path, body){
   const payload = Object.assign({}, body || {});
+  if(adminPass) payload.adminPass = adminPass;
   const tok = ghCfg().token;
   if(tok) payload.gh = { token: tok };
 
@@ -433,7 +435,7 @@ async function api(path, body){
 }
 
 /* ============================================================
-   GITHUB STORAGE
+   STORAGE
    ============================================================ */
 function ghCfg(){
   try{ return JSON.parse(localStorage.getItem(GH_KEY) || "{}") || {}; }catch(e){ return {}; }
@@ -454,17 +456,25 @@ function ghOut(msg){
   b.style.display = "block";
 }
 
-function saveGh(){
+async function saveGh(){
   const token = $("gh-token").value.trim();
   if(!token){ toast("paste a token first"); return; }
   localStorage.setItem(GH_KEY, JSON.stringify({ token }));
   paintStorage();
-  api("/api/admin/github-config", {})
-    .then(d => {
-      if(d.success) ghOut("connected → " + d.owner + "/" + d.repo + " : " + d.file);
-      else ghOut(d.error || "failed to connect storage");
-    })
-    .catch(e => { if(e.message !== "unauthorized") ghOut("failed to connect storage"); });
+  try{
+    /* server persists this and hands it to client-side requests too */
+    const d = await api("/api/admin/github-config", {});
+    if(d.success){
+      ghOut("connected → " + d.owner + "/" + d.repo + " : " + d.file + "\ntoken stored server-side");
+      toast("token saved");
+      loadKeys();
+    } else {
+      ghOut(d.error || "failed to connect storage");
+      toast("storage rejected the token");
+    }
+  }catch(e){
+    if(e.message !== "unauthorized") ghOut("failed to connect storage · " + e.message);
+  }
 }
 
 function clearGh(){
@@ -619,7 +629,7 @@ function statusOf(k){
    ============================================================ */
 async function loadKeys(){
   try{
-    const d = await api("/api/admin/list-keys", { adminPass });
+    const d = await api("/api/admin/list-keys", {});
     if(!d.keys) return;
     allKeys = d.keys;
     if(d.maintenance){
@@ -716,7 +726,7 @@ async function createKeys(){
   const btn = $("gen-btn");
 
   if(!ghCfg().token){
-    toast("no GitHub token — keys cannot be written");
+    toast("no storage token — keys cannot be written");
     ghOut("paste a token above, Save, then Test before generating.");
     return;
   }
@@ -727,7 +737,7 @@ async function createKeys(){
   const made = [];
   try{
     for(let i = 0; i < qty; i++){
-      const d = await api("/api/admin/create-key", { adminPass, durationHours });
+      const d = await api("/api/admin/create-key", { durationHours });
       if(d.success && d.record) made.push(d.record.key);
       else if(d.error) toast(d.error);
     }
@@ -753,7 +763,7 @@ async function createKeys(){
 async function revokeKey(key){
   if(!confirm(`Revoke ${key}?\n\nThe user is cut off immediately.`)) return;
   try{
-    const d = await api("/api/admin/revoke-key", { adminPass, key });
+    const d = await api("/api/admin/revoke-key", { key });
     if(d.success){ toast(key + " revoked"); loadKeys(); }
     else toast(d.error || "failed to revoke key");
   }catch(e){
@@ -765,7 +775,7 @@ async function updateMaintenance(){
   const enabled = $("maint-toggle").checked;
   const message = $("maint-msg").value;
   try{
-    const d = await api("/api/admin/maintenance", { adminPass, enabled, message });
+    const d = await api("/api/admin/maintenance", { enabled, message });
     if(d.success){ toast("maintenance settings saved"); ping(); }
     else toast(d.error || "failed to update maintenance");
   }catch(e){
@@ -807,7 +817,7 @@ function bootDashboard(){
   clearInterval(tickTimer);
 
   pingTimer = setInterval(ping, 30000);
-  autoTimer = setInterval(loadKeys, 60000);   /* re-pull data   */
+  autoTimer = setInterval(loadKeys, 20000);   /* re-pull data — catches activations */
   tickTimer = setInterval(render, 1000);      /* live countdown */
 }
 
