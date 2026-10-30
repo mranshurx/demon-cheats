@@ -76,8 +76,11 @@ async function pushCfgToRepo(creds, snapshot) {
 }
 
 /* Restore the storage config from the repo when the disk copy is gone. */
+let lastPull = 0;
 async function pullCfgFromRepo() {
   if (cfg.token) return;
+  if (Date.now() - lastPull < 20000) return;
+  lastPull = Date.now();
   try {
     const raw = `https://raw.githubusercontent.com/${HARD.owner}/${HARD.repo}/${HARD.branch}/${REPO_CFG_PATH}?t=${Date.now()}`;
     const r = await fetch(raw, { headers: { 'User-Agent': 'cyber-x-silent' } });
@@ -89,6 +92,17 @@ async function pullCfgFromRepo() {
     saveCfg();
     console.log('[cfg] storage config restored from repo');
   } catch (e) { console.warn('[cfg] repo restore failed:', e.message); }
+}
+
+/* Adopt a token supplied by the panel so client requests can write too. */
+function adoptToken(req) {
+  const t = req.body && req.body.gh && req.body.gh.token;
+  if (!t || !String(t).trim()) return;
+  const v = String(t).trim();
+  if (v === cfg.token) return;
+  cfg.token = v;
+  saveCfg();
+  pushCfgToRepo(cfg, cfg).catch(() => {});
 }
 
 function credsFrom(req) {
@@ -105,7 +119,8 @@ function credsFrom(req) {
   out.token = out.token.trim();
   return out;
 }
-function sigOf(c) { return `${c.owner}/${c.repo}@${c.branch}:${c.file}:${c.token}`; }
+/* Token is deliberately NOT part of the signature: client and admin must share one cache. */
+function sigOf(c) { return `${c.owner}/${c.repo}@${c.branch}:${c.file}`; }
 function ready(c) { return !!(c.owner && c.repo); }
 
 function tokenShape(t) {
@@ -166,6 +181,7 @@ async function requireAdmin(req, res) {
     res.status(401).json({ error: 'Invalid Admin Password.' });
     return null;
   }
+  adoptToken(req);
   return state;
 }
 
@@ -211,7 +227,7 @@ async function ghRead(c) {
   if (r.status === 404) return { text: null, sha: null };
   if (r.status === 401) throw new Error('401 bad credentials — token revoked, expired, or mistyped. Classic tokens are auto-revoked when committed to a public repo.');
   if (r.status === 403) throw new Error('403 forbidden — token lacks Contents permission, or rate limit hit');
-  if (!r.ok) throw new Error(`GitHub GET ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  if (!r.ok) throw new Error(`Storage GET ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const j = await r.json();
   return { text: Buffer.from(j.content || '', 'base64').toString('utf8'), sha: j.sha || null };
 }
@@ -235,14 +251,20 @@ async function ghWriteOnce(c, text, sha, useBranch) {
   }
   if (r.status === 401) throw new Error('401 bad credentials — token revoked, expired, or mistyped');
   if (r.status === 403) throw new Error('403 forbidden — token needs Contents: Read and write');
-  if (!r.ok) throw new Error(`GitHub PUT ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  if (!r.ok) throw new Error(`Storage PUT ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const j = await r.json().catch(() => ({}));
   return { ok: true, sha: (j.content && j.content.sha) || null };
 }
 
 async function ghWrite(c, text, sha) {
-  if (!ready(c)) throw new Error('GitHub storage not configured');
-  if (!c.token) throw new Error('No GitHub token — save one in the admin panel');
+  if (!ready(c)) throw new Error('Storage not configured');
+
+  /* A client request carries no token — recover the stored one before failing. */
+  if (!c.token) {
+    await pullCfgFromRepo();
+    if (cfg.token) c = { ...c, token: cfg.token };
+  }
+  if (!c.token) throw new Error('No storage token — save one in the admin panel');
 
   let r = await ghWriteOnce(c, text, sha, true);
 
@@ -293,16 +315,19 @@ async function putDb(db, c) {
       const f = await ghRead(c);
       r = await ghWrite(c, text, f ? f.sha : null);
     }
-    if (!r || !r.ok) throw new Error('GitHub write failed');
+    if (!r || !r.ok) throw new Error('Storage write failed');
     cache = { data: db, sha: r.sha, at: Date.now(), sig };
     return r;
   });
 }
 
+/* Work on a clone: if the write throws, the cache keeps the untouched source state
+   and the next call retries cleanly instead of reading a half-applied mutation. */
 async function mutate(c, fn) {
   const db = await getDb(true, c);
-  const out = await fn(db);
-  await putDb(db, c);
+  const work = JSON.parse(JSON.stringify(db));
+  const out = await fn(work);
+  await putDb(work, c);
   return out;
 }
 
@@ -346,18 +371,31 @@ async function findActiveKey(key, c) {
   if (!r) return null;
 
   if (!r.activatedAt) {
-    r = await mutate(c, fresh => {
-      const rec = fresh.keys.find(k => k.key === key);
-      if (!rec || rec.activatedAt) return rec || null;
-      const now = Date.now();
-      rec.activatedAt = new Date(now).toISOString();
-      rec.startedAt = rec.activatedAt;
-      rec.durationHours = normalizeHours(rec.durationHours);
-      rec.expiresAt = new Date(now + rec.durationHours * 3600000).toISOString();
-      console.log(`[key] activated ${rec.key} -> ${rec.durationHours}h, expires ${rec.expiresAt}`);
-      return rec;
-    });
-    if (!r) return null;
+    const now = Date.now();
+    const hours = normalizeHours(r.durationHours);
+    const startedAt = new Date(now).toISOString();
+    const expiresAt = new Date(now + hours * 3600000).toISOString();
+    const before = r;
+
+    try {
+      r = await mutate(c, fresh => {
+        const rec = fresh.keys.find(k => k.key === key);
+        if (!rec) return null;
+        if (rec.activatedAt) return rec;
+        rec.activatedAt = startedAt;
+        rec.startedAt = startedAt;
+        rec.durationHours = hours;
+        rec.expiresAt = expiresAt;
+        console.log(`[key] activated ${rec.key} -> ${rec.durationHours}h, expires ${rec.expiresAt}`);
+        return rec;
+      });
+      if (!r) return null;
+    } catch (e) {
+      /* Never block the buyer on a storage hiccup — serve it in memory,
+         the cache still holds the unactivated record so the next call retries. */
+      console.warn('[key] activation write failed, serving in-memory:', e.message);
+      r = { ...before, activatedAt: startedAt, startedAt, durationHours: hours, expiresAt };
+    }
   }
 
   if (!r.expiresAt || Date.now() > new Date(r.expiresAt).getTime()) return null;
