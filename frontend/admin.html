@@ -3,105 +3,107 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="robots" content="noindex, nofollow">
-<title>CYBER X SILENT Control Center — Back-End Panel</title>
+<meta name="robots" content="noindex,nofollow">
+<title>CYBER X SILENT — Control Center</title>
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#080506;--panel:#0d0809;--line:#241417;--line-2:#38191f;
-    --red:#ff2b3d;--red-dim:#a8101d;--txt:#f2ecec;--dim:#8a7074;--dim-2:#4a3236;
-    --green:#3ddc84;--amber:#ffb020;
-    --mono:'JetBrains Mono',monospace;--display:'Archivo Black',sans-serif;
-  }
-  *{margin:0;padding:0;box-sizing:border-box}
-  [hidden]{display:none!important}
-  body{background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:13px;min-height:100vh;
-    background-image:radial-gradient(circle at 50% -10%,rgba(255,43,61,.10),transparent 60%);
-    -webkit-font-smoothing:antialiased}
-  .wrap{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
-  header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
-    border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
-  .brand{font-family:var(--display);font-size:16px;letter-spacing:.12em;text-transform:uppercase;line-height:1.3}
-  .brand span{color:var(--red)}
-  .sub{font-size:10px;letter-spacing:.24em;color:var(--dim);text-transform:uppercase;margin-top:4px}
-  .hdr-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .pill{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
-    border:1px solid var(--line-2);padding:5px 9px;color:var(--dim)}
-  .pill.ok{color:var(--green);border-color:#1d4a30}
-  .pill.bad{color:var(--amber);border-color:#4a3a10}
-  .card{background:var(--panel);border:1px solid var(--line);padding:14px;margin-bottom:14px}
-  .card h2{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--red);
-    margin-bottom:12px;font-weight:700;display:flex;align-items:center;gap:8px}
-  .card h2::before{content:"";width:7px;height:7px;background:var(--red);display:inline-block}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
-  .stat{border:1px solid var(--line);padding:11px 12px;background:#0a0607}
-  .stat .k{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim-2);margin-bottom:6px}
-  .stat .v{font-family:var(--display);font-size:20px;color:var(--txt)}
-  .stat.warn .v{color:var(--amber)}
-  .stat.live .v{color:var(--green)}
-  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
-  input,select,textarea,button{font-family:var(--mono);font-size:12px;color:var(--txt);background:#0a0607;
-    border:1px solid var(--line-2);padding:9px 10px;outline:none;border-radius:0}
-  input:focus,select:focus,textarea:focus{border-color:var(--red-dim)}
-  input::placeholder,textarea::placeholder{color:var(--dim-2)}
-  button{cursor:pointer;font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:10px;padding:10px 13px}
-  button:hover{border-color:var(--red)}
-  .btn-red{background:var(--red);border-color:var(--red);color:#120002}
-  .btn-red:hover{background:#ff4554}
-  .btn-ghost{background:transparent}
-  .btn-mini{padding:6px 9px;font-size:9px}
-  .grow{flex:1;min-width:120px}
-  label.chk{display:inline-flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.12em;
-    text-transform:uppercase;color:var(--dim);cursor:pointer}
-  label.chk input{width:14px;height:14px;padding:0;accent-color:var(--red)}
-  table{width:100%;border-collapse:collapse;font-size:11px}
-  th{text-align:left;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim-2);
-    border-bottom:1px solid var(--line);padding:8px 6px;font-weight:700;white-space:nowrap}
-  td{border-bottom:1px solid #140c0e;padding:8px 6px;vertical-align:middle;word-break:break-all}
-  tr:hover td{background:#0f0809}
-  .k{font-weight:700;letter-spacing:.04em}
-  .tag{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:3px 6px;border:1px solid}
-  .tag.active{color:var(--green);border-color:#1d4a30}
-  .tag.unbound{color:var(--amber);border-color:#4a3a10}
-  .tag.expired{color:var(--dim);border-color:var(--line-2)}
-  .filters{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
-  .filters button{background:transparent;border-color:var(--line);color:var(--dim);font-size:9px}
-  .filters button.on{border-color:var(--red);color:var(--red)}
-  .muted{color:var(--dim-2);font-size:11px}
-  .mono-pre{font-size:11px;line-height:1.7;white-space:pre-wrap;word-break:break-all;color:var(--dim)}
-  .node{display:flex;justify-content:space-between;gap:10px;border:1px solid var(--line);padding:9px 11px;margin-bottom:8px;font-size:11px}
-  .node .nm{color:var(--txt);font-weight:700}
-  .node .meta{color:var(--dim-2);font-size:10px}
-  #toast{position:fixed;right:14px;bottom:14px;max-width:320px;background:#120a0c;border:1px solid var(--red-dim);
-    padding:11px 13px;font-size:11px;color:var(--txt);opacity:0;transform:translateY(8px);
-    transition:opacity .2s,transform .2s;pointer-events:none;z-index:60}
-  #toast.on{opacity:1;transform:none}
-  #toast.err{border-color:var(--red);color:#ffd7db}
-  #login{position:fixed;inset:0;background:rgba(4,2,3,.96);display:flex;align-items:center;justify-content:center;
-    padding:20px;z-index:50}
-  #login .box{width:100%;max-width:360px;background:var(--panel);border:1px solid var(--line-2);padding:26px 22px;
-    box-shadow:0 0 60px rgba(255,43,61,.10)}
-  #login h1{font-family:var(--display);font-size:15px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
-  #login h1 span{color:var(--red)}
-  #login p{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:18px}
-  #login input{width:100%;margin-bottom:10px}
-  #login button{width:100%}
-  #loginErr{color:var(--red);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-top:10px;min-height:14px}
-  @media(max-width:640px){th:nth-child(4),td:nth-child(4){display:none}}
+:root{
+  --bg:#080506;--panel:#0d0809;--line:#241417;--line2:#38191f;
+  --red:#ff2b3d;--reddim:#a8101d;--txt:#f2ecec;--dim:#8a7074;--dim2:#4a3236;
+  --green:#3ddc84;--amber:#ffb020;
+  --mono:'JetBrains Mono',monospace;--display:'Archivo Black',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:13px;
+  background-image:radial-gradient(circle at 50% -10%,rgba(255,43,61,.10),transparent 60%);
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
+header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+.brand{font-family:var(--display);font-size:16px;letter-spacing:.12em;text-transform:uppercase}
+.brand span{color:var(--red)}
+.sub{font-size:10px;letter-spacing:.24em;color:var(--dim);text-transform:uppercase;margin-top:4px}
+.hdr{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pill{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  border:1px solid var(--line2);padding:5px 9px;color:var(--dim)}
+.pill.ok{color:var(--green);border-color:#1d4a30}
+.pill.bad{color:var(--amber);border-color:#4a3a10}
+.card{background:var(--panel);border:1px solid var(--line);padding:14px;margin-bottom:14px}
+.card h2{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--red);
+  margin-bottom:12px;font-weight:700;display:flex;align-items:center;gap:8px}
+.card h2::before{content:"";width:7px;height:7px;background:var(--red)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.stat{border:1px solid var(--line);padding:11px 12px;background:#0a0607}
+.stat .k{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim2);margin-bottom:6px}
+.stat .v{font-family:var(--display);font-size:20px}
+.stat.warn .v{color:var(--amber)}
+.stat.live .v{color:var(--green)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+input,select,textarea,button{font-family:var(--mono);font-size:12px;color:var(--txt);background:#0a0607;
+  border:1px solid var(--line2);padding:9px 10px;outline:none;border-radius:0}
+input:focus,select:focus,textarea:focus{border-color:var(--reddim)}
+input::placeholder,textarea::placeholder{color:var(--dim2)}
+button{cursor:pointer;font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:10px;padding:10px 13px}
+button:hover{border-color:var(--red)}
+.btn-red{background:var(--red);border-color:var(--red);color:#120002}
+.btn-red:hover{background:#ff4554}
+.btn-ghost{background:transparent}
+.btn-mini{padding:6px 9px;font-size:9px}
+.grow{flex:1;min-width:120px}
+label.chk{display:inline-flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--dim);cursor:pointer}
+label.chk input{width:14px;height:14px;padding:0;accent-color:var(--red)}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim2);
+  border-bottom:1px solid var(--line);padding:8px 6px;font-weight:700;white-space:nowrap}
+td{border-bottom:1px solid #140c0e;padding:8px 6px;word-break:break-all}
+tr:hover td{background:#0f0809}
+.key{font-weight:700;letter-spacing:.04em}
+.tag{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:3px 6px;border:1px solid}
+.tag.active{color:var(--green);border-color:#1d4a30}
+.tag.unbound{color:var(--amber);border-color:#4a3a10}
+.tag.expired{color:var(--dim);border-color:var(--line2)}
+.filters{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.filters button{background:transparent;border-color:var(--line);color:var(--dim);font-size:9px}
+.filters button.on{border-color:var(--red);color:var(--red)}
+.muted{color:var(--dim2);font-size:11px}
+.pre{font-size:11px;line-height:1.7;white-space:pre-wrap;word-break:break-all;color:var(--dim)}
+.node{display:flex;justify-content:space-between;gap:10px;border:1px solid var(--line);
+  padding:9px 11px;margin-bottom:8px;font-size:11px}
+.node .nm{font-weight:700}
+.node .meta{color:var(--dim2);font-size:10px}
+#toast{position:fixed;right:14px;bottom:14px;max-width:320px;background:#120a0c;
+  border:1px solid var(--reddim);padding:11px 13px;font-size:11px;opacity:0;
+  transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;z-index:60}
+#toast.on{opacity:1;transform:none}
+#toast.err{border-color:var(--red);color:#ffd7db}
+#login-overlay{position:fixed;inset:0;background:rgba(4,2,3,.96);display:flex;
+  align-items:center;justify-content:center;padding:20px;z-index:50}
+#login-overlay .box{width:100%;max-width:360px;background:var(--panel);
+  border:1px solid var(--line2);padding:26px 22px;box-shadow:0 0 60px rgba(255,43,61,.10)}
+#login-overlay h1{font-family:var(--display);font-size:15px;letter-spacing:.1em;
+  text-transform:uppercase;margin-bottom:6px}
+#login-overlay h1 span{color:var(--red)}
+#login-overlay p{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:18px}
+#login-overlay input{width:100%;margin-bottom:10px}
+#login-overlay button{width:100%}
+#login-error{color:var(--red);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-top:10px;min-height:14px}
+@media(max-width:640px){th:nth-child(4),td:nth-child(4){display:none}}
 </style>
 </head>
 <body>
 
-<div id="login">
+<div id="login-overlay">
   <div class="box">
     <h1>CYBER X <span>SILENT</span></h1>
     <p>Control Center — Back-End</p>
     <input type="password" id="admin-password" placeholder="CYBER admin key" autocomplete="off" spellcheck="false">
     <button class="btn-red" onclick="adminLogin()">Unlock Panel</button>
-    <div id="loginErr"></div>
+    <div id="login-error"></div>
   </div>
 </div>
 
@@ -111,7 +113,7 @@
       <div class="brand">CYBER X <span>SILENT</span></div>
       <div class="sub">Control Center — Back-End Panel</div>
     </div>
-    <div class="hdr-right">
+    <div class="hdr">
       <span class="pill" id="storage-pill">CONFIG ?</span>
       <span class="pill" id="key-pill">KEY ?</span>
       <button class="btn-ghost btn-mini" onclick="lock()">Lock</button>
@@ -132,12 +134,12 @@
   <div class="card">
     <h2>Config Key</h2>
     <div class="row">
-      <input type="password" id="cfg-key" class="grow" placeholder="GitHub token (optional override)" autocomplete="off">
+      <input type="password" id="cfg-key" class="grow" placeholder="GitHub token (optional)" autocomplete="off">
       <button class="btn-ghost btn-mini" onclick="saveCfg()">Save</button>
       <button class="btn-ghost btn-mini" onclick="clearCfg()">Clear</button>
       <button class="btn-ghost btn-mini" onclick="runDiag()">Diagnose</button>
     </div>
-    <div class="mono-pre" id="diag-out">No diagnostics run.</div>
+    <div class="pre" id="diag-out">No diagnostics run.</div>
   </div>
 
   <div class="card">
@@ -160,17 +162,13 @@
       <label class="chk"><input type="checkbox" id="gen-now"> Start countdown now</label>
       <button class="btn-red" onclick="genKeys()">Generate</button>
     </div>
-    <div class="mono-pre" id="gen-out">—</div>
+    <div class="pre" id="gen-out">—</div>
   </div>
 
   <div class="card">
     <h2>Maintenance Controller</h2>
-    <div class="row">
-      <label class="chk"><input type="checkbox" id="maint-toggle"> Enabled</label>
-    </div>
-    <div class="row">
-      <textarea id="maint-msg" class="grow" rows="2" placeholder="System under maintenance."></textarea>
-    </div>
+    <div class="row"><label class="chk"><input type="checkbox" id="maint-toggle"> Enabled</label></div>
+    <div class="row"><textarea id="maint-msg" class="grow" rows="2" placeholder="System under maintenance."></textarea></div>
     <button class="btn-ghost btn-mini" onclick="saveMaint()">Save</button>
   </div>
 
@@ -198,12 +196,8 @@
       <button data-f="expired" onclick="setFilter('expired')">Expired</button>
     </div>
     <table>
-      <thead>
-        <tr><th>Key</th><th>Status</th><th>Plan</th><th>Started</th><th>Expires</th><th>Actions</th></tr>
-      </thead>
-      <tbody id="keys-body">
-        <tr><td colspan="6" class="muted">Loading…</td></tr>
-      </tbody>
+      <thead><tr><th>Key</th><th>Status</th><th>Plan</th><th>Started</th><th>Expires</th><th>Actions</th></tr></thead>
+      <tbody id="keys-body"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -215,27 +209,26 @@
   const PASS_KEY = 'cyber_x_admin_pass';
   const VER_KEY  = 'cyber_x_admin_ver';
   const GH_KEY   = 'cyber_x_gh_cfg';
-  const WATCH_MS = 15000;
 
   let allKeys = [];
   let filter = 'all';
-  let keyWatch = null;
-  let ticker = null;
+  let watchTimer = null;
+  let tickTimer = null;
 
-  /* ============ TOAST ============ */
-  function toast(msg, isErr){
+  /* ---------- toast ---------- */
+  function toast(msg, err){
     const t = document.getElementById('toast');
     t.textContent = msg;
-    t.className = isErr ? 'on err' : 'on';
+    t.className = err ? 'on err' : 'on';
     clearTimeout(t._h);
     t._h = setTimeout(() => { t.className = ''; }, 4000);
   }
 
-  /* ============ CONFIG KEY ============ */
+  /* ---------- config key ---------- */
   function ghCfg(){
     try { return JSON.parse(localStorage.getItem(GH_KEY) || '{}') || {}; } catch(e){ return {}; }
   }
-  function paintStoragePill(){
+  function paintPill(){
     const p = document.getElementById('storage-pill');
     p.textContent = ghCfg().token ? 'CONFIG OK' : 'CONFIG ?';
     p.className = 'pill ' + (ghCfg().token ? 'ok' : 'bad');
@@ -243,23 +236,21 @@
   function saveCfg(){
     const token = document.getElementById('cfg-key').value.trim();
     localStorage.setItem(GH_KEY, JSON.stringify({ token }));
-    paintStoragePill();
+    paintPill();
     api('/api/admin/github-config', { gh: { token } })
-      .then(() => toast('Config key saved.'))
-      .catch(e => toast(e.message, true));
+      .then(() => toast('Config key saved.')).catch(e => toast(e.message, true));
   }
   function clearCfg(){
     localStorage.removeItem(GH_KEY);
     document.getElementById('cfg-key').value = '';
-    paintStoragePill();
+    paintPill();
     api('/api/admin/github-reset')
-      .then(() => toast('Config key cleared.'))
-      .catch(e => toast(e.message, true));
+      .then(() => toast('Config key cleared.')).catch(e => toast(e.message, true));
   }
 
-  /* ============ API ============ */
-  async function api(path, payload = {}){
-    const body = { adminPass: sessionStorage.getItem(PASS_KEY) || '', ...payload };
+  /* ---------- api ---------- */
+  async function api(path, payload){
+    const body = Object.assign({ adminPass: sessionStorage.getItem(PASS_KEY) || '' }, payload || {});
     const tok = ghCfg().token;
     if (tok) body.gh = { token: tok };
 
@@ -268,16 +259,16 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    if (r.status === 401) { lock(); throw new Error('Session ended — key changed or invalid.'); }
+    if (r.status === 401) { lock(); throw new Error('Session ended.'); }
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
     return d;
   }
 
-  /* ============ AUTH ============ */
+  /* ---------- auth ---------- */
   async function adminLogin(){
     const pass = document.getElementById('admin-password').value.trim();
-    const err = document.getElementById('loginErr');
+    const err = document.getElementById('login-error');
     err.textContent = '';
     if (!pass) { err.textContent = 'Enter the admin key.'; return; }
 
@@ -300,36 +291,36 @@
   }
 
   function boot(){
-    document.getElementById('login').hidden = true;
+    document.getElementById('login-overlay').hidden = true;
     document.getElementById('panel').hidden = false;
-    paintStoragePill();
     document.getElementById('cfg-key').value = ghCfg().token || '';
     document.getElementById('key-pill').textContent = 'KEY OK';
     document.getElementById('key-pill').className = 'pill ok';
+    paintPill();
     loadKeys();
     runDiag();
     startWatch();
-    clearInterval(ticker);
-    ticker = setInterval(renderKeys, 1000);
+    clearInterval(tickTimer);
+    tickTimer = setInterval(renderKeys, 1000);
   }
 
   function lock(){
     stopWatch();
-    clearInterval(ticker);
+    clearInterval(tickTimer);
     sessionStorage.removeItem(PASS_KEY);
     sessionStorage.removeItem(VER_KEY);
     document.getElementById('panel').hidden = true;
-    document.getElementById('login').hidden = false;
+    document.getElementById('login-overlay').hidden = false;
     document.getElementById('admin-password').value = '';
-    document.getElementById('loginErr').textContent = '';
+    document.getElementById('login-error').textContent = '';
   }
 
-  /* ============ KEY WATCH ============ */
-  function stopWatch(){ if (keyWatch) { clearInterval(keyWatch); keyWatch = null; } }
+  /* ---------- remote key watch ---------- */
+  function stopWatch(){ if (watchTimer) { clearInterval(watchTimer); watchTimer = null; } }
 
   function startWatch(){
     stopWatch();
-    keyWatch = setInterval(checkKey, WATCH_MS);
+    watchTimer = setInterval(checkKey, 15000);
   }
 
   async function checkKey(){
@@ -362,23 +353,18 @@
   function kickOut(msg){
     stopWatch();
     lock();
+    document.getElementById('login-error').textContent = msg + ' Sign in again.';
     toast(msg, true);
-    const err = document.getElementById('loginErr');
-    err.textContent = msg + ' Sign in again.';
   }
 
-  /* ============ DIAG ============ */
+  /* ---------- diag ---------- */
   async function runDiag(){
     const out = document.getElementById('diag-out');
-    try {
-      const d = await api('/api/admin/diag');
-      out.textContent = JSON.stringify(d, null, 2);
-    } catch (e) {
-      out.textContent = 'Diag failed: ' + e.message;
-    }
+    try { out.textContent = JSON.stringify(await api('/api/admin/diag'), null, 2); }
+    catch (e) { out.textContent = 'Diag failed: ' + e.message; }
   }
 
-  /* ============ KEYS ============ */
+  /* ---------- keys ---------- */
   function statusOf(k){
     if (!k.activatedAt) return 'unbound';
     if (k.expiresAt && new Date(k.expiresAt).getTime() <= Date.now()) return 'expired';
@@ -390,14 +376,10 @@
     if (n % 24 === 0) return (n / 24) + 'd';
     return n + 'h';
   }
-  function fmt(iso){
-    if (!iso) return '—';
-    const d = new Date(iso);
-    return d.toLocaleString();
-  }
+  function fmt(iso){ return iso ? new Date(iso).toLocaleString() : '—'; }
   function left(iso){
     if (!iso) return '';
-    let ms = new Date(iso).getTime() - Date.now();
+    const ms = new Date(iso).getTime() - Date.now();
     if (ms <= 0) return 'expired';
     const d = Math.floor(ms / 86400000), h = Math.floor(ms % 86400000 / 3600000);
     const m = Math.floor(ms % 3600000 / 60000), s = Math.floor(ms % 60000 / 1000);
@@ -416,17 +398,17 @@
       paintStats();
       renderKeys();
     } catch (e) {
-      if (e.message.indexOf('Session ended') === -1) toast(e.message, true);
+      if (e.message !== 'Session ended.') toast(e.message, true);
     }
   }
 
   function paintStats(){
-    const counts = { active: 0, unbound: 0, expired: 0 };
-    allKeys.forEach(k => counts[statusOf(k)]++);
+    const c = { active: 0, unbound: 0, expired: 0 };
+    allKeys.forEach(k => c[statusOf(k)]++);
     document.getElementById('st-total').textContent = allKeys.length;
-    document.getElementById('st-active').textContent = counts.active;
-    document.getElementById('st-unbound').textContent = counts.unbound;
-    document.getElementById('st-expired').textContent = counts.expired;
+    document.getElementById('st-active').textContent = c.active;
+    document.getElementById('st-unbound').textContent = c.unbound;
+    document.getElementById('st-expired').textContent = c.expired;
     document.getElementById('st-maint').textContent = document.getElementById('maint-toggle').checked ? 'ON' : 'OFF';
   }
 
@@ -444,28 +426,20 @@
     if (filter !== 'all') rows = rows.filter(k => statusOf(k) === filter);
     if (q) rows = rows.filter(k => k.key.toUpperCase().includes(q));
 
-    if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="6" class="muted">No keys match.</td></tr>';
-      return;
-    }
+    if (!rows.length) { body.innerHTML = '<tr><td colspan="6" class="muted">No keys match.</td></tr>'; return; }
 
     body.innerHTML = rows.map(k => {
       const st = statusOf(k);
       const exp = st === 'active' ? fmt(k.expiresAt) + ' · ' + left(k.expiresAt)
-                : st === 'expired' ? fmt(k.expiresAt)
-                : 'not started';
-      return '<tr>' +
-        '<td class="k">' + esc(k.key) + '</td>' +
+                : st === 'expired' ? fmt(k.expiresAt) : 'not started';
+      return '<tr><td class="key">' + esc(k.key) + '</td>' +
         '<td><span class="tag ' + st + '">' + st + '</span></td>' +
         '<td>' + planOf(k.durationHours) + '</td>' +
         '<td>' + fmt(k.startedAt) + '</td>' +
         '<td>' + esc(exp) + '</td>' +
-        '<td>' +
-          '<button class="btn-ghost btn-mini" onclick="copyKey(\'' + esc(k.key) + '\')">Copy</button> ' +
-          '<button class="btn-ghost btn-mini" onclick="repairKey(\'' + esc(k.key) + '\')">Repair</button> ' +
-          '<button class="btn-ghost btn-mini" onclick="revokeKey(\'' + esc(k.key) + '\')">Revoke</button>' +
-        '</td>' +
-      '</tr>';
+        '<td><button class="btn-ghost btn-mini" onclick="copyKey(\'' + esc(k.key) + '\')">Copy</button> ' +
+        '<button class="btn-ghost btn-mini" onclick="repairKey(\'' + esc(k.key) + '\')">Repair</button> ' +
+        '<button class="btn-ghost btn-mini" onclick="revokeKey(\'' + esc(k.key) + '\')">Revoke</button></td></tr>';
     }).join('');
   }
 
@@ -476,20 +450,14 @@
 
   async function repairKey(k){
     const hours = Number(document.getElementById('gen-duration').value) || 24;
-    try {
-      await api('/api/admin/repair-key', { key: k, durationHours: hours });
-      toast('Repaired ' + k + ' → ' + planOf(hours));
-      loadKeys();
-    } catch (e) { toast(e.message, true); }
+    try { await api('/api/admin/repair-key', { key: k, durationHours: hours }); toast('Repaired ' + k + ' → ' + planOf(hours)); loadKeys(); }
+    catch (e) { toast(e.message, true); }
   }
 
   async function revokeKey(k){
     if (!confirm('Revoke ' + k + '?')) return;
-    try {
-      await api('/api/admin/revoke-key', { key: k });
-      toast('Revoked ' + k);
-      loadKeys();
-    } catch (e) { toast(e.message, true); }
+    try { await api('/api/admin/revoke-key', { key: k }); toast('Revoked ' + k); loadKeys(); }
+    catch (e) { toast(e.message, true); }
   }
 
   async function genKeys(){
@@ -498,7 +466,6 @@
     const startNow = document.getElementById('gen-now').checked;
     const out = document.getElementById('gen-out');
     out.textContent = 'Working…';
-
     const made = [];
     try {
       for (let i = 0; i < qty; i++) {
@@ -517,23 +484,23 @@
   async function saveMaint(){
     const enabled = document.getElementById('maint-toggle').checked;
     const message = document.getElementById('maint-msg').value.trim() || 'System under maintenance.';
-    try {
-      await api('/api/admin/maintenance', { enabled, message });
-      paintStats();
-      toast('Maintenance ' + (enabled ? 'enabled' : 'disabled') + '.');
-    } catch (e) { toast(e.message, true); }
+    try { await api('/api/admin/maintenance', { enabled, message }); paintStats(); toast('Maintenance ' + (enabled ? 'enabled' : 'disabled') + '.'); }
+    catch (e) { toast(e.message, true); }
   }
 
-  /* ============ BOOT ============ */
+  /* ---------- boot ---------- */
   window.addEventListener('DOMContentLoaded', () => {
-    paintStoragePill();
-    document.getElementById('admin-password').addEventListener('keydown', e => {
-      if (e.key === 'Enter') adminLogin();
-    });
+    paintPill();
+    document.getElementById('admin-password').addEventListener('keydown', e => { if (e.key === 'Enter') adminLogin(); });
     if (sessionStorage.getItem(PASS_KEY)) boot();
-    setInterval(() => {
-      if (!document.getElementById('panel').hidden) loadKeys();
-    }, 60000);
+    setInterval(() => { if (!document.getElementById('panel').hidden) loadKeys(); }, 60000);
+    setInterval(async () => {
+      try {
+        const r = await fetch(BACKEND_URL + '/api/maintenance-status');
+        const m = await r.json();
+        document.getElementById('st-maint').textContent = m && m.enabled ? 'ON' : 'OFF';
+      } catch (e) {}
+    }, 30000);
   });
 </script>
 </body>
