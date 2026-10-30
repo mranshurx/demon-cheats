@@ -20,9 +20,9 @@
       "key": "CYBER-2UVCIP",
       "durationHours": 168,
       "createdAt": "2026-10-30T07:46:04.150Z",
-      "startedAt": null,
-      "activatedAt": null,
-      "expiresAt": null
+      "startedAt": "2026-10-30T07:46:28.319Z",
+      "activatedAt": "2026-10-30T07:46:28.319Z",
+      "expiresAt": "2026-11-06T07:46:28.319Z"
     }
   ],
   "maintenance": {
