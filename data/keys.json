@@ -47,6 +47,14 @@
       "startedAt": null,
       "activatedAt": null,
       "expiresAt": null
+    },
+    {
+      "key": "CYBER-IYZ8YG",
+      "durationHours": 720,
+      "createdAt": "2026-11-01T15:51:40.270Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
     }
   ],
   "maintenance": {
