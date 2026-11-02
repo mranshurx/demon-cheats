@@ -60,9 +60,9 @@
       "key": "CYBER-8GMGHD",
       "durationHours": 24,
       "createdAt": "2026-11-02T02:09:22.960Z",
-      "startedAt": null,
-      "activatedAt": null,
-      "expiresAt": null
+      "startedAt": "2026-11-02T02:09:38.431Z",
+      "activatedAt": "2026-11-02T02:09:38.431Z",
+      "expiresAt": "2026-11-03T02:09:38.431Z"
     }
   ],
   "maintenance": {
