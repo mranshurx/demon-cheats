@@ -1,5 +1,17 @@
 {
-  "keys": [],
+  "keys": [
+    {
+      "key": "DEMON-T2J4HZ",
+      "durationHours": 24,
+      "maxDevices": 0,
+      "deviceLimit": "unlimited",
+      "devices": [],
+      "createdAt": "2026-11-14T13:43:14.001Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
+    }
+  ],
   "maintenance": {
     "enabled": false,
     "message": "System under maintenance.",
