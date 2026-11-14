@@ -83,7 +83,7 @@ async function pullCfgFromRepo() {
   lastPull = Date.now();
   try {
     const raw = `https://raw.githubusercontent.com/${HARD.owner}/${HARD.repo}/${HARD.branch}/${REPO_CFG_PATH}?t=${Date.now()}`;
-    const r = await fetch(raw, { headers: { 'User-Agent': 'cyber-x-silent' } });
+    const r = await fetch(raw, { headers: { 'User-Agent': 'demon-cheats' } });
     if (!r.ok) return;
     const j = await r.json();
     for (const k of ['owner', 'repo', 'branch', 'file', 'token']) {
@@ -156,7 +156,7 @@ async function getAdminKey(force) {
   try {
     const url = `${ADMIN_KEY_URL}${ADMIN_KEY_URL.includes('?') ? '&' : '?'}t=${Date.now()}`;
     const r = await fetch(url, {
-      headers: { 'User-Agent': 'cyber-x-silent', 'Cache-Control': 'no-cache' },
+      headers: { 'User-Agent': 'demon-cheats', 'Cache-Control': 'no-cache' },
       cache: 'no-store'
     });
     if (!r.ok) throw new Error(`GET ${r.status}`);
@@ -191,13 +191,14 @@ const FRONTEND_DIR = fs.existsSync(path.join(__dirname, '..', 'frontend'))
   ? path.join(__dirname, '..', 'frontend')
   : path.join(__dirname, 'frontend');
 
-const DEFAULT_MAINT = { enabled: false, message: 'System under maintenance.' };
-const EMPTY_DB = () => ({ keys: [], maintenance: { ...DEFAULT_MAINT } });
+const DEFAULT_MAINT = { enabled: false, message: 'System under maintenance.', since: null };
+const EMPTY_FEATURES = { aimbot: '', location: '' };
+const EMPTY_DB = () => ({ keys: [], maintenance: { ...DEFAULT_MAINT }, features: { ...EMPTY_FEATURES } });
 
 /* ================= GITHUB API ================= */
 function apiHeaders(c, json) {
   const h = {
-    'User-Agent': 'cyber-x-silent',
+    'User-Agent': 'demon-cheats',
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28'
   };
@@ -216,7 +217,7 @@ async function ghRead(c) {
 
   if (!c.token) {
     const raw = `https://raw.githubusercontent.com/${c.owner}/${c.repo}/${encodeURIComponent(c.branch)}/${encoded}?t=${Date.now()}`;
-    const r = await fetch(raw, { headers: { 'User-Agent': 'cyber-x-silent' } });
+    const r = await fetch(raw, { headers: { 'User-Agent': 'demon-cheats' } });
     if (r.status === 404) return { text: null, sha: null };
     if (!r.ok) throw new Error(`raw GET ${r.status}`);
     return { text: await r.text(), sha: null };
@@ -294,6 +295,10 @@ async function getDb(force, c) {
   if (!db || typeof db !== 'object') db = EMPTY_DB();
   if (!Array.isArray(db.keys)) db.keys = [];
   if (!db.maintenance) db.maintenance = { ...DEFAULT_MAINT };
+  if (!('since' in db.maintenance)) db.maintenance.since = null;
+  if (!db.features || typeof db.features !== 'object') db.features = { ...EMPTY_FEATURES };
+  if (typeof db.features.aimbot !== 'string') db.features.aimbot = '';
+  if (typeof db.features.location !== 'string') db.features.location = '';
   db.keys.forEach(migrateRecord);
 
   cache = { data: db, sha: f ? f.sha : null, at: Date.now(), sig };
@@ -351,6 +356,32 @@ function normalizeHours(h) {
   const n = Number(h);
   return (Number.isFinite(n) && n > 0) ? Math.round(n) : 24;
 }
+
+/* ================= DEVICE LIMIT ================= */
+/* 0 = unlimited devices, 1 = single device (HWID locked on first unlock) */
+function parseDeviceLimit(body) {
+  body = body || {};
+  const v = body.deviceLimit;
+  if (v === 'single' || v === 'one' || v === '1' || v === 1) return 1;
+  if (body.maxDevices != null) {
+    const n = Number(body.maxDevices);
+    if (n === 1) return 1;
+  }
+  return 0;
+}
+
+/* Normalize whatever the client sends into a compact id we can store safely. */
+function deviceOf(req) {
+  const raw = String(
+    (req.query && (req.query.did || req.query.device || req.query.hwid)) ||
+    req.headers['x-device-id'] || ''
+  ).trim();
+  return raw.replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 48);
+}
+function deviceUa(req) {
+  return String((req.headers && req.headers['user-agent']) || '').slice(0, 200);
+}
+
 function migrateRecord(r) {
   if (r.durationHours == null) {
     const c = r.createdAt ? new Date(r.createdAt).getTime() : 0;
@@ -362,13 +393,96 @@ function migrateRecord(r) {
   }
   if (r.startedAt == null) r.startedAt = r.activatedAt || null;
   if (r.expiresAt && !r.activatedAt) r.activatedAt = r.createdAt || new Date().toISOString();
+
+  if (r.maxDevices == null) {
+    r.maxDevices = (r.deviceLimit === 'single' || r.deviceLimit === 1 || r.deviceLimit === 'one') ? 1 : 0;
+  }
+  r.maxDevices = (Number(r.maxDevices) === 1) ? 1 : 0;
+  r.deviceLimit = r.maxDevices === 1 ? 'single' : 'unlimited';
+  if (!Array.isArray(r.devices)) r.devices = [];
+  r.devices = r.devices
+    .filter(d => d && d.id)
+    .map(d => ({ id: String(d.id).slice(0, 48), firstSeen: d.firstSeen || null, lastSeen: d.lastSeen || null, ua: d.ua || '' }));
 }
 
 /* ================= KEY RESOLUTION ================= */
-async function findActiveKey(key, c) {
+/* Binds the device on a single-device key the first time it is seen. */
+async function bindDevice(c, key, did, ua) {
+  return mutate(c, db => {
+    const rec = db.keys.find(k => k.key === key);
+    if (!rec) return null;
+    if (!Array.isArray(rec.devices)) rec.devices = [];
+    const now = new Date().toISOString();
+    const known = rec.devices.find(d => d.id === did);
+    if (known) {
+      known.lastSeen = now;
+      if (ua) known.ua = ua;
+    } else if (rec.maxDevices === 1 && rec.devices.length === 0) {
+      rec.devices.push({ id: did, firstSeen: now, lastSeen: now, ua: ua || '' });
+      console.log(`[device] locked ${rec.key} -> ${did}`);
+    }
+    return rec;
+  });
+}
+
+/* ================= MAINTENANCE CLOCK ================= */
+/*
+  Wall time spent in maintenance is never charged to the buyer. Two halves:
+
+  - live  : effectiveExpiry() adds the *running* maintenance window on the fly,
+            so no key reads as expired while the pause is in progress.
+  - settle: when maintenance is switched off the window is written into every
+            key's expiresAt, so the credit survives restarts and later reads.
+
+  Only the overlap between the pause and the key's own active span is credited,
+  so a key that was already dead before maintenance started gets nothing, and a
+  key sold *during* maintenance only gets credited from its activation.
+*/
+
+function maintStart(db) {
+  const m = (db && db.maintenance) || {};
+  if (!m.enabled || !m.since) return null;
+  const t = new Date(m.since).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
+function effectiveExpiry(rec, since) {
+  if (!rec || !rec.expiresAt) return null;
+  const exp = new Date(rec.expiresAt).getTime();
+  if (!Number.isFinite(exp)) return null;
+  if (!since) return exp;
+  const act = rec.activatedAt ? new Date(rec.activatedAt).getTime() : since;
+  const from = Math.max(since, Number.isFinite(act) ? act : since);
+  if (from >= exp) return exp;
+  return exp + (Date.now() - from);
+}
+
+function settleMaintenance(db, startMs, endMs) {
+  let credited = 0;
+  for (const rec of db.keys) {
+    if (!rec.expiresAt) continue;
+    const exp = new Date(rec.expiresAt).getTime();
+    if (!Number.isFinite(exp)) continue;
+    const act = rec.activatedAt ? new Date(rec.activatedAt).getTime() : startMs;
+    const from = Math.max(startMs, Number.isFinite(act) ? act : startMs);
+    const to = Math.min(endMs, exp);
+    const credit = to - from;
+    if (credit <= 0) continue;
+    rec.expiresAt = new Date(exp + credit).toISOString();
+    rec.maintenancePausedMs = (Number(rec.maintenancePausedMs) || 0) + credit;
+    credited++;
+  }
+  return credited;
+}
+
+/*
+  Returns { ok, reason, record }.
+  reason: invalid | expired | no-device | device-mismatch
+*/
+async function accessKey(key, c, did, ua) {
   let db = await getDb(false, c);
   let r = db.keys.find(k => k.key === key);
-  if (!r) return null;
+  if (!r) return { ok: false, reason: 'invalid' };
 
   if (!r.activatedAt) {
     const now = Date.now();
@@ -389,7 +503,7 @@ async function findActiveKey(key, c) {
         console.log(`[key] activated ${rec.key} -> ${rec.durationHours}h, expires ${rec.expiresAt}`);
         return rec;
       });
-      if (!r) return null;
+      if (!r) return { ok: false, reason: 'invalid' };
     } catch (e) {
       /* Never block the buyer on a storage hiccup — serve it in memory,
          the cache still holds the unactivated record so the next call retries. */
@@ -398,104 +512,159 @@ async function findActiveKey(key, c) {
     }
   }
 
-  if (!r.expiresAt || Date.now() > new Date(r.expiresAt).getTime()) return null;
-  return r;
+  /* Test against the paused clock, not the raw stamp, so a key cannot die
+     while the service is down. */
+  const expMs = effectiveExpiry(r, maintStart(db));
+  if (expMs == null || Date.now() > expMs) {
+    return { ok: false, reason: 'expired', record: r };
+  }
+
+  if (r.maxDevices === 1) {
+    if (!did) return { ok: false, reason: 'no-device', record: r };
+
+    const bound = (r.devices || [])[0];
+    if (bound && bound.id !== did) {
+      return { ok: false, reason: 'device-mismatch', record: r };
+    }
+
+    if (!bound) {
+      try {
+        const updated = await bindDevice(c, key, did, ua);
+        if (updated) r = updated;
+        else r = { ...r, devices: [{ id: did, firstSeen: new Date().toISOString(), lastSeen: new Date().toISOString(), ua: ua || '' }] };
+      } catch (e) {
+        console.warn('[device] lock write failed, serving in-memory:', e.message);
+        r = { ...r, devices: [{ id: did, firstSeen: new Date().toISOString(), lastSeen: new Date().toISOString(), ua: ua || '' }] };
+      }
+    }
+  }
+
+  return { ok: true, record: r };
 }
 
-/* ================= ROUTING CONFIG ================= */
-const BASE_CONFIG = {
-  "remarks": "CYBER X SILENT [Secured]",
-  "profile-update-interval": 1,
-  "inbounds": [
-    { "tag": "socks", "listen": "127.0.0.1", "port": 10808, "protocol": "socks", "settings": { "auth": "noauth", "udp": true }, "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } },
-    { "tag": "http", "listen": "127.0.0.1", "port": 10809, "protocol": "http", "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"], "routeOnly": false } }
-  ],
-  "outbounds": [
-    {
-      "tag": "proxy",
-      "protocol": "hysteria",
-      "settings": { "address": "wraith-bom.xreg.site", "port": 443, "version": 2 },
-      "streamSettings": {
-        "network": "hysteria",
-        "security": "tls",
-        "tlsSettings": { "serverName": "wraith-bom.xreg.site", "alpn": ["h3"] },
-        "hysteriaSettings": { "version": 2, "auth": "XREG-E472-1EF2-8D79.1793018457.4f51e32b10e2a44595314baee488cb83" }
-      }
-    },
-    { "tag": "direct", "protocol": "freedom" }
-  ],
-  "routing": {
-    "domainStrategy": "AsIs",
-    "rules": [
-      {
-        "type": "field",
-        "domain": [
-          "full:clientbp.ggpolarbear.com", "full:loginbp.ggpolarbear.com", "full:core-bs.ggpolarbear.com",
-          "full:core-bs.freefiremobile.com", "full:core-tata.freefireind.in", "full:core-gmc.freefiremobile.com",
-          "full:client.ind.freefiremobile.com", "full:client.us.freefiremobile.com", "full:sgnetwork.ggblueshark.com",
-          "full:menetwork.ggblueshark.com", "full:bdnetwork.ggpolarbear.com", "full:100067.connect.garena.com",
-          "full:100067.msdk.garena.com", "full:clientbp.ppmainecoonghj.com", "full:loginbp.ppmainecoonghj.com",
-          "full:ffmconnect.ppmainecoonghj.com", "full:ffmmsdk.ppmainecoonghj.com",
-          "regexp:^(clientbp|loginbp|core-[a-z0-9]+|[a-z]+network|ffmconnect|ffmmsdk)\\."
-        ],
-        "outboundTag": "proxy"
-      },
-      {
-        "type": "field",
-        "ip": [
-          "0.0.0.0/24","101.32.114.0/23","101.33.44.0/22","102.204.191.0/24","102.217.238.0/24",
-          "103.103.244.0/24","103.108.100.0/22","103.117.4.0/22","103.123.54.0/23","103.127.228.0/22",
-          "103.16.32.0/22","103.215.127.0/24","103.219.200.0/22","103.237.102.0/23","103.247.204.0/22"
-        ],
-        "outboundTag": "proxy"
-      },
-      { "type": "field", "network": "tcp", "port": "39000-39999", "outboundTag": "proxy" },
-      { "type": "field", "network": "udp", "port": "10000-10999", "outboundTag": "proxy" },
-      {
-        "type": "field",
-        "domain": [
-          "full:event-vodka.freefireind.in","full:indevent.ggblueshark.com","full:sgevent.ggblueshark.com",
-          "full:meevent.ggblueshark.com","full:thevent.ggblueshark.com","full:sacevent.ggblueshark.com",
-          "full:idevent.ggblueshark.com","full:bdevent.ggpolarbear.com","regexp:event\\.gg(blueshark|polarbear)\\.com$",
-          "full:gin.freefireind.in","full:gin.freefiremobile.com","full:vodka.freefireind.in",
-          "full:dl.castle.freefiremobile.com","full:dl.cdn.freefiremobile.com","full:dl-core.cdn.freefiremobile.com",
-          "domain:freefiremobile-a.akamaihd.net","full:client.nulldash.store","full:client.xreg.site","full:client.silentx.store"
-        ],
-        "outboundTag": "direct"
-      },
-      { "type": "field", "network": "tcp,udp", "outboundTag": "direct" }
-    ]
-  }
+const REASON_TEXT = {
+  'invalid': 'Invalid key.',
+  'expired': 'Key has expired.',
+  'no-device': 'Device could not be identified. Reopen the app.',
+  'device-mismatch': 'This key is locked to another device.'
 };
 
-const EXPIRED_CONFIG = {
-  "remarks": "❌ SUBSCRIPTION EXPIRED OR TERMINATED",
-  "profile-update-interval": 1,
-  "inbounds": [],
-  "outbounds": [{ "tag": "blocked", "protocol": "blackhole" }],
-  "routing": { "rules": [] }
+/* ================= ROUTING CONFIG ================= */
+/*
+  Upstream: REZZX India — plain SOCKS5 with user:pass carried as base64
+  userinfo. Delivered in Happ share-link format: directive headers first,
+  then a single node line. Per-app proxy keeps only the Free Fire packages
+  on the tunnel; the client handles everything else.
+*/
+const UPSTREAM = {
+  scheme: 'socks',
+  host:   'asiarezzx.toulouse-digital31.fr',
+  port:   8443,
+  auth:   'YzdiNjg3YWE4OTI4ZjRjOGU3MzZiMGFhZTdhZTIyM2E6Mg==', /* base64("630749849f4020da45a7e319510d0c43:2") */
+  label:  'DEMON - India'
 };
+
+const PER_APP_LIST = 'com.garena.game.ffi,com.dts.freefiremax';
+
+/* Auth handed to the node while the key is dead. The server rejects it, so the
+   handshake dies and the client reports a genuine failure instead of a fake ping. */
+const DEAD_AUTH = 'DEMON-BLOCKED:0';
+
+function b64(s) { return Buffer.from(String(s), 'utf8').toString('base64'); }
+
+function nodeLine(auth, label) {
+  const userinfo = auth ? b64(auth) : UPSTREAM.auth;
+  return `${UPSTREAM.scheme}://${userinfo}@${UPSTREAM.host}:${UPSTREAM.port}#${encodeURIComponent(label)}`;
+}
+
+/*
+  Always emits a full, valid share link — a blocked key gets a real node with a
+  rejected credential rather than an empty body, so Happ keeps the profile
+  mounted and simply fails to connect.
+*/
+function subConfig(blocked, label, auth) {
+  const head = [
+    '#hide-settings: 1',
+    '#per-app-proxy-mode: on',
+    `#per-app-proxy-list: ${PER_APP_LIST}`
+  ];
+  const line = nodeLine(blocked ? DEAD_AUTH : auth, label);
+  return head.join('\n') + '\n' + line + '\n';
+}
+
+/* ================= FEATURE MODES ================= */
+/* aimbot | location. Each mode may carry its own upstream user:pass. */
+const FEATURE_MODES = ['aimbot', 'location'];
+const FEATURE_LABEL = { aimbot: 'AIMBOT', location: 'LOCATION + AIMBOT' };
+
+function cleanAuth(v) {
+  const s = String(v == null ? '' : v).trim();
+  if (!s) return '';
+  if (!s.includes(':')) return null;              /* must be user:pass */
+  const [u, p] = s.split(':');
+  if (!u.trim() || !p.trim()) return null;
+  return s.slice(0, 160);
+}
+
+/* Auth for a mode. Empty string means "use the built-in default". */
+function authFor(db, mode) {
+  const f = (db && db.features) || {};
+  if (mode && FEATURE_MODES.includes(mode) && f[mode]) return f[mode];
+  return '';
+}
+
+/* ================= SUBSCRIPTION BODY ================= */
+const PROFILE_TITLE = 'DEMON CHEATS';
 
 /* ================= HAPP LINK ================= */
 const happLinkCache = new Map();
+const HAPP_CACHE_TTL = 10 * 60 * 1000;
+const HAPP_CACHE_MAX = 500;
+
+function happCacheGet(k) {
+  const hit = happLinkCache.get(k);
+  if (!hit) return null;
+  if (Date.now() - hit.at > HAPP_CACHE_TTL) { happLinkCache.delete(k); return null; }
+  return hit.link;
+}
+function happCacheSet(k, link) {
+  if (happLinkCache.size >= HAPP_CACHE_MAX) {
+    const oldest = happLinkCache.keys().next().value;
+    if (oldest) happLinkCache.delete(oldest);
+  }
+  happLinkCache.set(k, { link, at: Date.now() });
+}
+/* Drop every cached link for a key so a mode/auth change is picked up at once. */
+function happCacheDrop(key) {
+  for (const k of [...happLinkCache.keys()]) {
+    if (!key || k.startsWith(key + '|')) happLinkCache.delete(k);
+  }
+}
+
 function baseUrl(req) {
   const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
   return `${proto}://${req.get('host')}`;
 }
 function encryptHappLink(subUrl) {
   return new Promise((resolve) => {
+    let settled = false;
+    const done = (v) => { if (!settled) { settled = true; resolve(v); } };
+
     const body = JSON.stringify({ url: subUrl });
     const req = https.request({
       hostname: 'crypto.happ.su', path: '/api-v2.php', method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
     }, (res) => {
       let data = '';
+      res.setEncoding('utf8');
       res.on('data', c => data += c);
-      res.on('end', () => { try { const j = JSON.parse(data); resolve(j && j.encrypted_link ? j.encrypted_link : null); } catch (e) { resolve(null); } });
+      res.on('end', () => { try { const j = JSON.parse(data); done(j && j.encrypted_link ? j.encrypted_link : null); } catch (e) { done(null); } });
+      res.on('error', () => done(null));
     });
-    req.on('error', () => resolve(null));
-    req.setTimeout(9000, () => { req.destroy(); resolve(null); });
-    req.write(body); req.end();
+    req.on('error', () => done(null));
+    req.setTimeout(5000, () => { req.destroy(); done(null); });
+    req.write(body);
+    req.end();
   });
 }
 
@@ -503,24 +672,44 @@ function encryptHappLink(subUrl) {
 app.get('/api/maintenance-status', async (req, res) => {
   try {
     const db = await getDb(false, credsFrom(req));
-    res.json(db.maintenance || DEFAULT_MAINT);
+    const m = { ...DEFAULT_MAINT, ...(db.maintenance || {}) };
+    const since = maintStart(db);
+    if (since) m.pausedMs = Math.max(0, Date.now() - since);
+    res.json(m);
   } catch (e) {
     res.json(DEFAULT_MAINT);
   }
 });
 
+/* Which modes currently have an auth configured — drives the client badges. */
+app.get('/api/features', async (req, res) => {
+  try {
+    const db = await getDb(false, credsFrom(req));
+    const f = db.features || {};
+    res.json({ aimbot: !!f.aimbot, location: !!f.location });
+  } catch (e) {
+    res.json({ aimbot: false, location: false });
+  }
+});
+
 app.get('/api/happ-link', async (req, res) => {
   const { key } = req.query;
+  const mode = String(req.query.mode || '').toLowerCase();
   if (!key) return res.json({ ok: false, reason: 'no-key' });
   try {
     const c = credsFrom(req);
-    const record = await findActiveKey(key, c);
-    if (!record) return res.json({ ok: false, reason: 'invalid' });
-    const subUrl = `${baseUrl(req)}/sub?key=${encodeURIComponent(key)}`;
-    if (happLinkCache.has(key)) return res.json({ ok: true, link: happLinkCache.get(key), raw: subUrl });
+    const did = deviceOf(req);
+    const out = await accessKey(key, c, did, deviceUa(req));
+    if (!out.ok) return res.json({ ok: false, reason: out.reason, message: REASON_TEXT[out.reason] });
+
+    const m = FEATURE_MODES.includes(mode) ? mode : '';
+    const subUrl = `${baseUrl(req)}/sub?key=${encodeURIComponent(key)}${did ? `&did=${encodeURIComponent(did)}` : ''}${m ? `&mode=${m}` : ''}`;
+    const cacheKey = `${key}|${did}|${m}`;
+    const cachedLink = happCacheGet(cacheKey);
+    if (cachedLink) return res.json({ ok: true, link: cachedLink, raw: subUrl, mode: m });
     const link = await encryptHappLink(subUrl);
-    if (link) happLinkCache.set(key, link);
-    return res.json({ ok: !!link, link: link || subUrl, raw: subUrl, encrypted: !!link });
+    if (link) happCacheSet(cacheKey, link);
+    return res.json({ ok: !!link, link: link || subUrl, raw: subUrl, encrypted: !!link, mode: m });
   } catch (e) {
     return res.json({ ok: false, reason: 'storage-error', detail: e.message });
   }
@@ -528,35 +717,52 @@ app.get('/api/happ-link', async (req, res) => {
 
 app.get('/sub', async (req, res) => {
   res.setHeader('profile-update-interval', '1');
+  res.setHeader('profile-title', PROFILE_TITLE);
   res.setHeader('subscription-auto-update-enable', '1');
   res.setHeader('subscription-auto-update-open-enable', '1');
   res.setHeader('hide-settings', '1');
   if (HAPP_PROVIDER_ID) res.setHeader('providerid', HAPP_PROVIDER_ID);
-  res.setHeader('content-disposition', 'attachment; filename="cyber-x-silent"');
-  res.setHeader('Content-Type', 'application/json');
+  /* .txt so any client knows the type; text/plain so Happ sniffs the body
+     itself instead of treating the reply as a document download. */
+  res.setHeader('content-disposition', 'attachment; filename="demon-cheats.txt"');
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
 
-  let targetConfig = BASE_CONFIG;
+  const reqMode = String(req.query.mode || '').toLowerCase();
+  const mode = FEATURE_MODES.includes(reqMode) ? reqMode : '';
+
+  let body;
   try {
     const c = credsFrom(req);
     const db = await getDb(false, c);
     const m = db.maintenance || DEFAULT_MAINT;
 
     if (m.enabled) {
-      targetConfig = { ...EXPIRED_CONFIG, remarks: `⚠️ MAINTENANCE: ${m.message}` };
+      res.setHeader('x-demon-status', 'maintenance');
+      body = subConfig(true, `⚠️ MAINTENANCE: ${m.message}`);
     } else {
       const { key } = req.query;
-      const record = key ? await findActiveKey(key, c) : null;
-      if (!record) targetConfig = EXPIRED_CONFIG;
-      else {
-        const expiresAt = new Date(record.expiresAt);
-        res.setHeader('subscription-userinfo', `upload=0; download=0; total=107374182400; expire=${Math.floor(expiresAt.getTime() / 1000)}`);
+      const did = deviceOf(req);
+      const out = key ? await accessKey(key, c, did, deviceUa(req)) : { ok: false, reason: 'invalid' };
+      if (!out.ok) {
+        res.setHeader('x-demon-status', out.reason);
+        body = subConfig(true, `❌ ${REASON_TEXT[out.reason] || 'SUBSCRIPTION EXPIRED OR TERMINATED'}`);
+      } else {
+        /* Advertised expiry uses the paused clock so the date does not creep
+           forward in the client while the service is down. */
+        const liveExpiry = effectiveExpiry(out.record, maintStart(db));
+        const tag = mode ? ` · ${FEATURE_LABEL[mode]}` : '';
+        res.setHeader('x-demon-status', 'ok');
+        if (mode) res.setHeader('x-demon-mode', mode);
+        res.setHeader('subscription-userinfo', `upload=0; download=0; total=107374182400; expire=${Math.floor(liveExpiry / 1000)}`);
+        body = subConfig(false, UPSTREAM.label + tag, authFor(db, mode));
       }
     }
   } catch (e) {
-    targetConfig = EXPIRED_CONFIG;
+    res.setHeader('x-demon-status', 'storage-error');
+    body = subConfig(true, '❌ SUBSCRIPTION EXPIRED OR TERMINATED');
   }
 
-  return res.status(200).send(JSON.stringify(targetConfig));
+  return res.status(200).send(body);
 });
 
 app.get('/api/check-key', async (req, res) => {
@@ -564,25 +770,63 @@ app.get('/api/check-key', async (req, res) => {
     const c = credsFrom(req);
     const db = await getDb(false, c);
     const m = db.maintenance || DEFAULT_MAINT;
-    if (m.enabled) return res.json({ valid: false, maintenance: true, message: m.message });
-
+    const since = maintStart(db);
     const { key } = req.query;
-    if (!key) return res.json({ valid: false, message: "Please enter an access key." });
-    if (!db.keys.find(k => k.key === key)) return res.json({ valid: false, message: "Invalid key." });
 
-    const record = await findActiveKey(key, c);
-    if (!record) return res.json({ valid: false, message: "Key has expired." });
+    if (!key) {
+      return res.json({
+        valid: false,
+        maintenance: !!m.enabled,
+        message: m.enabled ? m.message : "Please enter an access key."
+      });
+    }
 
-    return res.json({
-      valid: true,
+    const known = db.keys.find(k => k.key === key);
+    if (!known) {
+      return res.json({ valid: false, maintenance: !!m.enabled, message: m.enabled ? m.message : "Invalid key." });
+    }
+
+    const out = await accessKey(key, c, deviceOf(req), deviceUa(req));
+    const record = out.record || known;
+    const expMs = effectiveExpiry(record, since);
+    const remainingMs = expMs == null ? null : Math.max(0, expMs - Date.now());
+
+    const payload = {
       key: record.key,
       startedAt: record.startedAt || record.activatedAt,
       activatedAt: record.activatedAt,
       expiresAt: record.expiresAt,
       durationHours: record.durationHours,
-      remainingMs: new Date(record.expiresAt).getTime() - Date.now(),
-      message: "Access Key Validated!"
-    });
+      remainingMs,
+      deviceLimit: record.maxDevices === 1 ? 'single' : 'unlimited',
+      deviceLocked: record.maxDevices === 1 && (record.devices || []).length > 0,
+      deviceCount: (record.devices || []).length,
+      features: { aimbot: !!db.features.aimbot, location: !!db.features.location }
+    };
+
+    /* Maintenance still reports the key as good and hands over a frozen
+       remainingMs, so the countdown holds instead of draining to zero. */
+    if (m.enabled) {
+      return res.json({
+        ...payload,
+        valid: out.ok,
+        maintenance: true,
+        paused: true,
+        pausedMs: since ? Math.max(0, Date.now() - since) : 0,
+        message: m.message
+      });
+    }
+
+    if (!out.ok) {
+      return res.json({
+        ...payload,
+        valid: false,
+        reason: out.reason,
+        message: REASON_TEXT[out.reason] || "Invalid key."
+      });
+    }
+
+    return res.json({ ...payload, valid: true, message: "Access Key Validated!" });
   } catch (e) {
     return res.json({ valid: false, message: "Storage error: " + e.message });
   }
@@ -705,12 +949,13 @@ app.post('/api/admin/create-key', async (req, res) => {
   const { startNow } = req.body;
   const c = credsFrom(req);
   const durationHours = parseDuration(req.body);
-  console.log('[create-key] body =', JSON.stringify(req.body), '=> durationHours =', durationHours);
+  const maxDevices = parseDeviceLimit(req.body);
+  console.log('[create-key] body =', JSON.stringify(req.body), '=> durationHours =', durationHours, 'maxDevices =', maxDevices);
 
   try {
     const record = await mutate(c, db => {
       let key;
-      do { key = "CYBER-" + Math.random().toString(36).substring(2, 8).toUpperCase(); }
+      do { key = "DEMON-" + Math.random().toString(36).substring(2, 8).toUpperCase(); }
       while (db.keys.find(k => k.key === key));
 
       const now = Date.now();
@@ -718,6 +963,9 @@ app.post('/api/admin/create-key', async (req, res) => {
       const rec = {
         key,
         durationHours,
+        maxDevices,
+        deviceLimit: maxDevices === 1 ? 'single' : 'unlimited',
+        devices: [],
         createdAt: new Date(now).toISOString(),
         startedAt: started ? new Date(now).toISOString() : null,
         activatedAt: started ? new Date(now).toISOString() : null,
@@ -726,7 +974,7 @@ app.post('/api/admin/create-key', async (req, res) => {
       db.keys.push(rec);
       return rec;
     });
-    return res.json({ success: true, record, durationHours });
+    return res.json({ success: true, record, durationHours, maxDevices });
   } catch (e) {
     return res.status(500).json({ error: "Write failed: " + e.message });
   }
@@ -738,9 +986,38 @@ app.post('/api/admin/list-keys', async (req, res) => {
   try {
     const db = await getDb(true, credsFrom(req));
     const keys = [...db.keys].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-    return res.json({ keys, maintenance: db.maintenance });
+    return res.json({ keys, maintenance: db.maintenance, features: db.features });
   } catch (e) {
     return res.status(500).json({ error: "Read failed: " + e.message, keys: [] });
+  }
+});
+
+/* Saves the SOCKS user:pass used for each feature mode. */
+app.post('/api/admin/feature-auth', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+
+  const c = credsFrom(req);
+  const incoming = req.body || {};
+  const aimbot = cleanAuth(incoming.aimbot);
+  const location = cleanAuth(incoming.location);
+
+  if (aimbot === null) return res.status(400).json({ error: 'Aimbot auth must look like user:pass' });
+  if (location === null) return res.status(400).json({ error: 'Location auth must look like user:pass' });
+
+  try {
+    const out = await mutate(c, db => {
+      if (!db.features || typeof db.features !== 'object') db.features = { ...EMPTY_FEATURES };
+      db.features.aimbot = aimbot;
+      db.features.location = location;
+      return { ...db.features };
+    });
+    /* Cached links embed the old auth. */
+    happCacheDrop();
+    console.log('[features] aimbot ->', aimbot ? 'set' : 'cleared', '| location ->', location ? 'set' : 'cleared');
+    return res.json({ success: true, features: out });
+  } catch (e) {
+    return res.status(500).json({ error: 'Write failed: ' + e.message });
   }
 });
 
@@ -755,7 +1032,7 @@ app.post('/api/admin/revoke-key', async (req, res) => {
       const idx = db.keys.findIndex(k => k.key === key);
       if (idx >= 0) db.keys.splice(idx, 1);
     });
-    happLinkCache.delete(key);
+    happCacheDrop(key);
     return res.json({ success: true, message: `Key ${key} revoked.` });
   } catch (e) {
     return res.status(500).json({ error: "Write failed: " + e.message });
@@ -777,11 +1054,59 @@ app.post('/api/admin/repair-key', async (req, res) => {
       r.activatedAt = null;
       r.startedAt = null;
       r.expiresAt = null;
+      r.maintenancePausedMs = 0;
       return r;
     });
     if (!rec) return res.status(404).json({ error: "Key not found." });
-    happLinkCache.delete(key);
+    happCacheDrop(key);
     return res.json({ success: true, record: rec, durationHours });
+  } catch (e) {
+    return res.status(500).json({ error: "Write failed: " + e.message });
+  }
+});
+
+/* Clears the bound device so a single-device key can be used elsewhere. */
+app.post('/api/admin/reset-device', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  const { key } = req.body;
+  const c = credsFrom(req);
+
+  try {
+    const rec = await mutate(c, db => {
+      const r = db.keys.find(k => k.key === key);
+      if (!r) return null;
+      r.devices = [];
+      return r;
+    });
+    if (!rec) return res.status(404).json({ error: "Key not found." });
+    happCacheDrop(key);
+    return res.json({ success: true, message: `Device lock cleared for ${key}.` });
+  } catch (e) {
+    return res.status(500).json({ error: "Write failed: " + e.message });
+  }
+});
+
+/* Flips an existing key between unlimited and single-device. */
+app.post('/api/admin/set-device-limit', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  const { key } = req.body;
+  const c = credsFrom(req);
+  const maxDevices = parseDeviceLimit(req.body);
+
+  try {
+    const rec = await mutate(c, db => {
+      const r = db.keys.find(k => k.key === key);
+      if (!r) return null;
+      r.maxDevices = maxDevices;
+      r.deviceLimit = maxDevices === 1 ? 'single' : 'unlimited';
+      if (maxDevices === 0) r.devices = [];
+      return r;
+    });
+    if (!rec) return res.status(404).json({ error: "Key not found." });
+    happCacheDrop(key);
+    return res.json({ success: true, record: rec, maxDevices });
   } catch (e) {
     return res.status(500).json({ error: "Write failed: " + e.message });
   }
@@ -795,9 +1120,44 @@ app.post('/api/admin/maintenance', async (req, res) => {
 
   try {
     const m = await mutate(c, db => {
-      db.maintenance = { enabled: !!enabled, message: message || "System under maintenance." };
+      const prev = db.maintenance || DEFAULT_MAINT;
+      const nowMs = Date.now();
+      const wantOn = !!enabled;
+      const msg = message || prev.message || 'System under maintenance.';
+
+      if (wantOn) {
+        /* `since` is stamped once and kept — repeated saves while already on
+           must not restart the window or the earlier minutes get refunded twice. */
+        db.maintenance = {
+          enabled: true,
+          message: msg,
+          since: prev.enabled ? (prev.since || new Date(nowMs).toISOString()) : new Date(nowMs).toISOString()
+        };
+        return db.maintenance;
+      }
+
+      if (prev.enabled) {
+        const raw = prev.since ? new Date(prev.since).getTime() : nowMs;
+        const start = Number.isFinite(raw) ? Math.min(raw, nowMs) : nowMs;
+        const credited = settleMaintenance(db, start, nowMs);
+        db.maintenance = {
+          enabled: false,
+          message: msg,
+          since: null,
+          lastPausedMs: Math.max(0, nowMs - start),
+          lastPausedKeys: credited,
+          lastEndedAt: new Date(nowMs).toISOString()
+        };
+        console.log(`[maint] resumed — credited ${credited} key(s) for ${Math.round((nowMs - start) / 1000)}s`);
+        return db.maintenance;
+      }
+
+      db.maintenance = { enabled: false, message: msg, since: null };
       return db.maintenance;
     });
+
+    /* Cached Happ links embed the dead auth, so drop them on every toggle. */
+    happLinkCache.clear();
     return res.json({ success: true, maintenance: m });
   } catch (e) {
     return res.status(500).json({ error: "Write failed: " + e.message });
@@ -809,12 +1169,19 @@ app.get('/admin', (req, res) => res.sendFile(path.join(FRONTEND_DIR, 'admin.html
 app.use(express.static(FRONTEND_DIR));
 
 /* ================= BOOT ================= */
+process.on('unhandledRejection', (e) => {
+  console.warn('[unhandledRejection]', (e && e.message) || e);
+});
+process.on('uncaughtException', (e) => {
+  console.warn('[uncaughtException]', (e && e.stack) || e);
+});
+
 const PORT = process.env.PORT || 3000;
 
 (async () => {
   loadCfg();
   await pullCfgFromRepo();
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server active on port ${PORT}`);
     console.log(`[cfg] storage -> ${cfg.owner}/${cfg.repo}:${cfg.file}`);
     console.log(`[cfg] token -> ${tokenShape(cfg.token)}`);
