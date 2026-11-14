@@ -29,9 +29,9 @@
       "deviceLimit": "single",
       "devices": [],
       "createdAt": "2026-11-14T14:23:01.423Z",
-      "startedAt": null,
-      "activatedAt": null,
-      "expiresAt": null
+      "startedAt": "2026-11-14T14:25:22.624Z",
+      "activatedAt": "2026-11-14T14:25:22.624Z",
+      "expiresAt": "2026-11-15T02:25:22.624Z"
     }
   ],
   "maintenance": {
