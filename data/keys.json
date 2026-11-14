@@ -1,72 +1,12 @@
 {
-  "keys": [
-    {
-      "key": "CYBER-JNTP9G",
-      "durationHours": 24,
-      "createdAt": "2026-10-30T05:36:02.756Z",
-      "startedAt": "2026-10-30T06:10:42.269Z",
-      "activatedAt": "2026-10-30T06:10:42.269Z",
-      "expiresAt": "2026-10-31T06:10:42.269Z"
-    },
-    {
-      "key": "CYBER-S1S10D",
-      "durationHours": 24,
-      "createdAt": "2026-10-30T08:51:48.928Z",
-      "startedAt": "2026-10-30T08:52:43.959Z",
-      "activatedAt": "2026-10-30T08:52:43.959Z",
-      "expiresAt": "2026-10-31T08:52:43.959Z"
-    },
-    {
-      "key": "CYBER-W9WFEX",
-      "durationHours": 1,
-      "createdAt": "2026-10-30T15:49:14.736Z",
-      "startedAt": "2026-10-30T15:50:49.641Z",
-      "activatedAt": "2026-10-30T15:50:49.641Z",
-      "expiresAt": "2026-10-30T16:50:49.641Z"
-    },
-    {
-      "key": "CYBER-IAWU3M",
-      "durationHours": 1,
-      "createdAt": "2026-10-30T15:49:48.661Z",
-      "startedAt": "2026-10-30T15:58:18.726Z",
-      "activatedAt": "2026-10-30T15:58:18.726Z",
-      "expiresAt": "2026-10-30T16:58:18.726Z"
-    },
-    {
-      "key": "CYBER-QEUIHC",
-      "durationHours": 24,
-      "createdAt": "2026-10-31T17:06:10.896Z",
-      "startedAt": "2026-10-31T17:08:40.369Z",
-      "activatedAt": "2026-10-31T17:08:40.369Z",
-      "expiresAt": "2026-11-01T17:08:40.369Z"
-    },
-    {
-      "key": "CYBER-AASXQ5",
-      "durationHours": 24,
-      "createdAt": "2026-11-01T15:47:53.143Z",
-      "startedAt": "2026-11-01T15:51:40.492Z",
-      "activatedAt": "2026-11-01T15:51:40.492Z",
-      "expiresAt": "2026-11-02T15:51:40.492Z"
-    },
-    {
-      "key": "CYBER-P5YG65",
-      "durationHours": 24,
-      "createdAt": "2026-11-02T02:08:53.705Z",
-      "startedAt": "2026-11-02T02:09:35.569Z",
-      "activatedAt": "2026-11-02T02:09:35.569Z",
-      "expiresAt": "2026-11-03T02:09:35.569Z"
-    },
-    {
-      "key": "CYBER-8GMGHD",
-      "durationHours": 24,
-      "createdAt": "2026-11-02T02:09:22.960Z",
-      "startedAt": "2026-11-02T02:09:38.431Z",
-      "activatedAt": "2026-11-02T02:09:38.431Z",
-      "expiresAt": "2026-11-03T02:09:38.431Z"
-    }
-  ],
+  "keys": [],
   "maintenance": {
-    "enabled": true,
-    "message": "Back in some days with new powers."
+    "enabled": false,
+    "message": "System under maintenance.",
+    "since": null
+  },
+  "features": {
+    "aimbot": "",
+    "location": ""
   }
 }
