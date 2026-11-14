@@ -39,6 +39,17 @@
       "startedAt": "2026-11-14T14:25:22.624Z",
       "activatedAt": "2026-11-14T14:25:22.624Z",
       "expiresAt": "2026-11-15T02:25:22.624Z"
+    },
+    {
+      "key": "DEMON-GK3WSX",
+      "durationHours": 3,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "createdAt": "2026-11-14T16:09:18.186Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
     }
   ],
   "maintenance": {
