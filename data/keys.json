@@ -1,5 +1,17 @@
 {
-  "keys": [],
+  "keys": [
+    {
+      "key": "DEMON-F6BWND",
+      "durationHours": 24,
+      "maxDevices": 0,
+      "deviceLimit": "unlimited",
+      "devices": [],
+      "createdAt": "2026-11-15T04:14:42.892Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
+    }
+  ],
   "maintenance": {
     "enabled": false,
     "message": "System under maintenance.",
@@ -12,8 +24,17 @@
   "resellers": [],
   "topups": [],
   "pricing": {
-    "1": 2, "3": 4, "6": 5, "12": 7, "24": 10, "72": 17,
-    "168": 35, "336": 60, "720": 100, "8760": 250, "999999": 1200
+    "1": 2,
+    "3": 4,
+    "6": 5,
+    "12": 7,
+    "24": 10,
+    "72": 17,
+    "168": 35,
+    "336": 60,
+    "720": 100,
+    "8760": 250,
+    "999999": 1200
   },
   "meta": {}
 }
