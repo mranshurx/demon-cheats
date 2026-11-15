@@ -49,5 +49,7 @@
     "8760": 1000,
     "999999": 9999999999
   },
-  "meta": {}
+  "meta": {
+    "sessionSecret": "0ea585cbccfdfcb7ae18d775a5ebeab5106469da4e01c84429e8228c7a5cf807"
+  }
 }
