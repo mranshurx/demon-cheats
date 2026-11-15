@@ -1018,7 +1018,9 @@ app.post('/api/reseller/buy', async (req, res) => {
 
   const hours = normalizeHours(req.body.hours);
   if (!SELLABLE.includes(hours)) return res.status(400).json({ error: 'Unknown plan.' });
-  const maxDevices = parseDeviceLimit(req.body);
+
+  /* Reseller keys are always HWID-locked to one device. */
+  const maxDevices = 1;
   const qty = Math.min(10, Math.max(1, parseInt(req.body.qty, 10) || 1));
 
   try {
@@ -1041,7 +1043,7 @@ app.post('/api/reseller/buy', async (req, res) => {
           key,
           durationHours: hours,
           maxDevices,
-          deviceLimit: maxDevices === 1 ? 'single' : 'unlimited',
+          deviceLimit: 'single',
           devices: [],
           resellerId: r.id,
           cost: unit,
