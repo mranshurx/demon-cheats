@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DEMON CHEATS — Reseller</title>
+<link rel="icon" href="logo/logo.png" type="image/png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050507;--card:#0e0e12;--line:#261518;--accent:#ff2a44;
+    --txt:#e4e4e7;--mut:#8a8a8e;--ok:#34d399;--warn:#f59e0b;--bad:#f87171;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;min-height:100vh;background:var(--bg);color:var(--txt);
+    font-family:'JetBrains Mono',ui-monospace,monospace;
+    background-image:radial-gradient(900px 500px at 50% -10%,rgba(255,42,68,.10),transparent 60%);
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:22px}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:14px;
+    border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:20px;flex-wrap:wrap}
+  .brand{font-family:'Archivo Black',sans-serif;font-size:15px;letter-spacing:.16em;color:#fff;margin:0}
+  .brand span{color:var(--accent)}
+  .sub{font-size:10.5px;color:var(--mut);margin:4px 0 0;letter-spacing:.06em}
+  .btn{border:1px solid var(--line);background:rgba(255,255,255,.05);color:#dcdcdc;font-family:inherit;
+    font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;padding:9px 13px;
+    border-radius:8px;cursor:pointer;transition:background .18s,color .18s}
+  .btn:hover{background:rgba(255,255,255,.12);color:#fff}
+  .btn:disabled{opacity:.55;cursor:wait}
+  .btn-red{background:linear-gradient(135deg,#ff2a44,#d90429);border-color:rgba(255,255,255,.15);color:#fff;
+    box-shadow:0 4px 14px rgba(255,42,68,.3)}
+  .btn-red:hover{opacity:.92}
+  .btn-ghost{background:transparent}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:#fff;margin:0 0 14px;
+    border-bottom:1px solid var(--line);padding-bottom:10px;font-weight:700}
+  .field{margin-bottom:12px}
+  label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin-bottom:6px}
+  input,select{width:100%;background:#09090b;border:1px solid var(--line);color:#fff;border-radius:8px;
+    padding:10px 12px;font-family:inherit;font-size:12px;outline:none}
+  input:focus,select:focus{border-color:var(--accent)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+  .plan{border:1px solid var(--line);border-radius:10px;padding:12px;background:#09090b;text-align:center}
+  .plan .t{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#e4e4e7}
+  .plan .p{font-family:'Archivo Black',sans-serif;font-size:17px;color:#fff;margin:8px 0}
+  .plan button{width:100%;font-size:10px;padding:7px}
+  .bal{display:flex;align-items:baseline;gap:8px}
+  .bal .n{font-family:'Archivo Black',sans-serif;font-size:30px;color:#fff;line-height:1}
+  .bal .l{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.12em}
+  .tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
+  .tab{padding:8px 12px;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;border-radius:8px;
+    border:1px solid var(--line);background:rgba(255,255,255,.04);color:#cacaca;cursor:pointer;font-family:inherit}
+  .tab.on{background:#fff;color:#000;font-weight:700;border-color:#fff}
+  table{width:100%;border-collapse:collapse;font-size:11.5px}
+  th{text-align:left;padding:9px 10px;color:var(--mut);font-size:9.5px;text-transform:uppercase;
+    letter-spacing:.08em;border-bottom:1px solid var(--line)}
+  td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.05);color:#d4d4d8}
+  .mono{font-weight:700;color:#fff}
+  .tag{font-size:9.5px;padding:2px 7px;border-radius:5px;border:1px solid var(--line);
+    background:rgba(255,255,255,.05);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+  .tag.pending{color:var(--warn);border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.12)}
+  .tag.approved{color:var(--ok);border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.12)}
+  .tag.rejected{color:var(--bad);border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.12)}
+  .qr{display:block;max-width:230px;width:100%;margin:0 auto 12px;border-radius:12px;background:#fff;padding:10px}
+  .qr-missing{text-align:center;font-size:11px;color:var(--warn);padding:20px;border:1px dashed var(--line);border-radius:10px}
+  .note{font-size:10.5px;color:var(--mut);line-height:1.7}
+  .msg{font-size:11.5px;margin-top:10px;min-height:16px}
+  .msg.err{color:var(--bad)}
+  .msg.ok{color:var(--ok)}
+  .hidden{display:none !important}
+  .keybox{background:#09090b;border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:12px;
+    font-size:12px;word-break:break-all;color:#fff;font-weight:700}
+  #login{max-width:380px;margin:8vh auto}
+  .stat{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px}
+  .stat div{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.1em}
+  .stat b{display:block;font-size:16px;color:#fff;font-family:'Archivo Black',sans-serif;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="login">
+    <div class="card">
+      <h2>Reseller Login</h2>
+      <div class="field">
+        <label>Username</label>
+        <input id="u" autocomplete="username" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="p" type="password" autocomplete="current-password" />
+      </div>
+      <button class="btn btn-red" style="width:100%" onclick="doLogin()">Sign In</button>
+      <div id="loginMsg" class="msg err"></div>
+    </div>
+    <p class="note" style="text-align:center">No account? Ask the owner for reseller access.</p>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="top">
+      <div>
+        <h1 class="brand">DEMON CHEATS <span>RESELLER</span></h1>
+        <p class="sub" id="whoami">—</p>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="reloadAll()">Refresh</button>
+        <button class="btn btn-ghost" onclick="doLogout()">Log out</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="bal"><span class="n" id="bal">—</span><span class="l">credits (₹)</span></div>
+      <div class="stat" style="margin-top:14px">
+        <div>Keys made<b id="sKeys">—</b></div>
+        <div>Total spent<b id="sSpent">—</b></div>
+        <div>Member since<b id="sSince">—</b></div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab on" data-tab="buyTab" onclick="tab('buyTab',this)">Buy Keys</button>
+      <button class="tab" data-tab="topTab" onclick="tab('topTab',this)">Add Credits</button>
+      <button class="tab" data-tab="keysTab" onclick="tab('keysTab',this)">My Keys</button>
+      <button class="tab" data-tab="accTab" onclick="tab('accTab',this)">Account</button>
+    </div>
+
+    <div id="buyTab">
+      <div class="card">
+        <h2>Buy License Keys</h2>
+        <div id="planGrid" class="grid"></div>
+        <div class="field" style="margin-top:16px">
+          <label>Device limit</label>
+          <select id="dev">
+            <option value="unlimited">Unlimited devices</option>
+            <option value="single">1 device only (HWID lock)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Quantity</label>
+          <select id="qty">
+            <option value="1">1 key</option>
+            <option value="5">5 keys</option>
+            <option value="10">10 keys</option>
+          </select>
+        </div>
+        <div class="note">Countdown starts on the buyer's first connection. Credits are deducted instantly.</div>
+        <div id="buyMsg" class="msg"></div>
+        <div id="buyOut"></div>
+      </div>
+    </div>
+
+    <div id="topTab" class="hidden">
+      <div class="card">
+        <h2>Add Credits</h2>
+        <img id="qr" class="qr" src="/qr/qr.png" alt="Payment QR" onerror="qrFail()" />
+        <div id="qrMissing" class="qr-missing hidden">
+          QR not uploaded yet. Owner: add <b>public/qr/qr.png</b>.
+        </div>
+        <div class="note" style="margin-bottom:14px">Pay with any UPI app, then submit the amount and the UTR / transaction id below. Credits are added after the owner confirms.</div>
+        <div class="field">
+          <label>Amount (₹)</label>
+          <input id="tAmount" type="number" min="1" step="1" placeholder="100" />
+        </div>
+        <div class="field">
+          <label>UTR / Transaction ID</label>
+          <input id="tRef" placeholder="12 digit UTR" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label>Note (optional)</label>
+          <input id="tNote" placeholder="anything the owner should know" />
+        </div>
+        <button class="btn btn-red" style="width:100%" onclick="submitTopup()">Submit Top-up Request</button>
+        <div id="topMsg" class="msg"></div>
+      </div>
+      <div class="card">
+        <h2>My Top-up Requests</h2>
+        <table>
+          <thead><tr><th>Amount</th><th>Ref</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody id="topBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="keysTab" class="hidden">
+      <div class="card">
+        <h2>My Keys</h2>
+        <table>
+          <thead><tr><th>Key</th><th>Plan</th><th>Cost</th><th>Status</th><th>Created</th></tr></thead>
+          <tbody id="keyBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="accTab" class="hidden">
+      <div class="card">
+        <h2>Change Password</h2>
+        <div class="field"><label>Current password</label><input id="cPass" type="password" /></div>
+        <div class="field"><label>New password</label><input id="nPass" type="password" /></div>
+        <button class="btn btn-red" style="width:100%" onclick="changePass()">Update Password</button>
+        <div id="passMsg" class="msg"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const TOKEN_KEY = "demon_reseller_token";
+const PLANS = {1:"1 Hour",3:"3 Hours",6:"6 Hours",12:"12 Hours",24:"1 Day",72:"3 Days",168:"7 Days",336:"14 Days",720:"30 Days",8760:"365 Days",999999:"Lifetime"};
+let token = localStorage.getItem(TOKEN_KEY) || "";
+let prices = [];
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money = n => "₹" + (Number(n) || 0);
+const fmt = v => { if(!v) return "—"; const d = new Date(v); return isNaN(d) ? "—" : d.toLocaleString(); };
+
+async function api(path, body){
+  const r = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+    body: JSON.stringify(body || {})
+  });
+  if (r.status === 401 || r.status === 403) {
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 401) { logoutLocal(); throw new Error(d.error || "Session expired."); }
+    throw new Error(d.error || "Forbidden.");
+  }
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
+  return d;
+}
+
+function qrFail(){ $("qr").classList.add("hidden"); $("qrMissing").classList.remove("hidden"); }
+
+function tab(id, btn){
+  ["buyTab","topTab","keysTab","accTab"].forEach(t => $(t).classList.add("hidden"));
+  document.querySelectorAll(".tab").forEach(b => b.classList.remove("on"));
+  $(id).classList.remove("hidden");
+  btn.classList.add("on");
+}
+
+async function doLogin(){
+  $("loginMsg").textContent = "";
+  const username = $("u").value.trim();
+  const password = $("p").value;
+  if(!username || !password){ $("loginMsg").textContent = "Enter username and password."; return; }
+  try{
+    const d = await api("/api/reseller/login", { username, password });
+    token = d.token;
+    localStorage.setItem(TOKEN_KEY, token);
+    await boot();
+  }catch(e){ $("loginMsg").textContent = e.message; }
+}
+
+function logoutLocal(){
+  token = "";
+  localStorage.removeItem(TOKEN_KEY);
+  $("app").classList.add("hidden");
+  $("login").classList.remove("hidden");
+}
+
+function doLogout(){ logoutLocal(); }
+
+async function loadMe(){
+  const d = await api("/api/reseller/me", {});
+  $("bal").textContent = money(d.credits);
+  $("sKeys").textContent = d.keysMade;
+  $("sSpent").textContent = money(d.totalSpent);
+  $("sSince").textContent = fmt(d.createdAt);
+  $("whoami").textContent = d.username + (d.note ? " · " + d.note : "");
+}
+
+async function loadPrices(){
+  const d = await api("/api/reseller/prices", {});
+  prices = d.prices || [];
+  $("planGrid").innerHTML = prices.length
+    ? prices.map(p => `<div class="plan">
+        <div class="t">${esc(PLANS[p.hours] || (p.hours + " Hours"))}</div>
+        <div class="p">${money(p.price)}</div>
+        <button class="btn" onclick="buy(${p.hours})">Buy</button>
+      </div>`).join("")
+    : `<div class="note">No plans are priced for your account yet.</div>`;
+}
+
+async function loadKeys(){
+  const d = await api("/api/reseller/keys", {});
+  const rows = d.keys || [];
+  $("keyBody").innerHTML = rows.length ? rows.map(k => {
+    const st = !k.activatedAt ? "unused" : (new Date(k.expiresAt).getTime() <= Date.now() ? "expired" : "active");
+    return `<tr>
+      <td class="mono">${esc(k.key)}</td>
+      <td>${esc(PLANS[k.durationHours] || (k.durationHours + "h"))}</td>
+      <td>${money(k.cost)}</td>
+      <td><span class="tag ${st === "active" ? "approved" : (st === "expired" ? "rejected" : "")}">${st}</span></td>
+      <td>${fmt(k.createdAt)}</td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="5" style="color:#6b7280">No keys yet.</td></tr>`;
+}
+
+async function loadTopups(){
+  const d = await api("/api/reseller/topups", {});
+  const rows = d.topups || [];
+  $("topBody").innerHTML = rows.length ? rows.map(t => `<tr>
+    <td class="mono">${money(t.amount)}</td>
+    <td>${esc(t.reference || "—")}</td>
+    <td><span class="tag ${t.status}">${t.status}</span></td>
+    <td>${fmt(t.createdAt)}</td>
+  </tr>`).join("") : `<tr><td colspan="4" style="color:#6b7280">No requests yet.</td></tr>`;
+}
+
+async function buy(hours){
+  const msg = $("buyMsg");
+  msg.className = "msg";
+  msg.textContent = "Working…";
+  $("buyOut").innerHTML = "";
+  try{
+    const d = await api("/api/reseller/buy", {
+      hours,
+      deviceLimit: $("dev").value,
+      qty: parseInt($("qty").value, 10) || 1
+    });
+    msg.className = "msg ok";
+    msg.textContent = `${d.keys.length} key(s) created · ${money(d.total)} deducted`;
+    $("buyOut").innerHTML = `<div class="keybox">${d.keys.map(esc).join("<br>")}</div>`;
+    await Promise.all([loadMe(), loadKeys()]);
+  }catch(e){
+    msg.className = "msg err";
+    msg.textContent = e.message;
+  }
+}
+
+async function submitTopup(){
+  const msg = $("topMsg");
+  msg.className = "msg";
+  const amount = parseInt($("tAmount").value, 10) || 0;
+  if(amount < 1){ msg.className = "msg err"; msg.textContent = "Enter an amount."; return; }
+  try{
+    await api("/api/reseller/topup", { amount, reference: $("tRef").value.trim(), note: $("tNote").value.trim() });
+    msg.className = "msg ok";
+    msg.textContent = "Request sent. Wait for the owner to approve.";
+    $("tAmount").value = ""; $("tRef").value = ""; $("tNote").value = "";
+    await loadTopups();
+  }catch(e){ msg.className = "msg err"; msg.textContent = e.message; }
+}
+
+async function changePass(){
+  const msg = $("passMsg");
+  msg.className = "msg";
+  try{
+    await api("/api/reseller/password", { current: $("cPass").value, next: $("nPass").value });
+    msg.className = "msg ok";
+    msg.textContent = "Password updated.";
+    $("cPass").value = ""; $("nPass").value = "";
+  }catch(e){ msg.className = "msg err"; msg.textContent = e.message; }
+}
+
+async function reloadAll(){
+  try{
+    await Promise.all([loadMe(), loadPrices(), loadKeys(), loadTopups()]);
+  }catch(e){ /* handled */ }
+}
+
+async function boot(){
+  $("login").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  try{
+    await reloadAll();
+  }catch(e){
+    logoutLocal();
+    $("loginMsg").textContent = e.message;
+  }
+}
+
+$("p").addEventListener("keydown", e => { if(e.key === "Enter") doLogin(); });
+
+if (token) boot();
+</script>
+</body>
+</html>
