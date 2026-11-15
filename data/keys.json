@@ -35,7 +35,19 @@
       "lastLoginAt": "2026-11-15T04:26:19.370Z"
     }
   ],
-  "topups": [],
+  "topups": [
+    {
+      "id": "Td3d5cd8cdc707726",
+      "resellerId": "Re4f4adecc607a60a",
+      "username": "owner",
+      "amount": 1,
+      "method": "UPI",
+      "reference": "11111111111",
+      "note": "",
+      "status": "pending",
+      "createdAt": "2026-11-15T04:26:43.608Z"
+    }
+  ],
   "pricing": {
     "1": 2,
     "3": 4,
