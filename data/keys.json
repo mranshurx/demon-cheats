@@ -44,8 +44,9 @@
       "method": "UPI",
       "reference": "",
       "note": "9641805066",
-      "status": "pending",
-      "createdAt": "2026-11-15T04:36:30.062Z"
+      "status": "rejected",
+      "createdAt": "2026-11-15T04:36:30.062Z",
+      "decidedAt": "2026-11-15T04:36:40.673Z"
     },
     {
       "id": "Te497afd2c14fb4a0",
