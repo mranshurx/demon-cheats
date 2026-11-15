@@ -368,7 +368,10 @@
               <path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
             Resellers
           </div>
-          <button class="btn-action" onclick="loadResellers()">Refresh</button>
+          <div style="display:flex;gap:8px;">
+            <button id="global-price-btn" class="btn-action">Default Prices</button>
+            <button class="btn-action" onclick="loadResellers()">Refresh</button>
+          </div>
         </div>
 
         <div class="notice">
@@ -1281,7 +1284,7 @@ document.addEventListener("visibilitychange", () => {
 
 window.addEventListener("DOMContentLoaded", () => {
   paintStorage();
-  document.getElementById("global-price-btn").addEventListener("click", openGlobalPrices);
+  $("global-price-btn").addEventListener("click", openGlobalPrices);
   if(adminPass){ bootDashboard(); startWatch(); }
   else showLogin();
 });
