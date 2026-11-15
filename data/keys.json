@@ -23,20 +23,6 @@
   },
   "resellers": [
     {
-      "id": "R5881fd0262539641",
-      "username": "anshu",
-      "passSalt": "72764875b99f28625d3e6418",
-      "passHash": "40c0a705689f169da60de4935e79128ec7dce9f034395216da3daed7576b1e99",
-      "credits": 998,
-      "active": true,
-      "note": "",
-      "prices": {},
-      "createdAt": "2026-11-15T04:37:32.744Z",
-      "lastLoginAt": "2026-11-15T04:45:27.023Z",
-      "parentId": null,
-      "qr": "https://i.ibb.co/Z6PYH2Wn/6325664113597551472.jpg"
-    },
-    {
       "id": "Rb58d18da9d3cd88a",
       "username": "subha678",
       "passSalt": "08db9e9d8a2a6981ec9adedd",
@@ -48,7 +34,8 @@
       "parentId": null,
       "qr": "https://i.ibb.co/Z6PYH2Wn/6325664113597551472.jpg",
       "createdAt": "2026-11-15T04:54:03.304Z",
-      "lastLoginAt": "2026-11-15T04:55:48.780Z"
+      "lastLoginAt": "2026-11-15T04:55:48.780Z",
+      "subPrices": {}
     },
     {
       "id": "Rd0eb5b8f6219652a",
@@ -62,7 +49,8 @@
       "parentId": "Rb58d18da9d3cd88a",
       "qr": "",
       "createdAt": "2026-11-15T04:59:58.915Z",
-      "lastLoginAt": "2026-11-15T05:03:03.762Z"
+      "lastLoginAt": "2026-11-15T05:03:03.762Z",
+      "subPrices": {}
     }
   ],
   "topups": [],
@@ -81,5 +69,18 @@
   },
   "meta": {
     "sessionSecret": "0ea585cbccfdfcb7ae18d775a5ebeab5106469da4e01c84429e8228c7a5cf807"
+  },
+  "subPricing": {
+    "1": 3,
+    "3": 6,
+    "6": 8,
+    "12": 11,
+    "24": 15,
+    "72": 26,
+    "168": 53,
+    "336": 90,
+    "720": 150,
+    "8760": 0,
+    "999999": 0
   }
 }
