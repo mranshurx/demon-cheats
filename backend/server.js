@@ -10,6 +10,14 @@ app.set('trust proxy', true);
 app.use(express.json({ limit: '1mb' }));
 app.use(cors());
 
+/* ================= PATHS ================= */
+const ROOT = path.join(__dirname, '..');
+const FRONTEND_DIR = fs.existsSync(path.join(ROOT, 'frontend'))
+  ? path.join(ROOT, 'frontend')
+  : path.join(__dirname, 'frontend');
+const PUBLIC_DIR = path.join(ROOT, 'public');
+const LOCAL_MIRROR = path.join(__dirname, 'store.local.json');
+
 /* ================= STORAGE ================= */
 const HARD = {
   owner:  'mranshurx',
@@ -50,7 +58,6 @@ function saveCfg() {
   catch (e) { console.warn('[cfg] could not persist github.json:', e.message); }
 }
 
-/* Persist the storage config into the repo so it survives Render restarts. */
 async function pushCfgToRepo(creds, snapshot) {
   const c = creds || cfg;
   const body = snapshot || cfg;
@@ -75,7 +82,6 @@ async function pushCfgToRepo(creds, snapshot) {
   } catch (e) { console.warn('[cfg] repo persist failed:', e.message); }
 }
 
-/* Restore the storage config from the repo when the disk copy is gone. */
 let lastPull = 0;
 async function pullCfgFromRepo() {
   if (cfg.token) return;
@@ -94,7 +100,6 @@ async function pullCfgFromRepo() {
   } catch (e) { console.warn('[cfg] repo restore failed:', e.message); }
 }
 
-/* Adopt a token supplied by the panel so client requests can write too. */
 function adoptToken(req) {
   const t = req.body && req.body.gh && req.body.gh.token;
   if (!t || !String(t).trim()) return;
@@ -119,7 +124,6 @@ function credsFrom(req) {
   out.token = out.token.trim();
   return out;
 }
-/* Token is deliberately NOT part of the signature: client and admin must share one cache. */
 function sigOf(c) { return `${c.owner}/${c.repo}@${c.branch}:${c.file}`; }
 function ready(c) { return !!(c.owner && c.repo); }
 
@@ -131,7 +135,7 @@ function tokenShape(t) {
   return 'unknown prefix';
 }
 
-/* ================= ADMIN KEY (remote — no hardcoded secret) ================= */
+/* ================= ADMIN KEY ================= */
 const ADMIN_KEY_URL = process.env.ADMIN_KEY_URL ||
   'https://raw.githubusercontent.com/mranshurx/demon-cheats/refs/heads/main/adminkey.txt';
 const ADMIN_KEY_TTL = 30000;
@@ -187,13 +191,27 @@ async function requireAdmin(req, res) {
 
 const HAPP_PROVIDER_ID = "";
 
-const FRONTEND_DIR = fs.existsSync(path.join(__dirname, '..', 'frontend'))
-  ? path.join(__dirname, '..', 'frontend')
-  : path.join(__dirname, 'frontend');
-
 const DEFAULT_MAINT = { enabled: false, message: 'System under maintenance.', since: null };
 const EMPTY_FEATURES = { aimbot: '', location: '' };
-const EMPTY_DB = () => ({ keys: [], maintenance: { ...DEFAULT_MAINT }, features: { ...EMPTY_FEATURES } });
+
+/* ================= PRICING ================= */
+/* Rupees, per hour-bucket. 0 or missing = not sellable. */
+const DEFAULT_PRICING = {
+  '1': 2, '3': 4, '6': 5, '12': 7, '24': 10, '72': 17,
+  '168': 35, '336': 60, '720': 100, '8760': 250, '999999': 1200
+};
+const SELLABLE = [1, 3, 6, 12, 24, 72, 168, 336, 720, 8760, 999999];
+const SESSION_TTL = 30 * 24 * 3600 * 1000;
+
+const EMPTY_DB = () => ({
+  keys: [],
+  maintenance: { ...DEFAULT_MAINT },
+  features: { ...EMPTY_FEATURES },
+  resellers: [],
+  topups: [],
+  pricing: { ...DEFAULT_PRICING },
+  meta: {}
+});
 
 /* ================= GITHUB API ================= */
 function apiHeaders(c, json) {
@@ -236,7 +254,7 @@ async function ghRead(c) {
 async function ghWriteOnce(c, text, sha, useBranch) {
   const encoded = ghPath(c);
   const body = {
-    message: 'chore(keys): update license database',
+    message: 'chore(store): update license database',
     content: Buffer.from(text, 'utf8').toString('base64')
   };
   if (useBranch) body.branch = c.branch;
@@ -260,7 +278,6 @@ async function ghWriteOnce(c, text, sha, useBranch) {
 async function ghWrite(c, text, sha) {
   if (!ready(c)) throw new Error('Storage not configured');
 
-  /* A client request carries no token — recover the stored one before failing. */
   if (!c.token) {
     await pullCfgFromRepo();
     if (cfg.token) c = { ...c, token: cfg.token };
@@ -278,20 +295,23 @@ async function ghWrite(c, text, sha) {
 
 /* ================= CACHE + SERIALIZED WRITES ================= */
 let cache = { data: null, sha: null, at: 0, sig: '' };
-const TTL = 5000;
+const TTL = 3000;
 let queue = Promise.resolve();
 function enqueue(fn) { queue = queue.then(fn, fn); return queue; }
 
-async function getDb(force, c) {
-  c = c || cfg;
-  if (!ready(c)) return EMPTY_DB();
-  const sig = sigOf(c);
+/* Disk mirror: keeps a copy on the local disk so a restart with an unreachable
+   storage backend still boots with the last known state. */
+function mirrorWrite(db) {
+  try { fs.writeFileSync(LOCAL_MIRROR, JSON.stringify(db)); } catch (e) {}
+}
+function mirrorRead() {
+  try {
+    if (!fs.existsSync(LOCAL_MIRROR)) return null;
+    return JSON.parse(fs.readFileSync(LOCAL_MIRROR, 'utf8'));
+  } catch (e) { return null; }
+}
 
-  if (!force && cache.data && cache.sig === sig && Date.now() - cache.at < TTL) return cache.data;
-
-  const f = await ghRead(c);
-  let db;
-  try { db = f && f.text ? JSON.parse(f.text) : null; } catch (e) { db = null; }
+function normalizeDb(db) {
   if (!db || typeof db !== 'object') db = EMPTY_DB();
   if (!Array.isArray(db.keys)) db.keys = [];
   if (!db.maintenance) db.maintenance = { ...DEFAULT_MAINT };
@@ -299,7 +319,71 @@ async function getDb(force, c) {
   if (!db.features || typeof db.features !== 'object') db.features = { ...EMPTY_FEATURES };
   if (typeof db.features.aimbot !== 'string') db.features.aimbot = '';
   if (typeof db.features.location !== 'string') db.features.location = '';
+  if (!db.meta || typeof db.meta !== 'object') db.meta = {};
+
+  if (!db.pricing || typeof db.pricing !== 'object') db.pricing = { ...DEFAULT_PRICING };
+  for (const h of SELLABLE) {
+    const v = Number(db.pricing[h]);
+    db.pricing[h] = Number.isFinite(v) && v >= 0 ? Math.round(v) : (DEFAULT_PRICING[h] || 0);
+  }
+
+  if (!Array.isArray(db.resellers)) db.resellers = [];
+  db.resellers = db.resellers.filter(r => r && r.id && r.username).map(r => {
+    r.username = String(r.username).slice(0, 24);
+    r.credits = Math.max(0, Math.round(Number(r.credits) || 0));
+    r.active = r.active !== false;
+    if (!r.prices || typeof r.prices !== 'object') r.prices = {};
+    const clean = {};
+    for (const h of SELLABLE) {
+      if (r.prices[h] != null) {
+        const v = Number(r.prices[h]);
+        if (Number.isFinite(v) && v >= 0) clean[h] = Math.round(v);
+      }
+    }
+    r.prices = clean;
+    if (!r.createdAt) r.createdAt = new Date().toISOString();
+    return r;
+  });
+
+  if (!Array.isArray(db.topups)) db.topups = [];
+  db.topups = db.topups.filter(t => t && t.id && t.resellerId).map(t => {
+    t.amount = Math.max(0, Math.round(Number(t.amount) || 0));
+    if (!['pending', 'approved', 'rejected'].includes(t.status)) t.status = 'pending';
+    if (!t.createdAt) t.createdAt = new Date().toISOString();
+    return t;
+  });
+
   db.keys.forEach(migrateRecord);
+  return db;
+}
+
+async function getDb(force, c) {
+  c = c || cfg;
+  if (!ready(c)) {
+    const m = mirrorRead();
+    return normalizeDb(m || EMPTY_DB());
+  }
+  const sig = sigOf(c);
+
+  if (!force && cache.data && cache.sig === sig && Date.now() - cache.at < TTL) return cache.data;
+
+  let f = null;
+  try {
+    f = await ghRead(c);
+  } catch (e) {
+    console.warn('[store] read failed, using disk mirror:', e.message);
+    const m = mirrorRead();
+    if (m) {
+      const db = normalizeDb(m);
+      cache = { data: db, sha: null, at: Date.now(), sig };
+      return db;
+    }
+    throw e;
+  }
+
+  let db;
+  try { db = f && f.text ? JSON.parse(f.text) : null; } catch (e) { db = null; }
+  db = normalizeDb(db);
 
   cache = { data: db, sha: f ? f.sha : null, at: Date.now(), sig };
   return db;
@@ -322,12 +406,11 @@ async function putDb(db, c) {
     }
     if (!r || !r.ok) throw new Error('Storage write failed');
     cache = { data: db, sha: r.sha, at: Date.now(), sig };
+    mirrorWrite(db);
     return r;
   });
 }
 
-/* Work on a clone: if the write throws, the cache keeps the untouched source state
-   and the next call retries cleanly instead of reading a half-applied mutation. */
 async function mutate(c, fn) {
   const db = await getDb(true, c);
   const work = JSON.parse(JSON.stringify(db));
@@ -349,7 +432,6 @@ function parseDuration(body) {
       if (Number.isFinite(n) && n > 0) return Math.round(n);
     }
   }
-  console.warn('[duration] nothing usable in body — defaulting to 24h:', JSON.stringify(body));
   return 24;
 }
 function normalizeHours(h) {
@@ -358,7 +440,6 @@ function normalizeHours(h) {
 }
 
 /* ================= DEVICE LIMIT ================= */
-/* 0 = unlimited devices, 1 = single device (HWID locked on first unlock) */
 function parseDeviceLimit(body) {
   body = body || {};
   const v = body.deviceLimit;
@@ -370,7 +451,6 @@ function parseDeviceLimit(body) {
   return 0;
 }
 
-/* Normalize whatever the client sends into a compact id we can store safely. */
 function deviceOf(req) {
   const raw = String(
     (req.query && (req.query.did || req.query.device || req.query.hwid)) ||
@@ -403,10 +483,11 @@ function migrateRecord(r) {
   r.devices = r.devices
     .filter(d => d && d.id)
     .map(d => ({ id: String(d.id).slice(0, 48), firstSeen: d.firstSeen || null, lastSeen: d.lastSeen || null, ua: d.ua || '' }));
+  if (r.resellerId) r.resellerId = String(r.resellerId);
+  if (r.cost != null) r.cost = Math.max(0, Math.round(Number(r.cost) || 0));
 }
 
 /* ================= KEY RESOLUTION ================= */
-/* Binds the device on a single-device key the first time it is seen. */
 async function bindDevice(c, key, did, ua) {
   return mutate(c, db => {
     const rec = db.keys.find(k => k.key === key);
@@ -426,19 +507,6 @@ async function bindDevice(c, key, did, ua) {
 }
 
 /* ================= MAINTENANCE CLOCK ================= */
-/*
-  Wall time spent in maintenance is never charged to the buyer. Two halves:
-
-  - live  : effectiveExpiry() adds the *running* maintenance window on the fly,
-            so no key reads as expired while the pause is in progress.
-  - settle: when maintenance is switched off the window is written into every
-            key's expiresAt, so the credit survives restarts and later reads.
-
-  Only the overlap between the pause and the key's own active span is credited,
-  so a key that was already dead before maintenance started gets nothing, and a
-  key sold *during* maintenance only gets credited from its activation.
-*/
-
 function maintStart(db) {
   const m = (db && db.maintenance) || {};
   if (!m.enabled || !m.since) return null;
@@ -475,10 +543,6 @@ function settleMaintenance(db, startMs, endMs) {
   return credited;
 }
 
-/*
-  Returns { ok, reason, record }.
-  reason: invalid | expired | no-device | device-mismatch
-*/
 async function accessKey(key, c, did, ua) {
   let db = await getDb(false, c);
   let r = db.keys.find(k => k.key === key);
@@ -505,15 +569,11 @@ async function accessKey(key, c, did, ua) {
       });
       if (!r) return { ok: false, reason: 'invalid' };
     } catch (e) {
-      /* Never block the buyer on a storage hiccup — serve it in memory,
-         the cache still holds the unactivated record so the next call retries. */
       console.warn('[key] activation write failed, serving in-memory:', e.message);
       r = { ...before, activatedAt: startedAt, startedAt, durationHours: hours, expiresAt };
     }
   }
 
-  /* Test against the paused clock, not the raw stamp, so a key cannot die
-     while the service is down. */
   const expMs = effectiveExpiry(r, maintStart(db));
   if (expMs == null || Date.now() > expMs) {
     return { ok: false, reason: 'expired', record: r };
@@ -550,24 +610,15 @@ const REASON_TEXT = {
 };
 
 /* ================= ROUTING CONFIG ================= */
-/*
-  Upstream: REZZX India — plain SOCKS5 with user:pass carried as base64
-  userinfo. Delivered in Happ share-link format: directive headers first,
-  then a single node line. Per-app proxy keeps only the Free Fire packages
-  on the tunnel; the client handles everything else.
-*/
 const UPSTREAM = {
   scheme: 'socks',
   host:   'asiarezzx.toulouse-digital31.fr',
   port:   8443,
-  auth:   'YzdiNjg3YWE4OTI4ZjRjOGU3MzZiMGFhZTdhZTIyM2E6Mg==', /* base64("630749849f4020da45a7e319510d0c43:2") */
+  auth:   'YzdiNjg3YWE4OTI4ZjRjOGU3MzZiMGFhZTdhZTIyM2E6Mg==',
   label:  'DEMON - India'
 };
 
 const PER_APP_LIST = 'com.garena.game.ffi,com.dts.freefiremax';
-
-/* Auth handed to the node while the key is dead. The server rejects it, so the
-   handshake dies and the client reports a genuine failure instead of a fake ping. */
 const DEAD_AUTH = 'DEMON-BLOCKED:0';
 
 function b64(s) { return Buffer.from(String(s), 'utf8').toString('base64'); }
@@ -577,11 +628,6 @@ function nodeLine(auth, label) {
   return `${UPSTREAM.scheme}://${userinfo}@${UPSTREAM.host}:${UPSTREAM.port}#${encodeURIComponent(label)}`;
 }
 
-/*
-  Always emits a full, valid share link — a blocked key gets a real node with a
-  rejected credential rather than an empty body, so Happ keeps the profile
-  mounted and simply fails to connect.
-*/
 function subConfig(blocked, label, auth) {
   const head = [
     '#hide-settings: 1',
@@ -593,27 +639,24 @@ function subConfig(blocked, label, auth) {
 }
 
 /* ================= FEATURE MODES ================= */
-/* aimbot | location. Each mode may carry its own upstream user:pass. */
 const FEATURE_MODES = ['aimbot', 'location'];
 const FEATURE_LABEL = { aimbot: 'AIMBOT', location: 'LOCATION + AIMBOT' };
 
 function cleanAuth(v) {
   const s = String(v == null ? '' : v).trim();
   if (!s) return '';
-  if (!s.includes(':')) return null;              /* must be user:pass */
+  if (!s.includes(':')) return null;
   const [u, p] = s.split(':');
   if (!u.trim() || !p.trim()) return null;
   return s.slice(0, 160);
 }
 
-/* Auth for a mode. Empty string means "use the built-in default". */
 function authFor(db, mode) {
   const f = (db && db.features) || {};
   if (mode && FEATURE_MODES.includes(mode) && f[mode]) return f[mode];
   return '';
 }
 
-/* ================= SUBSCRIPTION BODY ================= */
 const PROFILE_TITLE = 'DEMON CHEATS';
 
 /* ================= HAPP LINK ================= */
@@ -634,7 +677,6 @@ function happCacheSet(k, link) {
   }
   happLinkCache.set(k, { link, at: Date.now() });
 }
-/* Drop every cached link for a key so a mode/auth change is picked up at once. */
 function happCacheDrop(key) {
   for (const k of [...happLinkCache.keys()]) {
     if (!key || k.startsWith(key + '|')) happLinkCache.delete(k);
@@ -668,6 +710,86 @@ function encryptHappLink(subUrl) {
   });
 }
 
+/* ================= RESELLER AUTH ================= */
+function newId(prefix) {
+  return prefix + crypto.randomBytes(8).toString('hex');
+}
+function hashPass(salt, pass) {
+  return crypto.createHash('sha256').update(salt + ':' + pass).digest('hex');
+}
+function safeEq(a, b) {
+  const A = Buffer.from(String(a || ''));
+  const B = Buffer.from(String(b || ''));
+  return A.length === B.length && crypto.timingSafeEqual(A, B);
+}
+
+let memSecret = crypto.randomBytes(32).toString('hex');
+async function sessionSecret(c) {
+  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  const db = await getDb(false, c);
+  if (db.meta && db.meta.sessionSecret) return db.meta.sessionSecret;
+  try {
+    await mutate(c, fresh => {
+      if (!fresh.meta) fresh.meta = {};
+      if (!fresh.meta.sessionSecret) fresh.meta.sessionSecret = memSecret;
+    });
+  } catch (e) { console.warn('[auth] could not persist session secret:', e.message); }
+  return memSecret;
+}
+
+function signToken(secret, id) {
+  const exp = Date.now() + SESSION_TTL;
+  const sig = crypto.createHmac('sha256', secret).update(`${id}.${exp}`).digest('hex');
+  return `${id}.${exp}.${sig}`;
+}
+function readToken(secret, token) {
+  const parts = String(token || '').split('.');
+  if (parts.length !== 3) return null;
+  const [id, exp, sig] = parts;
+  const want = crypto.createHmac('sha256', secret).update(`${id}.${exp}`).digest('hex');
+  if (!safeEq(sig, want)) return null;
+  if (!Number.isFinite(Number(exp)) || Number(exp) < Date.now()) return null;
+  return id;
+}
+
+const loginHits = new Map();
+function hitLimit(ip) {
+  const now = Date.now();
+  const h = loginHits.get(ip);
+  if (!h || now - h.at > 5 * 60 * 1000) {
+    loginHits.set(ip, { n: 1, at: now });
+    return false;
+  }
+  h.n++;
+  return h.n > 12;
+}
+
+async function requireReseller(req, res) {
+  const c = credsFrom(req);
+  const header = String(req.headers.authorization || '');
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim()
+    : String((req.body && req.body.token) || req.query.token || '').trim();
+  if (!token) { res.status(401).json({ error: 'Not signed in.' }); return null; }
+
+  const secret = await sessionSecret(c);
+  const id = readToken(secret, token);
+  if (!id) { res.status(401).json({ error: 'Session expired. Sign in again.' }); return null; }
+
+  const db = await getDb(false, c);
+  const me = db.resellers.find(r => r.id === id);
+  if (!me) { res.status(401).json({ error: 'Reseller account not found.' }); return null; }
+  if (!me.active) { res.status(403).json({ error: 'Account disabled. Contact the owner.' }); return null; }
+
+  return { me, db, c };
+}
+
+function priceFor(db, me, hours) {
+  const key = String(hours);
+  if (me.prices && me.prices[key] != null) return me.prices[key];
+  const v = db.pricing ? db.pricing[key] : null;
+  return v == null ? 0 : Number(v);
+}
+
 /* ================= PUBLIC API ================= */
 app.get('/api/maintenance-status', async (req, res) => {
   try {
@@ -681,7 +803,6 @@ app.get('/api/maintenance-status', async (req, res) => {
   }
 });
 
-/* Which modes currently have an auth configured — drives the client badges. */
 app.get('/api/features', async (req, res) => {
   try {
     const db = await getDb(false, credsFrom(req));
@@ -722,8 +843,6 @@ app.get('/sub', async (req, res) => {
   res.setHeader('subscription-auto-update-open-enable', '1');
   res.setHeader('hide-settings', '1');
   if (HAPP_PROVIDER_ID) res.setHeader('providerid', HAPP_PROVIDER_ID);
-  /* .txt so any client knows the type; text/plain so Happ sniffs the body
-     itself instead of treating the reply as a document download. */
   res.setHeader('content-disposition', 'attachment; filename="demon-cheats.txt"');
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
 
@@ -747,8 +866,6 @@ app.get('/sub', async (req, res) => {
         res.setHeader('x-demon-status', out.reason);
         body = subConfig(true, `❌ ${REASON_TEXT[out.reason] || 'SUBSCRIPTION EXPIRED OR TERMINATED'}`);
       } else {
-        /* Advertised expiry uses the paused clock so the date does not creep
-           forward in the client while the service is down. */
         const liveExpiry = effectiveExpiry(out.record, maintStart(db));
         const tag = mode ? ` · ${FEATURE_LABEL[mode]}` : '';
         res.setHeader('x-demon-status', 'ok');
@@ -804,8 +921,6 @@ app.get('/api/check-key', async (req, res) => {
       features: { aimbot: !!db.features.aimbot, location: !!db.features.location }
     };
 
-    /* Maintenance still reports the key as good and hands over a frozen
-       remainingMs, so the countdown holds instead of draining to zero. */
     if (m.enabled) {
       return res.json({
         ...payload,
@@ -829,6 +944,195 @@ app.get('/api/check-key', async (req, res) => {
     return res.json({ ...payload, valid: true, message: "Access Key Validated!" });
   } catch (e) {
     return res.json({ valid: false, message: "Storage error: " + e.message });
+  }
+});
+
+/* ================= RESELLER API ================= */
+app.post('/api/reseller/login', async (req, res) => {
+  const ip = String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
+  if (hitLimit(ip)) return res.status(429).json({ error: 'Too many attempts. Wait a few minutes.' });
+
+  const username = String(req.body.username || '').trim().toLowerCase();
+  const password = String(req.body.password || '');
+  if (!username || !password) return res.status(400).json({ error: 'Username and password required.' });
+
+  try {
+    const c = credsFrom(req);
+    const db = await getDb(true, c);
+    const me = db.resellers.find(r => r.username.toLowerCase() === username);
+    if (!me || !safeEq(hashPass(me.passSalt, password), me.passHash)) {
+      return res.status(401).json({ error: 'Wrong username or password.' });
+    }
+    if (!me.active) return res.status(403).json({ error: 'Account disabled. Contact the owner.' });
+
+    try {
+      await mutate(c, fresh => {
+        const r = fresh.resellers.find(x => x.id === me.id);
+        if (r) r.lastLoginAt = new Date().toISOString();
+      });
+    } catch (e) {}
+
+    const secret = await sessionSecret(c);
+    return res.json({
+      success: true,
+      token: signToken(secret, me.id),
+      profile: { username: me.username, credits: me.credits, note: me.note || '' }
+    });
+  } catch (e) {
+    return res.status(500).json({ error: 'Storage error: ' + e.message });
+  }
+});
+
+app.post('/api/reseller/me', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, db } = ctx;
+  const mine = db.keys.filter(k => k.resellerId === me.id);
+  return res.json({
+    username: me.username,
+    credits: me.credits,
+    note: me.note || '',
+    createdAt: me.createdAt,
+    lastLoginAt: me.lastLoginAt || null,
+    keysMade: mine.length,
+    totalSpent: mine.reduce((s, k) => s + (Number(k.cost) || 0), 0)
+  });
+});
+
+app.post('/api/reseller/prices', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, db } = ctx;
+  const out = [];
+  for (const h of SELLABLE) {
+    const p = priceFor(db, me, h);
+    if (p > 0) out.push({ hours: h, price: p, override: me.prices[String(h)] != null });
+  }
+  return res.json({ prices: out });
+});
+
+app.post('/api/reseller/buy', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, c } = ctx;
+
+  const hours = normalizeHours(req.body.hours);
+  if (!SELLABLE.includes(hours)) return res.status(400).json({ error: 'Unknown plan.' });
+  const maxDevices = parseDeviceLimit(req.body);
+  const qty = Math.min(10, Math.max(1, parseInt(req.body.qty, 10) || 1));
+
+  try {
+    const result = await mutate(c, db => {
+      const r = db.resellers.find(x => x.id === me.id);
+      if (!r) throw new Error('Reseller vanished');
+      const unit = priceFor(db, r, hours);
+      if (!unit || unit <= 0) throw new Error('This plan is not available for you.');
+      const total = unit * qty;
+      if (r.credits < total) throw new Error(`Not enough credits. Need ₹${total}, you have ₹${r.credits}.`);
+
+      r.credits -= total;
+      const made = [];
+      for (let i = 0; i < qty; i++) {
+        let key;
+        do { key = 'DEMON-' + Math.random().toString(36).substring(2, 8).toUpperCase(); }
+        while (db.keys.find(k => k.key === key));
+
+        db.keys.push({
+          key,
+          durationHours: hours,
+          maxDevices,
+          deviceLimit: maxDevices === 1 ? 'single' : 'unlimited',
+          devices: [],
+          resellerId: r.id,
+          cost: unit,
+          createdAt: new Date().toISOString(),
+          startedAt: null,
+          activatedAt: null,
+          expiresAt: null
+        });
+        made.push(key);
+      }
+      return { made, total, balance: r.credits, unit };
+    });
+    return res.json({ success: true, keys: result.made, total: result.total, credits: result.balance, unit: result.unit });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+});
+
+app.post('/api/reseller/keys', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, db } = ctx;
+  const keys = db.keys
+    .filter(k => k.resellerId === me.id)
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+    .slice(0, 500);
+  return res.json({ keys });
+});
+
+app.post('/api/reseller/topup', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, c } = ctx;
+
+  const amount = Math.round(Number(req.body.amount) || 0);
+  if (amount < 1 || amount > 100000) return res.status(400).json({ error: 'Amount must be between ₹1 and ₹100000.' });
+
+  try {
+    const rec = await mutate(c, db => {
+      const r = db.resellers.find(x => x.id === me.id);
+      if (!r) throw new Error('Reseller vanished');
+      const t = {
+        id: newId('T'),
+        resellerId: r.id,
+        username: r.username,
+        amount,
+        method: String(req.body.method || 'UPI').slice(0, 24),
+        reference: String(req.body.reference || '').slice(0, 80),
+        note: String(req.body.note || '').slice(0, 200),
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      };
+      db.topups.unshift(t);
+      return t;
+    });
+    return res.json({ success: true, topup: rec });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+});
+
+app.post('/api/reseller/topups', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, db } = ctx;
+  const list = db.topups.filter(t => t.resellerId === me.id).slice(0, 60);
+  return res.json({ topups: list });
+});
+
+app.post('/api/reseller/password', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, c } = ctx;
+
+  const current = String(req.body.current || '');
+  const next = String(req.body.next || '');
+  if (!safeEq(hashPass(me.passSalt, current), me.passHash)) {
+    return res.status(400).json({ error: 'Current password is wrong.' });
+  }
+  if (next.length < 6) return res.status(400).json({ error: 'New password must be 6+ characters.' });
+
+  try {
+    await mutate(c, db => {
+      const r = db.resellers.find(x => x.id === me.id);
+      if (!r) throw new Error('Reseller vanished');
+      r.passSalt = crypto.randomBytes(12).toString('hex');
+      r.passHash = hashPass(r.passSalt, next);
+    });
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
   }
 });
 
@@ -950,7 +1254,6 @@ app.post('/api/admin/create-key', async (req, res) => {
   const c = credsFrom(req);
   const durationHours = parseDuration(req.body);
   const maxDevices = parseDeviceLimit(req.body);
-  console.log('[create-key] body =', JSON.stringify(req.body), '=> durationHours =', durationHours, 'maxDevices =', maxDevices);
 
   try {
     const record = await mutate(c, db => {
@@ -986,13 +1289,14 @@ app.post('/api/admin/list-keys', async (req, res) => {
   try {
     const db = await getDb(true, credsFrom(req));
     const keys = [...db.keys].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-    return res.json({ keys, maintenance: db.maintenance, features: db.features });
+    const names = {};
+    db.resellers.forEach(r => { names[r.id] = r.username; });
+    return res.json({ keys, maintenance: db.maintenance, features: db.features, resellerNames: names });
   } catch (e) {
     return res.status(500).json({ error: "Read failed: " + e.message, keys: [] });
   }
 });
 
-/* Saves the SOCKS user:pass used for each feature mode. */
 app.post('/api/admin/feature-auth', async (req, res) => {
   const state = await requireAdmin(req, res);
   if (!state) return;
@@ -1012,9 +1316,7 @@ app.post('/api/admin/feature-auth', async (req, res) => {
       db.features.location = location;
       return { ...db.features };
     });
-    /* Cached links embed the old auth. */
     happCacheDrop();
-    console.log('[features] aimbot ->', aimbot ? 'set' : 'cleared', '| location ->', location ? 'set' : 'cleared');
     return res.json({ success: true, features: out });
   } catch (e) {
     return res.status(500).json({ error: 'Write failed: ' + e.message });
@@ -1065,7 +1367,6 @@ app.post('/api/admin/repair-key', async (req, res) => {
   }
 });
 
-/* Clears the bound device so a single-device key can be used elsewhere. */
 app.post('/api/admin/reset-device', async (req, res) => {
   const state = await requireAdmin(req, res);
   if (!state) return;
@@ -1087,7 +1388,6 @@ app.post('/api/admin/reset-device', async (req, res) => {
   }
 });
 
-/* Flips an existing key between unlimited and single-device. */
 app.post('/api/admin/set-device-limit', async (req, res) => {
   const state = await requireAdmin(req, res);
   if (!state) return;
@@ -1126,8 +1426,6 @@ app.post('/api/admin/maintenance', async (req, res) => {
       const msg = message || prev.message || 'System under maintenance.';
 
       if (wantOn) {
-        /* `since` is stamped once and kept — repeated saves while already on
-           must not restart the window or the earlier minutes get refunded twice. */
         db.maintenance = {
           enabled: true,
           message: msg,
@@ -1156,7 +1454,6 @@ app.post('/api/admin/maintenance', async (req, res) => {
       return db.maintenance;
     });
 
-    /* Cached Happ links embed the dead auth, so drop them on every toggle. */
     happLinkCache.clear();
     return res.json({ success: true, maintenance: m });
   } catch (e) {
@@ -1164,8 +1461,211 @@ app.post('/api/admin/maintenance', async (req, res) => {
   }
 });
 
+/* ---------- reseller management (owner only) ---------- */
+function validUsername(u) { return /^[a-z0-9_]{3,20}$/.test(u); }
+
+app.post('/api/admin/list-resellers', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  try {
+    const db = await getDb(true, credsFrom(req));
+    const stats = {};
+    db.keys.forEach(k => {
+      if (!k.resellerId) return;
+      const s = stats[k.resellerId] || (stats[k.resellerId] = { keys: 0, spent: 0 });
+      s.keys++;
+      s.spent += Number(k.cost) || 0;
+    });
+    const resellers = db.resellers.map(r => ({
+      id: r.id,
+      username: r.username,
+      credits: r.credits,
+      active: r.active,
+      note: r.note || '',
+      createdAt: r.createdAt,
+      lastLoginAt: r.lastLoginAt || null,
+      prices: r.prices,
+      keysMade: (stats[r.id] && stats[r.id].keys) || 0,
+      totalSpent: (stats[r.id] && stats[r.id].spent) || 0
+    })).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return res.json({ resellers, pricing: db.pricing, pending: db.topups.filter(t => t.status === 'pending').length });
+  } catch (e) {
+    return res.status(500).json({ error: 'Read failed: ' + e.message, resellers: [] });
+  }
+});
+
+app.post('/api/admin/create-reseller', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+
+  const username = String(req.body.username || '').trim().toLowerCase();
+  const password = String(req.body.password || '');
+  const credits = Math.max(0, Math.round(Number(req.body.credits) || 0));
+  if (!validUsername(username)) return res.status(400).json({ error: 'Username: 3-20 chars, a-z 0-9 _ only.' });
+  if (password.length < 6) return res.status(400).json({ error: 'Password must be 6+ characters.' });
+
+  try {
+    const rec = await mutate(c, db => {
+      if (db.resellers.some(r => r.username.toLowerCase() === username)) throw new Error('Username already taken.');
+      const salt = crypto.randomBytes(12).toString('hex');
+      const r = {
+        id: newId('R'),
+        username,
+        passSalt: salt,
+        passHash: hashPass(salt, password),
+        credits,
+        active: true,
+        note: String(req.body.note || '').slice(0, 200),
+        prices: {},
+        createdAt: new Date().toISOString(),
+        lastLoginAt: null
+      };
+      db.resellers.push(r);
+      return r;
+    });
+    return res.json({ success: true, id: rec.id, username: rec.username });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+});
+
+app.post('/api/admin/update-reseller', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  const { id } = req.body;
+  const c = credsFrom(req);
+
+  try {
+    const out = await mutate(c, db => {
+      const r = db.resellers.find(x => x.id === id);
+      if (!r) throw new Error('Reseller not found.');
+      if (req.body.addCredits != null) {
+        r.credits = Math.max(0, r.credits + Math.round(Number(req.body.addCredits) || 0));
+      }
+      if (req.body.credits != null) {
+        r.credits = Math.max(0, Math.round(Number(req.body.credits) || 0));
+      }
+      if (req.body.active != null) r.active = !!req.body.active;
+      if (req.body.note != null) r.note = String(req.body.note).slice(0, 200);
+      if (req.body.password) {
+        if (String(req.body.password).length < 6) throw new Error('Password must be 6+ characters.');
+        r.passSalt = crypto.randomBytes(12).toString('hex');
+        r.passHash = hashPass(r.passSalt, String(req.body.password));
+      }
+      return { id: r.id, credits: r.credits, active: r.active };
+    });
+    return res.json({ success: true, reseller: out });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+});
+
+app.post('/api/admin/delete-reseller', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  const { id } = req.body;
+
+  try {
+    await mutate(c, db => {
+      db.resellers = db.resellers.filter(r => r.id !== id);
+      db.topups = db.topups.filter(t => t.resellerId !== id);
+    });
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/admin/reseller-prices', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  const { id, prices } = req.body;
+  const c = credsFrom(req);
+
+  try {
+    const out = await mutate(c, db => {
+      const r = db.resellers.find(x => x.id === id);
+      if (!r) throw new Error('Reseller not found.');
+      const clean = {};
+      const src = prices || {};
+      for (const h of SELLABLE) {
+        const raw = src[h];
+        if (raw == null || raw === '') continue;
+        const v = Number(raw);
+        if (!Number.isFinite(v) || v < 0) throw new Error('Prices must be 0 or more.');
+        clean[h] = Math.round(v);
+      }
+      r.prices = clean;
+      return clean;
+    });
+    return res.json({ success: true, prices: out });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+});
+
+app.post('/api/admin/global-prices', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  const c = credsFrom(req);
+
+  try {
+    const out = await mutate(c, db => {
+      const src = req.body.prices || {};
+      for (const h of SELLABLE) {
+        if (src[h] == null || src[h] === '') continue;
+        const v = Number(src[h]);
+        if (!Number.isFinite(v) || v < 0) throw new Error('Prices must be 0 or more.');
+        db.pricing[h] = Math.round(v);
+      }
+      return db.pricing;
+    });
+    return res.json({ success: true, pricing: out });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+});
+
+app.post('/api/admin/topups', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  try {
+    const db = await getDb(true, credsFrom(req));
+    return res.json({ topups: db.topups.slice(0, 200) });
+  } catch (e) {
+    return res.status(500).json({ error: e.message, topups: [] });
+  }
+});
+
+app.post('/api/admin/topup-decide', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  const { id, approve } = req.body;
+  const c = credsFrom(req);
+
+  try {
+    const out = await mutate(c, db => {
+      const t = db.topups.find(x => x.id === id);
+      if (!t) throw new Error('Request not found.');
+      if (t.status !== 'pending') throw new Error('Already ' + t.status + '.');
+      t.status = approve ? 'approved' : 'rejected';
+      t.decidedAt = new Date().toISOString();
+      if (approve) {
+        const r = db.resellers.find(x => x.id === t.resellerId);
+        if (r) r.credits += t.amount;
+      }
+      return { id: t.id, status: t.status, amount: t.amount };
+    });
+    return res.json({ success: true, topup: out });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+});
+
 /* ================= FRONTEND ================= */
+if (fs.existsSync(PUBLIC_DIR)) app.use(express.static(PUBLIC_DIR));
 app.get('/admin', (req, res) => res.sendFile(path.join(FRONTEND_DIR, 'admin.html')));
+app.get('/reseller', (req, res) => res.sendFile(path.join(FRONTEND_DIR, 'reseller.html')));
 app.use(express.static(FRONTEND_DIR));
 
 /* ================= BOOT ================= */
