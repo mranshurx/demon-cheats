@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DEMON CHEATS — Reseller</title>
+<title>DEMON CHEATS — ADMIN RESELLER</title>
 <link rel="icon" href="logo/logo.png" type="image/png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -132,13 +132,6 @@
         <h2>Buy License Keys</h2>
         <div id="planGrid" class="grid"></div>
         <div class="field" style="margin-top:16px">
-          <label>Device limit</label>
-          <select id="dev">
-            <option value="unlimited">Unlimited devices</option>
-            <option value="single">1 device only (HWID lock)</option>
-          </select>
-        </div>
-        <div class="field">
           <label>Quantity</label>
           <select id="qty">
             <option value="1">1 key</option>
@@ -146,7 +139,7 @@
             <option value="10">10 keys</option>
           </select>
         </div>
-        <div class="note">Countdown starts on the buyer's first connection. Credits are deducted instantly.</div>
+        <div class="note">Every key is locked to <b>1 device</b> (HWID). Countdown starts on the buyer's first connection. Credits are deducted instantly.</div>
         <div id="buyMsg" class="msg"></div>
         <div id="buyOut"></div>
       </div>
@@ -188,7 +181,7 @@
       <div class="card">
         <h2>My Keys</h2>
         <table>
-          <thead><tr><th>Key</th><th>Plan</th><th>Cost</th><th>Status</th><th>Created</th></tr></thead>
+          <thead><tr><th>Key</th><th>Plan</th><th>Device</th><th>Cost</th><th>Status</th><th>Created</th></tr></thead>
           <tbody id="keyBody"></tbody>
         </table>
       </div>
@@ -291,14 +284,18 @@ async function loadKeys(){
   const rows = d.keys || [];
   $("keyBody").innerHTML = rows.length ? rows.map(k => {
     const st = !k.activatedAt ? "unused" : (new Date(k.expiresAt).getTime() <= Date.now() ? "expired" : "active");
+    const dev = (Array.isArray(k.devices) && k.devices.length)
+      ? "locked"
+      : (k.activatedAt ? "locked" : "not bound");
     return `<tr>
       <td class="mono">${esc(k.key)}</td>
       <td>${esc(PLANS[k.durationHours] || (k.durationHours + "h"))}</td>
+      <td>${dev}</td>
       <td>${money(k.cost)}</td>
       <td><span class="tag ${st === "active" ? "approved" : (st === "expired" ? "rejected" : "")}">${st}</span></td>
       <td>${fmt(k.createdAt)}</td>
     </tr>`;
-  }).join("") : `<tr><td colspan="5" style="color:#6b7280">No keys yet.</td></tr>`;
+  }).join("") : `<tr><td colspan="6" style="color:#6b7280">No keys yet.</td></tr>`;
 }
 
 async function loadTopups(){
@@ -318,11 +315,7 @@ async function buy(hours){
   msg.textContent = "Working…";
   $("buyOut").innerHTML = "";
   try{
-    const d = await api("/api/reseller/buy", {
-      hours,
-      deviceLimit: $("dev").value,
-      qty: parseInt($("qty").value, 10) || 1
-    });
+    const d = await api("/api/reseller/buy", { hours, qty: parseInt($("qty").value, 10) || 1 });
     msg.className = "msg ok";
     msg.textContent = `${d.keys.length} key(s) created · ${money(d.total)} deducted`;
     $("buyOut").innerHTML = `<div class="keybox">${d.keys.map(esc).join("<br>")}</div>`;
