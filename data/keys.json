@@ -21,7 +21,20 @@
     "aimbot": "",
     "location": ""
   },
-  "resellers": [],
+  "resellers": [
+    {
+      "id": "Re4f4adecc607a60a",
+      "username": "owner",
+      "passSalt": "8a8333f4e443d9f320d2042f",
+      "passHash": "1cdde693426be7bd5a40c291747f8ea00158bbb9d5d87e7de17624182a7592c5",
+      "credits": 0,
+      "active": true,
+      "note": "",
+      "prices": {},
+      "createdAt": "2026-11-15T04:24:43.711Z",
+      "lastLoginAt": null
+    }
+  ],
   "topups": [],
   "pricing": {
     "1": 2,
