@@ -63,6 +63,19 @@
       "startedAt": null,
       "activatedAt": null,
       "expiresAt": null
+    },
+    {
+      "key": "DEMON-CCQ2H7",
+      "durationHours": 1,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R383990e9ddb5e50e",
+      "cost": 2,
+      "createdAt": "2026-11-15T05:29:52.127Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
     }
   ],
   "maintenance": {
@@ -122,7 +135,7 @@
       "username": "sanju",
       "passSalt": "4cddf7795e12a2e2dbef335e",
       "passHash": "501b072abff2bbee4d5f40bc45c5f17feddf1057b04b82acc83c5f33dc8060a8",
-      "credits": 100,
+      "credits": 98,
       "active": true,
       "note": "",
       "prices": {},
