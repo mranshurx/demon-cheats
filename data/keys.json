@@ -23,19 +23,6 @@
       "startedAt": null,
       "activatedAt": null,
       "expiresAt": null
-    },
-    {
-      "key": "DEMON-D015GR",
-      "durationHours": 720,
-      "maxDevices": 1,
-      "deviceLimit": "single",
-      "devices": [],
-      "resellerId": "Rf051dbd01d7f11b4",
-      "cost": 150,
-      "createdAt": "2026-11-15T05:39:35.576Z",
-      "startedAt": null,
-      "activatedAt": null,
-      "expiresAt": null
     }
   ],
   "maintenance": {
