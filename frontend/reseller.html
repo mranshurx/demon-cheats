@@ -162,7 +162,7 @@
         <div id="qrMissing" class="qr-missing hidden">
           No payment QR set yet. Ask your upline to add one.
         </div>
-        <div class="note" style="margin-bottom:14px">Pay with any UPI app, then submit the amount and the UTR / transaction id below. Credits are added once approved.</div>
+        <div class="note" style="margin-bottom:14px">Pay with any UPI app, then submit the amount and the UTR / transaction id below. The owner approves every request.</div>
         <div class="field">
           <label>Amount (₹)</label>
           <input id="tAmount" type="number" min="1" step="1" placeholder="100" />
@@ -173,7 +173,7 @@
         </div>
         <div class="field">
           <label>Note (optional)</label>
-          <input id="tNote" placeholder="anything they should know" />
+          <input id="tNote" placeholder="anything the owner should know" />
         </div>
         <button class="btn btn-red" style="width:100%" onclick="submitTopup()">Submit Top-up Request</button>
         <div id="topMsg" class="msg"></div>
@@ -222,17 +222,10 @@
 
       <div class="card">
         <h2>My Resellers</h2>
+        <div class="note" style="margin-bottom:12px">Top-up requests from these resellers go straight to the owner for approval.</div>
         <table>
           <thead><tr><th>Reseller</th><th>Credits</th><th>Keys</th><th>Spent</th><th>State</th><th style="text-align:right">Actions</th></tr></thead>
           <tbody id="subBody"></tbody>
-        </table>
-      </div>
-
-      <div class="card">
-        <h2>Top-up Requests From Them</h2>
-        <table>
-          <thead><tr><th>Reseller</th><th>Amount</th><th>Ref</th><th>Status</th><th>Date</th><th style="text-align:right">Actions</th></tr></thead>
-          <tbody id="apprBody"></tbody>
         </table>
       </div>
     </div>
@@ -444,26 +437,6 @@ async function loadSubs(){
       <button class="btn btn-sm bad" onclick="deleteSub('${r.id}','${esc(r.username)}')">Delete</button>
     </div></td>
   </tr>`).join("") : `<tr><td colspan="6" style="color:#6b7280">No resellers under you yet.</td></tr>`;
-  await loadApprovals();
-}
-
-async function loadApprovals(){
-  if(!me.canCreateSubs) return;
-  const d = await api("/api/reseller/approvals", {});
-  const rows = d.topups || [];
-  const sorted = rows.filter(t => t.status === "pending").concat(rows.filter(t => t.status !== "pending")).slice(0, 60);
-  $("apprBody").innerHTML = sorted.length ? sorted.map(t => `<tr>
-    <td class="mono">${esc(t.username || "—")}</td>
-    <td class="mono">${money(t.amount)}</td>
-    <td>${esc(t.reference || "—")}</td>
-    <td><span class="tag ${t.status}">${t.status}</span></td>
-    <td>${fmt(t.createdAt)}</td>
-    <td><div class="acts">
-      ${t.status === "pending" ? `
-        <button class="btn btn-sm good" onclick="decideTopup('${t.id}',true)">Approve</button>
-        <button class="btn btn-sm bad" onclick="decideTopup('${t.id}',false)">Reject</button>` : ""}
-    </div></td>
-  </tr>`).join("") : `<tr><td colspan="6" style="color:#6b7280">No requests.</td></tr>`;
 }
 
 async function buy(hours){
@@ -491,7 +464,7 @@ async function submitTopup(){
   try{
     await api("/api/reseller/topup", { amount, reference: $("tRef").value.trim(), note: $("tNote").value.trim() });
     msg.className = "msg ok";
-    msg.textContent = "Request sent. Wait for approval.";
+    msg.textContent = "Request sent to the owner. Wait for approval.";
     $("tAmount").value = ""; $("tRef").value = ""; $("tNote").value = "";
     await loadTopups();
   }catch(e){ msg.className = "msg err"; msg.textContent = e.message; }
@@ -541,11 +514,6 @@ async function toggleSub(id, active){
 async function deleteSub(id, name){
   if(!confirm(`Delete ${name}?\n\nTheir keys stay valid.`)) return;
   try{ await api("/api/reseller/delete-sub", { id }); await loadSubs(); }
-  catch(e){ alert(e.message); }
-}
-
-async function decideTopup(id, approve){
-  try{ await api("/api/reseller/topup-decide", { id, approve }); await loadApprovals(); await loadSubs(); }
   catch(e){ alert(e.message); }
 }
 
