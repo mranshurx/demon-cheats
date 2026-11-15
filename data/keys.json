@@ -35,6 +35,20 @@
       "lastLoginAt": "2026-11-15T04:45:27.023Z",
       "parentId": null,
       "qr": "https://i.ibb.co/Z6PYH2Wn/6325664113597551472.jpg"
+    },
+    {
+      "id": "Rb58d18da9d3cd88a",
+      "username": "subha678",
+      "passSalt": "08db9e9d8a2a6981ec9adedd",
+      "passHash": "6a718b91f11aad409474f311d72faef0167b07520503c33632caab0f3fea92ec",
+      "credits": 0,
+      "active": true,
+      "note": "",
+      "prices": {},
+      "parentId": null,
+      "qr": "",
+      "createdAt": "2026-11-15T04:54:03.304Z",
+      "lastLoginAt": null
     }
   ],
   "topups": [],
