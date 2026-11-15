@@ -63,20 +63,6 @@
       "qr": "",
       "createdAt": "2026-11-15T04:43:51.694Z",
       "lastLoginAt": "2026-11-15T04:46:02.483Z"
-    },
-    {
-      "id": "R101a725b1f191320",
-      "username": "fardin",
-      "passSalt": "1e21c595d1fc80dec1aa760c",
-      "passHash": "11cee704732650fef3b868f42f40a3292d426f72a8e7450c9166f18bd756daff",
-      "credits": 100,
-      "active": false,
-      "note": "",
-      "prices": {},
-      "parentId": "Re4f4adecc607a60a",
-      "qr": "",
-      "createdAt": "2026-11-15T04:49:59.459Z",
-      "lastLoginAt": null
     }
   ],
   "topups": [
