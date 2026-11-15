@@ -38,21 +38,6 @@
       "subPrices": {}
     },
     {
-      "id": "Rd0eb5b8f6219652a",
-      "username": "fardin23",
-      "passSalt": "2caeec2692949522d5cbeb56",
-      "passHash": "b4bb07e641c8a33d5b9edbadd79c66e9ef7082a89e91e1f38f34b7fcc4cb696a",
-      "credits": 0,
-      "active": true,
-      "note": "",
-      "prices": {},
-      "parentId": "Rb58d18da9d3cd88a",
-      "qr": "",
-      "createdAt": "2026-11-15T04:59:58.915Z",
-      "lastLoginAt": "2026-11-15T05:03:03.762Z",
-      "subPrices": {}
-    },
-    {
       "id": "R4359eba3cbbbf4e0",
       "username": "anshu",
       "passSalt": "518dd6ec1f9d204ed5b485ca",
