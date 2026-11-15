@@ -27,7 +27,7 @@
       "username": "owner",
       "passSalt": "b5f3258ef5cd2f447f807698",
       "passHash": "a13a5ffdb7ac813e1e7f53fb4a4dabd1ab4b363f1fbccf9de25baeac22cc503b",
-      "credits": 1,
+      "credits": 0,
       "active": true,
       "note": "",
       "prices": {},
