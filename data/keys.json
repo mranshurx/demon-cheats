@@ -43,6 +43,19 @@
       "startedAt": null,
       "activatedAt": null,
       "expiresAt": null
+    },
+    {
+      "key": "DEMON-7J877B",
+      "durationHours": 336,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "Rf051dbd01d7f11b4",
+      "cost": 90,
+      "createdAt": "2026-11-15T05:28:56.238Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
     }
   ],
   "maintenance": {
@@ -117,7 +130,7 @@
       "username": "fardin234",
       "passSalt": "4560e967a08bde2d4c0c55f7",
       "passHash": "c73be30536dbbc2f84e4999ed14145de8180b9fa49f1f4cc499a2d11287406b5",
-      "credits": 91,
+      "credits": 1,
       "active": true,
       "note": "",
       "prices": {},
