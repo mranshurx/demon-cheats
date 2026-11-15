@@ -368,15 +368,16 @@
               <path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
             Resellers
           </div>
-          <div style="display:flex;gap:8px;">
-            <button id="global-price-btn" class="btn-action">Default Prices</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button id="global-price-btn" class="btn-action">Reseller Prices</button>
+            <button id="global-sub-price-btn" class="btn-action">Sub Prices</button>
             <button class="btn-action" onclick="loadResellers()">Refresh</button>
           </div>
         </div>
 
         <div class="notice">
           <span>₹</span>
-          <span>Resellers marked <b>under</b> someone are sub-resellers; they top up via their upline's QR and cannot create more.</span>
+          <span>Resellers marked <b>under</b> someone are sub-resellers; they top up via their upline's QR and cannot create more. Sub prices default to the separate sub table.</span>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr 90px;gap:8px;margin-bottom:8px;">
@@ -545,6 +546,7 @@ let pingTimer = null;
 let autoTimer = null;
 let watchTimer = null;
 let priceTarget = null;
+let priceMode   = "reseller";   /* reseller | resellersub | global | globalsub */
 
 const $ = id => document.getElementById(id);
 const money = n => "₹" + (Number(n) || 0);
@@ -836,6 +838,7 @@ async function loadResellers(){
     $("stat-resellers").textContent = allRes.length;
     renderResellers();
     if(d.pricing) window._pricing = d.pricing;
+    if(d.subPricing) window._subPricing = d.subPricing;
     loadTopups();
   }catch(e){
     if(e.message !== "unauthorized") toast("failed to load resellers");
@@ -961,6 +964,7 @@ function renderResellers(){
       <div class="action-group">
         <button class="btn-action good" onclick="addCredits('${r.id}','${esc(r.username)}')">+ Credits</button>
         <button class="btn-action" onclick="openPrices('${r.id}','${esc(r.username)}')">Prices</button>
+        <button class="btn-action" onclick="openSubPrices('${r.id}','${esc(r.username)}')">Sub ₹</button>
         <button class="btn-action" onclick="setPass('${r.id}','${esc(r.username)}')">Pass</button>
         <button class="btn-action warn" onclick="toggleActive('${r.id}',${r.active ? "false" : "true"})">${r.active ? "Disable" : "Enable"}</button>
         <button class="btn-action danger" onclick="deleteReseller('${r.id}','${esc(r.username)}')">Delete</button>
@@ -1184,17 +1188,36 @@ function priceInputs(prices){
 }
 
 function openPrices(id, name){
+  priceMode = "reseller";
   priceTarget = id;
-  $("price-title").textContent = "Prices — " + name;
+  $("price-title").textContent = "Reseller prices — " + name;
   const r = allRes.find(x => x.id === id);
   priceInputs(r ? r.prices : {});
   $("price-overlay").style.display = "flex";
 }
 
+function openSubPrices(id, name){
+  priceMode = "resellersub";
+  priceTarget = id;
+  $("price-title").textContent = "Prices for subs of " + name;
+  const r = allRes.find(x => x.id === id);
+  priceInputs(r ? r.subPrices : {});
+  $("price-overlay").style.display = "flex";
+}
+
 function openGlobalPrices(){
+  priceMode = "global";
   priceTarget = null;
   $("price-title").textContent = "Default Reseller Prices";
   priceInputs(window._pricing || {});
+  $("price-overlay").style.display = "flex";
+}
+
+function openGlobalSubPrices(){
+  priceMode = "globalsub";
+  priceTarget = null;
+  $("price-title").textContent = "Default Sub-Reseller Prices";
+  priceInputs(window._subPricing || {});
   $("price-overlay").style.display = "flex";
 }
 
@@ -1207,9 +1230,12 @@ async function savePrices(){
     if(v !== "") prices[i.dataset.hours] = parseInt(v, 10);
   });
   try{
-    const d = priceTarget
-      ? await api("/api/admin/reseller-prices", { id: priceTarget, prices })
-      : await api("/api/admin/global-prices", { prices });
+    let d;
+    if(priceMode === "reseller")       d = await api("/api/admin/reseller-prices", { id: priceTarget, prices });
+    else if(priceMode === "resellersub") d = await api("/api/admin/reseller-sub-prices", { id: priceTarget, prices });
+    else if(priceMode === "global")     d = await api("/api/admin/global-prices", { prices });
+    else                                d = await api("/api/admin/global-sub-prices", { prices });
+
     if(d.success){
       toast("prices saved");
       closePrices();
@@ -1292,6 +1318,7 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("DOMContentLoaded", () => {
   paintStorage();
   $("global-price-btn").addEventListener("click", openGlobalPrices);
+  $("global-sub-price-btn").addEventListener("click", openGlobalSubPrices);
   if(adminPass){ bootDashboard(); startWatch(); }
   else showLogin();
 });
