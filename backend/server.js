@@ -839,15 +839,13 @@ function priceFor(db, me, hours) {
   return v == null ? 0 : Number(v);
 }
 
-/* Effective default for a master's subs (used to prefill the editor). */
 function subDefaultsFor(db, me) {
   const out = {};
   for (const h of SELLABLE) {
     const k = String(h);
-    const v = (me.subPrices && me.subPrices[k] != null)
+    out[h] = (me.subPrices && me.subPrices[k] != null)
       ? me.subPrices[k]
       : (db.subPricing[k] == null ? 0 : Number(db.subPricing[k]));
-    out[h] = v;
   }
   return out;
 }
@@ -1142,6 +1140,7 @@ app.post('/api/reseller/keys', async (req, res) => {
   return res.json({ keys });
 });
 
+/* Every request goes to the owner — approverId is always null. */
 app.post('/api/reseller/topup', async (req, res) => {
   const ctx = await requireReseller(req, res);
   if (!ctx) return;
@@ -1158,7 +1157,8 @@ app.post('/api/reseller/topup', async (req, res) => {
         id: newId('T'),
         resellerId: r.id,
         username: r.username,
-        approverId: r.parentId || null,
+        parentId: r.parentId || null,
+        approverId: null,
         amount,
         method: String(req.body.method || 'UPI').slice(0, 24),
         reference: String(req.body.reference || '').slice(0, 80),
@@ -1181,40 +1181,6 @@ app.post('/api/reseller/topups', async (req, res) => {
   const { me, db } = ctx;
   const list = db.topups.filter(t => t.resellerId === me.id).slice(0, 60);
   return res.json({ topups: list });
-});
-
-app.post('/api/reseller/approvals', async (req, res) => {
-  const ctx = await requireReseller(req, res);
-  if (!ctx) return;
-  const { me, db } = ctx;
-  const list = db.topups.filter(t => t.approverId === me.id).slice(0, 100);
-  return res.json({ topups: list });
-});
-
-app.post('/api/reseller/topup-decide', async (req, res) => {
-  const ctx = await requireReseller(req, res);
-  if (!ctx) return;
-  const { me, c } = ctx;
-  const { id, approve } = req.body;
-
-  try {
-    const out = await mutate(c, db => {
-      const t = db.topups.find(x => x.id === id);
-      if (!t) throw new Error('Request not found.');
-      if (t.approverId !== me.id) throw new Error('Not your sub.');
-      if (t.status !== 'pending') throw new Error('Already ' + t.status + '.');
-      t.status = approve ? 'approved' : 'rejected';
-      t.decidedAt = new Date().toISOString();
-      if (approve) {
-        const r = db.resellers.find(x => x.id === t.resellerId);
-        if (r) r.credits += t.amount;
-      }
-      return { id: t.id, status: t.status, amount: t.amount };
-    });
-    return res.json({ success: true, topup: out });
-  } catch (e) {
-    return res.status(400).json({ error: e.message });
-  }
 });
 
 app.post('/api/reseller/set-qr', async (req, res) => {
@@ -1408,7 +1374,6 @@ app.post('/api/reseller/sub-prices', async (req, res) => {
   }
 });
 
-/* A master's own default for every sub they create. */
 app.post('/api/reseller/sub-defaults', async (req, res) => {
   const ctx = await requireReseller(req, res);
   if (!ctx) return;
@@ -1882,7 +1847,6 @@ app.post('/api/admin/delete-reseller', async (req, res) => {
       db.resellers.forEach(r => { if (r.parentId === id) r.parentId = null; });
       db.resellers = db.resellers.filter(r => r.id !== id);
       db.topups = db.topups.filter(t => t.resellerId !== id);
-      db.topups.forEach(t => { if (t.approverId === id) t.approverId = null; });
     });
     return res.json({ success: true });
   } catch (e) {
@@ -1972,12 +1936,18 @@ app.post('/api/admin/global-sub-prices', async (req, res) => {
   }
 });
 
+/* All requests from every reseller and sub-reseller. */
 app.post('/api/admin/topups', async (req, res) => {
   const state = await requireAdmin(req, res);
   if (!state) return;
   try {
     const db = await getDb(true, credsFrom(req));
-    const list = db.topups.filter(t => !t.approverId).slice(0, 200);
+    const names = {};
+    db.resellers.forEach(r => { names[r.id] = r.username; });
+    const list = db.topups.slice(0, 300).map(t => ({
+      ...t,
+      parentOf: t.parentId ? (names[t.parentId] || '—') : null
+    }));
     return res.json({ topups: list });
   } catch (e) {
     return res.status(500).json({ error: e.message, topups: [] });
