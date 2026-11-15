@@ -128,7 +128,20 @@
       "lastLoginAt": "2026-11-15T05:27:05.110Z"
     }
   ],
-  "topups": [],
+  "topups": [
+    {
+      "id": "Td1d2fa1b9854e0a2",
+      "resellerId": "Rf051dbd01d7f11b4",
+      "username": "fardin234",
+      "approverId": "Rb58d18da9d3cd88a",
+      "amount": 100,
+      "method": "UPI",
+      "reference": "956273846005",
+      "note": "T2611151057544434105988",
+      "status": "pending",
+      "createdAt": "2026-11-15T05:28:28.784Z"
+    }
+  ],
   "pricing": {
     "1": 2,
     "3": 4,
