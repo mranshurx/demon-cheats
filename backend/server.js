@@ -195,10 +195,16 @@ const DEFAULT_MAINT = { enabled: false, message: 'System under maintenance.', si
 const EMPTY_FEATURES = { aimbot: '', location: '' };
 
 /* ================= PRICING ================= */
-/* Rupees, per hour-bucket. 0 or missing = not sellable. */
+/* Rupees, per hour-bucket. 0 or missing = not sellable.
+   pricing    = what a top-level reseller pays
+   subPricing = what a sub-reseller pays by default (0 = not sellable to subs) */
 const DEFAULT_PRICING = {
   '1': 2, '3': 4, '6': 5, '12': 7, '24': 10, '72': 17,
   '168': 35, '336': 60, '720': 100, '8760': 250, '999999': 1200
+};
+const DEFAULT_SUB_PRICING = {
+  '1': 3, '3': 6, '6': 8, '12': 11, '24': 15, '72': 26,
+  '168': 53, '336': 90, '720': 150, '8760': 0, '999999': 0
 };
 const SELLABLE = [1, 3, 6, 12, 24, 72, 168, 336, 720, 8760, 999999];
 const SESSION_TTL = 30 * 24 * 3600 * 1000;
@@ -211,6 +217,7 @@ const EMPTY_DB = () => ({
   resellers: [],
   topups: [],
   pricing: { ...DEFAULT_PRICING },
+  subPricing: { ...DEFAULT_SUB_PRICING },
   meta: {}
 });
 
@@ -320,6 +327,18 @@ function cleanQr(v) {
   return '';
 }
 
+function cleanPriceMap(src) {
+  const out = {};
+  if (!src || typeof src !== 'object') return out;
+  for (const h of SELLABLE) {
+    const raw = src[h];
+    if (raw == null || raw === '') continue;
+    const v = Number(raw);
+    if (Number.isFinite(v) && v >= 0) out[h] = Math.round(v);
+  }
+  return out;
+}
+
 function normalizeDb(db) {
   if (!db || typeof db !== 'object') db = EMPTY_DB();
   if (!Array.isArray(db.keys)) db.keys = [];
@@ -336,6 +355,12 @@ function normalizeDb(db) {
     db.pricing[h] = Number.isFinite(v) && v >= 0 ? Math.round(v) : (DEFAULT_PRICING[h] || 0);
   }
 
+  if (!db.subPricing || typeof db.subPricing !== 'object') db.subPricing = { ...DEFAULT_SUB_PRICING };
+  for (const h of SELLABLE) {
+    const v = Number(db.subPricing[h]);
+    db.subPricing[h] = Number.isFinite(v) && v >= 0 ? Math.round(v) : (DEFAULT_SUB_PRICING[h] || 0);
+  }
+
   if (!Array.isArray(db.resellers)) db.resellers = [];
   db.resellers = db.resellers.filter(r => r && r.id && r.username).map(r => {
     r.username = String(r.username).slice(0, 24);
@@ -343,15 +368,8 @@ function normalizeDb(db) {
     r.active = r.active !== false;
     r.parentId = r.parentId ? String(r.parentId) : null;
     r.qr = cleanQr(r.qr);
-    if (!r.prices || typeof r.prices !== 'object') r.prices = {};
-    const clean = {};
-    for (const h of SELLABLE) {
-      if (r.prices[h] != null) {
-        const v = Number(r.prices[h]);
-        if (Number.isFinite(v) && v >= 0) clean[h] = Math.round(v);
-      }
-    }
-    r.prices = clean;
+    r.prices = cleanPriceMap(r.prices);
+    r.subPrices = cleanPriceMap(r.subPrices);
     if (!r.createdAt) r.createdAt = new Date().toISOString();
     return r;
   });
@@ -803,16 +821,35 @@ async function requireReseller(req, res) {
   return { me, db, c };
 }
 
-/* Price chain: own override -> parent's price -> global table. */
+/* Price chain.
+   Top-level reseller : own override -> global reseller table
+   Sub-reseller       : own override -> upline's sub table -> global sub table */
 function priceFor(db, me, hours) {
   const key = String(hours);
   if (me.prices && me.prices[key] != null) return me.prices[key];
+
   if (me.parentId) {
     const p = db.resellers.find(r => r.id === me.parentId);
-    if (p && p.prices && p.prices[key] != null) return p.prices[key];
+    if (p && p.subPrices && p.subPrices[key] != null) return p.subPrices[key];
+    const sv = db.subPricing ? db.subPricing[key] : null;
+    return sv == null ? 0 : Number(sv);
   }
+
   const v = db.pricing ? db.pricing[key] : null;
   return v == null ? 0 : Number(v);
+}
+
+/* Effective default for a master's subs (used to prefill the editor). */
+function subDefaultsFor(db, me) {
+  const out = {};
+  for (const h of SELLABLE) {
+    const k = String(h);
+    const v = (me.subPrices && me.subPrices[k] != null)
+      ? me.subPrices[k]
+      : (db.subPricing[k] == null ? 0 : Number(db.subPricing[k]));
+    out[h] = v;
+  }
+  return out;
 }
 
 /* ================= PUBLIC API ================= */
@@ -1026,7 +1063,8 @@ app.post('/api/reseller/me', async (req, res) => {
     canCreateSubs: !me.parentId,
     ownQr: me.qr || '',
     qr: me.qr || (parent ? parent.qr : '') || '',
-    qrFrom: me.qr ? 'own' : (parent && parent.qr ? parent.username : '')
+    qrFrom: me.qr ? 'own' : (parent && parent.qr ? parent.username : ''),
+    subDefaults: me.parentId ? null : subDefaultsFor(db, me)
   });
 });
 
@@ -1145,7 +1183,6 @@ app.post('/api/reseller/topups', async (req, res) => {
   return res.json({ topups: list });
 });
 
-/* Requests raised by this reseller's own subs. */
 app.post('/api/reseller/approvals', async (req, res) => {
   const ctx = await requireReseller(req, res);
   if (!ctx) return;
@@ -1284,6 +1321,7 @@ app.post('/api/reseller/create-sub', async (req, res) => {
         active: true,
         note: String(req.body.note || '').slice(0, 200),
         prices: {},
+        subPrices: {},
         parentId: me.id,
         qr: '',
         createdAt: new Date().toISOString(),
@@ -1361,17 +1399,28 @@ app.post('/api/reseller/sub-prices', async (req, res) => {
       const r = db.resellers.find(x => x.id === id);
       if (!r) throw new Error('Reseller not found.');
       if (r.parentId !== me.id) throw new Error('Not your sub.');
-      const clean = {};
-      const src = prices || {};
-      for (const h of SELLABLE) {
-        const raw = src[h];
-        if (raw == null || raw === '') continue;
-        const v = Number(raw);
-        if (!Number.isFinite(v) || v < 0) throw new Error('Prices must be 0 or more.');
-        clean[h] = Math.round(v);
-      }
-      r.prices = clean;
-      return clean;
+      r.prices = cleanPriceMap(prices);
+      return r.prices;
+    });
+    return res.json({ success: true, prices: out });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+});
+
+/* A master's own default for every sub they create. */
+app.post('/api/reseller/sub-defaults', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, c } = ctx;
+  if (me.parentId) return res.status(400).json({ error: 'Only top-level resellers have sub prices.' });
+
+  try {
+    const out = await mutate(c, db => {
+      const r = db.resellers.find(x => x.id === me.id);
+      if (!r) throw new Error('Reseller vanished');
+      r.subPrices = cleanPriceMap(req.body.prices);
+      return r.subPrices;
     });
     return res.json({ success: true, prices: out });
   } catch (e) {
@@ -1728,6 +1777,7 @@ app.post('/api/admin/list-resellers', async (req, res) => {
       createdAt: r.createdAt,
       lastLoginAt: r.lastLoginAt || null,
       prices: r.prices,
+      subPrices: r.subPrices,
       parentId: r.parentId,
       parent: r.parentId ? (names[r.parentId] || '—') : null,
       hasQr: !!r.qr,
@@ -1740,7 +1790,12 @@ app.post('/api/admin/list-resellers', async (req, res) => {
       if (pa !== pb) return pa.localeCompare(pb);
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
-    return res.json({ resellers, pricing: db.pricing, pending: db.topups.filter(t => t.status === 'pending').length });
+    return res.json({
+      resellers,
+      pricing: db.pricing,
+      subPricing: db.subPricing,
+      pending: db.topups.filter(t => t.status === 'pending').length
+    });
   } catch (e) {
     return res.status(500).json({ error: 'Read failed: ' + e.message, resellers: [] });
   }
@@ -1770,6 +1825,7 @@ app.post('/api/admin/create-reseller', async (req, res) => {
         active: true,
         note: String(req.body.note || '').slice(0, 200),
         prices: {},
+        subPrices: {},
         parentId: null,
         qr: '',
         createdAt: new Date().toISOString(),
@@ -1823,7 +1879,6 @@ app.post('/api/admin/delete-reseller', async (req, res) => {
 
   try {
     await mutate(c, db => {
-      /* orphans become top-level masters rather than dangling */
       db.resellers.forEach(r => { if (r.parentId === id) r.parentId = null; });
       db.resellers = db.resellers.filter(r => r.id !== id);
       db.topups = db.topups.filter(t => t.resellerId !== id);
@@ -1845,17 +1900,27 @@ app.post('/api/admin/reseller-prices', async (req, res) => {
     const out = await mutate(c, db => {
       const r = db.resellers.find(x => x.id === id);
       if (!r) throw new Error('Reseller not found.');
-      const clean = {};
-      const src = prices || {};
-      for (const h of SELLABLE) {
-        const raw = src[h];
-        if (raw == null || raw === '') continue;
-        const v = Number(raw);
-        if (!Number.isFinite(v) || v < 0) throw new Error('Prices must be 0 or more.');
-        clean[h] = Math.round(v);
-      }
-      r.prices = clean;
-      return clean;
+      r.prices = cleanPriceMap(prices);
+      return r.prices;
+    });
+    return res.json({ success: true, prices: out });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+});
+
+app.post('/api/admin/reseller-sub-prices', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  const { id, prices } = req.body;
+  const c = credsFrom(req);
+
+  try {
+    const out = await mutate(c, db => {
+      const r = db.resellers.find(x => x.id === id);
+      if (!r) throw new Error('Reseller not found.');
+      r.subPrices = cleanPriceMap(prices);
+      return r.subPrices;
     });
     return res.json({ success: true, prices: out });
   } catch (e) {
@@ -1885,18 +1950,34 @@ app.post('/api/admin/global-prices', async (req, res) => {
   }
 });
 
-/* Master-level requests only — sub requests are handled by their parent. */
+app.post('/api/admin/global-sub-prices', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+  const c = credsFrom(req);
+
+  try {
+    const out = await mutate(c, db => {
+      const src = req.body.prices || {};
+      for (const h of SELLABLE) {
+        if (src[h] == null || src[h] === '') continue;
+        const v = Number(src[h]);
+        if (!Number.isFinite(v) || v < 0) throw new Error('Prices must be 0 or more.');
+        db.subPricing[h] = Math.round(v);
+      }
+      return db.subPricing;
+    });
+    return res.json({ success: true, subPricing: out });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+});
+
 app.post('/api/admin/topups', async (req, res) => {
   const state = await requireAdmin(req, res);
   if (!state) return;
   try {
     const db = await getDb(true, credsFrom(req));
-    const names = {};
-    db.resellers.forEach(r => { names[r.id] = r.username; });
-    const list = db.topups
-      .filter(t => !t.approverId)
-      .slice(0, 200)
-      .map(t => ({ ...t, parentOf: names[t.resellerId] || t.username }));
+    const list = db.topups.filter(t => !t.approverId).slice(0, 200);
     return res.json({ topups: list });
   } catch (e) {
     return res.status(500).json({ error: e.message, topups: [] });
