@@ -118,8 +118,9 @@
       "method": "UPI",
       "reference": "956273846005",
       "note": "T2611151057544434105988",
-      "status": "pending",
-      "createdAt": "2026-11-15T05:28:28.784Z"
+      "status": "rejected",
+      "createdAt": "2026-11-15T05:28:28.784Z",
+      "decidedAt": "2026-11-15T05:33:46.034Z"
     }
   ],
   "pricing": {
