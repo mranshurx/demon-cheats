@@ -32,7 +32,9 @@
       "note": "",
       "prices": {},
       "createdAt": "2026-11-15T04:24:43.711Z",
-      "lastLoginAt": "2026-11-15T04:34:36.675Z"
+      "lastLoginAt": "2026-11-15T04:34:36.675Z",
+      "parentId": null,
+      "qr": ""
     },
     {
       "id": "R5881fd0262539641",
@@ -44,7 +46,23 @@
       "note": "",
       "prices": {},
       "createdAt": "2026-11-15T04:37:32.744Z",
-      "lastLoginAt": "2026-11-15T04:37:40.333Z"
+      "lastLoginAt": "2026-11-15T04:37:40.333Z",
+      "parentId": null,
+      "qr": ""
+    },
+    {
+      "id": "R846d252f60f46060",
+      "username": "misriya",
+      "passSalt": "2ac8aa64b3b239e37196ff5d",
+      "passHash": "ae7491302eef69e2d76fe03a7a1212d5d3cbe009f5365105b487bc2667021bd8",
+      "credits": 0,
+      "active": true,
+      "note": "",
+      "prices": {},
+      "parentId": "R5881fd0262539641",
+      "qr": "",
+      "createdAt": "2026-11-15T04:43:51.694Z",
+      "lastLoginAt": null
     }
   ],
   "topups": [
@@ -58,7 +76,8 @@
       "note": "9641805066",
       "status": "rejected",
       "createdAt": "2026-11-15T04:36:30.062Z",
-      "decidedAt": "2026-11-15T04:36:40.673Z"
+      "decidedAt": "2026-11-15T04:36:40.673Z",
+      "approverId": null
     },
     {
       "id": "Te497afd2c14fb4a0",
@@ -70,7 +89,8 @@
       "note": "",
       "status": "rejected",
       "createdAt": "2026-11-15T04:36:05.749Z",
-      "decidedAt": "2026-11-15T04:36:44.233Z"
+      "decidedAt": "2026-11-15T04:36:44.233Z",
+      "approverId": null
     },
     {
       "id": "Td3d5cd8cdc707726",
@@ -82,7 +102,8 @@
       "note": "",
       "status": "approved",
       "createdAt": "2026-11-15T04:26:43.608Z",
-      "decidedAt": "2026-11-15T04:27:52.353Z"
+      "decidedAt": "2026-11-15T04:27:52.353Z",
+      "approverId": null
     }
   ],
   "pricing": {
