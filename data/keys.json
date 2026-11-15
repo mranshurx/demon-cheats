@@ -1,75 +1,5 @@
 {
-  "keys": [
-    {
-      "key": "DEMON-T2J4HZ",
-      "durationHours": 24,
-      "maxDevices": 0,
-      "deviceLimit": "unlimited",
-      "devices": [],
-      "createdAt": "2026-11-14T13:43:14.001Z",
-      "startedAt": "2026-11-14T13:44:25.039Z",
-      "activatedAt": "2026-11-14T13:44:25.039Z",
-      "expiresAt": "2026-11-15T13:44:25.039Z"
-    },
-    {
-      "key": "DEMON-CHA2OG",
-      "durationHours": 24,
-      "maxDevices": 0,
-      "deviceLimit": "unlimited",
-      "devices": [],
-      "createdAt": "2026-11-14T14:04:04.015Z",
-      "startedAt": "2026-11-14T14:05:09.675Z",
-      "activatedAt": "2026-11-14T14:05:09.675Z",
-      "expiresAt": "2026-11-15T14:05:09.675Z"
-    },
-    {
-      "key": "DEMON-MTIRBU",
-      "durationHours": 12,
-      "maxDevices": 1,
-      "deviceLimit": "single",
-      "devices": [
-        {
-          "id": "Dfca04b97c34f5696",
-          "firstSeen": "2026-11-14T14:25:24.231Z",
-          "lastSeen": "2026-11-14T14:25:24.231Z",
-          "ua": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36"
-        }
-      ],
-      "createdAt": "2026-11-14T14:23:01.423Z",
-      "startedAt": "2026-11-14T14:25:22.624Z",
-      "activatedAt": "2026-11-14T14:25:22.624Z",
-      "expiresAt": "2026-11-15T02:25:22.624Z"
-    },
-    {
-      "key": "DEMON-GK3WSX",
-      "durationHours": 3,
-      "maxDevices": 1,
-      "deviceLimit": "single",
-      "devices": [
-        {
-          "id": "Da78556038d13cc1e",
-          "firstSeen": "2026-11-14T16:14:45.637Z",
-          "lastSeen": "2026-11-14T16:14:45.637Z",
-          "ua": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36"
-        }
-      ],
-      "createdAt": "2026-11-14T16:09:18.186Z",
-      "startedAt": "2026-11-14T16:14:44.266Z",
-      "activatedAt": "2026-11-14T16:14:44.266Z",
-      "expiresAt": "2026-11-14T19:14:44.266Z"
-    },
-    {
-      "key": "DEMON-G4H01K",
-      "durationHours": 24,
-      "maxDevices": 0,
-      "deviceLimit": "unlimited",
-      "devices": [],
-      "createdAt": "2026-11-15T03:34:47.570Z",
-      "startedAt": "2026-11-15T03:39:01.333Z",
-      "activatedAt": "2026-11-15T03:39:01.333Z",
-      "expiresAt": "2026-11-16T03:39:01.333Z"
-    }
-  ],
+  "keys": [],
   "maintenance": {
     "enabled": false,
     "message": "System under maintenance.",
@@ -78,5 +8,12 @@
   "features": {
     "aimbot": "",
     "location": ""
-  }
+  },
+  "resellers": [],
+  "topups": [],
+  "pricing": {
+    "1": 2, "3": 4, "6": 5, "12": 7, "24": 10, "72": 17,
+    "168": 35, "336": 60, "720": 100, "8760": 250, "999999": 1200
+  },
+  "meta": {}
 }
