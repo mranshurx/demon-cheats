@@ -10,19 +10,6 @@
       "startedAt": "2026-11-15T04:15:16.485Z",
       "activatedAt": "2026-11-15T04:15:16.485Z",
       "expiresAt": "2026-11-16T04:15:16.485Z"
-    },
-    {
-      "key": "DEMON-0YX3GD",
-      "durationHours": 1,
-      "maxDevices": 1,
-      "deviceLimit": "single",
-      "devices": [],
-      "resellerId": "R5881fd0262539641",
-      "cost": 2,
-      "createdAt": "2026-11-15T04:38:21.142Z",
-      "startedAt": null,
-      "activatedAt": null,
-      "expiresAt": null
     }
   ],
   "maintenance": {
