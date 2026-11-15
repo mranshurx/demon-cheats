@@ -7,7 +7,7 @@ const crypto = require('crypto');
 
 const app = express();
 app.set('trust proxy', true);
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '2mb' }));
 app.use(cors());
 
 /* ================= PATHS ================= */
@@ -202,6 +202,7 @@ const DEFAULT_PRICING = {
 };
 const SELLABLE = [1, 3, 6, 12, 24, 72, 168, 336, 720, 8760, 999999];
 const SESSION_TTL = 30 * 24 * 3600 * 1000;
+const QR_MAX = 400000;
 
 const EMPTY_DB = () => ({
   keys: [],
@@ -299,8 +300,6 @@ const TTL = 3000;
 let queue = Promise.resolve();
 function enqueue(fn) { queue = queue.then(fn, fn); return queue; }
 
-/* Disk mirror: keeps a copy on the local disk so a restart with an unreachable
-   storage backend still boots with the last known state. */
 function mirrorWrite(db) {
   try { fs.writeFileSync(LOCAL_MIRROR, JSON.stringify(db)); } catch (e) {}
 }
@@ -309,6 +308,16 @@ function mirrorRead() {
     if (!fs.existsSync(LOCAL_MIRROR)) return null;
     return JSON.parse(fs.readFileSync(LOCAL_MIRROR, 'utf8'));
   } catch (e) { return null; }
+}
+
+function cleanQr(v) {
+  if (v == null) return '';
+  const s = String(v).trim();
+  if (!s) return '';
+  if (s.length > QR_MAX) return '';
+  if (s.startsWith('data:image/')) return s;
+  if (/^https?:\/\//i.test(s)) return s.slice(0, 500);
+  return '';
 }
 
 function normalizeDb(db) {
@@ -332,6 +341,8 @@ function normalizeDb(db) {
     r.username = String(r.username).slice(0, 24);
     r.credits = Math.max(0, Math.round(Number(r.credits) || 0));
     r.active = r.active !== false;
+    r.parentId = r.parentId ? String(r.parentId) : null;
+    r.qr = cleanQr(r.qr);
     if (!r.prices || typeof r.prices !== 'object') r.prices = {};
     const clean = {};
     for (const h of SELLABLE) {
@@ -345,10 +356,19 @@ function normalizeDb(db) {
     return r;
   });
 
+  /* No dangling parents, and never more than one level of nesting. */
+  const byId = new Map(db.resellers.map(r => [r.id, r]));
+  for (const r of db.resellers) {
+    if (!r.parentId || !byId.has(r.parentId)) { r.parentId = null; continue; }
+    const p = byId.get(r.parentId);
+    if (p.parentId) r.parentId = p.parentId;
+  }
+
   if (!Array.isArray(db.topups)) db.topups = [];
   db.topups = db.topups.filter(t => t && t.id && t.resellerId).map(t => {
     t.amount = Math.max(0, Math.round(Number(t.amount) || 0));
     if (!['pending', 'approved', 'rejected'].includes(t.status)) t.status = 'pending';
+    t.approverId = t.approverId ? String(t.approverId) : null;
     if (!t.createdAt) t.createdAt = new Date().toISOString();
     return t;
   });
@@ -783,9 +803,14 @@ async function requireReseller(req, res) {
   return { me, db, c };
 }
 
+/* Price chain: own override -> parent's price -> global table. */
 function priceFor(db, me, hours) {
   const key = String(hours);
   if (me.prices && me.prices[key] != null) return me.prices[key];
+  if (me.parentId) {
+    const p = db.resellers.find(r => r.id === me.parentId);
+    if (p && p.prices && p.prices[key] != null) return p.prices[key];
+  }
   const v = db.pricing ? db.pricing[key] : null;
   return v == null ? 0 : Number(v);
 }
@@ -988,6 +1013,7 @@ app.post('/api/reseller/me', async (req, res) => {
   if (!ctx) return;
   const { me, db } = ctx;
   const mine = db.keys.filter(k => k.resellerId === me.id);
+  const parent = me.parentId ? db.resellers.find(r => r.id === me.parentId) : null;
   return res.json({
     username: me.username,
     credits: me.credits,
@@ -995,7 +1021,12 @@ app.post('/api/reseller/me', async (req, res) => {
     createdAt: me.createdAt,
     lastLoginAt: me.lastLoginAt || null,
     keysMade: mine.length,
-    totalSpent: mine.reduce((s, k) => s + (Number(k.cost) || 0), 0)
+    totalSpent: mine.reduce((s, k) => s + (Number(k.cost) || 0), 0),
+    parent: parent ? parent.username : null,
+    canCreateSubs: !me.parentId,
+    ownQr: me.qr || '',
+    qr: me.qr || (parent ? parent.qr : '') || '',
+    qrFrom: me.qr ? 'own' : (parent && parent.qr ? parent.username : '')
   });
 });
 
@@ -1089,6 +1120,7 @@ app.post('/api/reseller/topup', async (req, res) => {
         id: newId('T'),
         resellerId: r.id,
         username: r.username,
+        approverId: r.parentId || null,
         amount,
         method: String(req.body.method || 'UPI').slice(0, 24),
         reference: String(req.body.reference || '').slice(0, 80),
@@ -1113,6 +1145,59 @@ app.post('/api/reseller/topups', async (req, res) => {
   return res.json({ topups: list });
 });
 
+/* Requests raised by this reseller's own subs. */
+app.post('/api/reseller/approvals', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, db } = ctx;
+  const list = db.topups.filter(t => t.approverId === me.id).slice(0, 100);
+  return res.json({ topups: list });
+});
+
+app.post('/api/reseller/topup-decide', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, c } = ctx;
+  const { id, approve } = req.body;
+
+  try {
+    const out = await mutate(c, db => {
+      const t = db.topups.find(x => x.id === id);
+      if (!t) throw new Error('Request not found.');
+      if (t.approverId !== me.id) throw new Error('Not your sub.');
+      if (t.status !== 'pending') throw new Error('Already ' + t.status + '.');
+      t.status = approve ? 'approved' : 'rejected';
+      t.decidedAt = new Date().toISOString();
+      if (approve) {
+        const r = db.resellers.find(x => x.id === t.resellerId);
+        if (r) r.credits += t.amount;
+      }
+      return { id: t.id, status: t.status, amount: t.amount };
+    });
+    return res.json({ success: true, topup: out });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+});
+
+app.post('/api/reseller/set-qr', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, c } = ctx;
+  const qr = cleanQr(req.body.qr);
+  if (req.body.qr && !qr) return res.status(400).json({ error: 'QR must be an image upload or an http(s) URL.' });
+
+  try {
+    await mutate(c, db => {
+      const r = db.resellers.find(x => x.id === me.id);
+      if (r) r.qr = qr;
+    });
+    return res.json({ success: true, qr });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/reseller/password', async (req, res) => {
   const ctx = await requireReseller(req, res);
   if (!ctx) return;
@@ -1135,6 +1220,162 @@ app.post('/api/reseller/password', async (req, res) => {
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
+  }
+});
+
+/* ---------- sub-resellers (masters only, one level deep) ---------- */
+function validUsername(u) { return /^[a-z0-9_]{3,20}$/.test(u); }
+
+app.post('/api/reseller/subs', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, db } = ctx;
+  if (me.parentId) return res.json({ subs: [], canCreate: false });
+
+  const stats = {};
+  db.keys.forEach(k => {
+    if (!k.resellerId) return;
+    const s = stats[k.resellerId] || (stats[k.resellerId] = { keys: 0, spent: 0 });
+    s.keys++;
+    s.spent += Number(k.cost) || 0;
+  });
+
+  const subs = db.resellers
+    .filter(r => r.parentId === me.id)
+    .map(r => ({
+      id: r.id,
+      username: r.username,
+      credits: r.credits,
+      active: r.active,
+      note: r.note || '',
+      createdAt: r.createdAt,
+      lastLoginAt: r.lastLoginAt || null,
+      prices: r.prices,
+      keysMade: (stats[r.id] && stats[r.id].keys) || 0,
+      totalSpent: (stats[r.id] && stats[r.id].spent) || 0
+    }))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  return res.json({ subs, canCreate: true });
+});
+
+app.post('/api/reseller/create-sub', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, c } = ctx;
+  if (me.parentId) return res.status(400).json({ error: 'Sub-resellers cannot create more resellers.' });
+
+  const username = String(req.body.username || '').trim().toLowerCase();
+  const password = String(req.body.password || '');
+  const credits = Math.max(0, Math.round(Number(req.body.credits) || 0));
+  if (!validUsername(username)) return res.status(400).json({ error: 'Username: 3-20 chars, a-z 0-9 _ only.' });
+  if (password.length < 6) return res.status(400).json({ error: 'Password must be 6+ characters.' });
+
+  try {
+    const rec = await mutate(c, db => {
+      if (db.resellers.some(r => r.username.toLowerCase() === username)) throw new Error('Username already taken.');
+      const salt = crypto.randomBytes(12).toString('hex');
+      const r = {
+        id: newId('R'),
+        username,
+        passSalt: salt,
+        passHash: hashPass(salt, password),
+        credits,
+        active: true,
+        note: String(req.body.note || '').slice(0, 200),
+        prices: {},
+        parentId: me.id,
+        qr: '',
+        createdAt: new Date().toISOString(),
+        lastLoginAt: null
+      };
+      db.resellers.push(r);
+      return r;
+    });
+    return res.json({ success: true, id: rec.id, username: rec.username });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+});
+
+app.post('/api/reseller/update-sub', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, c } = ctx;
+  const { id } = req.body;
+
+  try {
+    const out = await mutate(c, db => {
+      const r = db.resellers.find(x => x.id === id);
+      if (!r) throw new Error('Reseller not found.');
+      if (r.parentId !== me.id) throw new Error('Not your sub.');
+      if (req.body.addCredits != null) {
+        r.credits = Math.max(0, r.credits + Math.round(Number(req.body.addCredits) || 0));
+      }
+      if (req.body.credits != null) {
+        r.credits = Math.max(0, Math.round(Number(req.body.credits) || 0));
+      }
+      if (req.body.active != null) r.active = !!req.body.active;
+      if (req.body.note != null) r.note = String(req.body.note).slice(0, 200);
+      if (req.body.password) {
+        if (String(req.body.password).length < 6) throw new Error('Password must be 6+ characters.');
+        r.passSalt = crypto.randomBytes(12).toString('hex');
+        r.passHash = hashPass(r.passSalt, String(req.body.password));
+      }
+      return { id: r.id, credits: r.credits, active: r.active };
+    });
+    return res.json({ success: true, reseller: out });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+});
+
+app.post('/api/reseller/delete-sub', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, c } = ctx;
+  const { id } = req.body;
+
+  try {
+    await mutate(c, db => {
+      const r = db.resellers.find(x => x.id === id);
+      if (!r) throw new Error('Reseller not found.');
+      if (r.parentId !== me.id) throw new Error('Not your sub.');
+      db.resellers = db.resellers.filter(x => x.id !== id);
+      db.topups = db.topups.filter(t => t.resellerId !== id);
+    });
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+});
+
+app.post('/api/reseller/sub-prices', async (req, res) => {
+  const ctx = await requireReseller(req, res);
+  if (!ctx) return;
+  const { me, c } = ctx;
+  const { id, prices } = req.body;
+
+  try {
+    const out = await mutate(c, db => {
+      const r = db.resellers.find(x => x.id === id);
+      if (!r) throw new Error('Reseller not found.');
+      if (r.parentId !== me.id) throw new Error('Not your sub.');
+      const clean = {};
+      const src = prices || {};
+      for (const h of SELLABLE) {
+        const raw = src[h];
+        if (raw == null || raw === '') continue;
+        const v = Number(raw);
+        if (!Number.isFinite(v) || v < 0) throw new Error('Prices must be 0 or more.');
+        clean[h] = Math.round(v);
+      }
+      r.prices = clean;
+      return clean;
+    });
+    return res.json({ success: true, prices: out });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
   }
 });
 
@@ -1464,8 +1705,6 @@ app.post('/api/admin/maintenance', async (req, res) => {
 });
 
 /* ---------- reseller management (owner only) ---------- */
-function validUsername(u) { return /^[a-z0-9_]{3,20}$/.test(u); }
-
 app.post('/api/admin/list-resellers', async (req, res) => {
   const state = await requireAdmin(req, res);
   if (!state) return;
@@ -1478,6 +1717,8 @@ app.post('/api/admin/list-resellers', async (req, res) => {
       s.keys++;
       s.spent += Number(k.cost) || 0;
     });
+    const names = {};
+    db.resellers.forEach(r => { names[r.id] = r.username; });
     const resellers = db.resellers.map(r => ({
       id: r.id,
       username: r.username,
@@ -1487,9 +1728,18 @@ app.post('/api/admin/list-resellers', async (req, res) => {
       createdAt: r.createdAt,
       lastLoginAt: r.lastLoginAt || null,
       prices: r.prices,
+      parentId: r.parentId,
+      parent: r.parentId ? (names[r.parentId] || '—') : null,
+      hasQr: !!r.qr,
+      subs: db.resellers.filter(x => x.parentId === r.id).length,
       keysMade: (stats[r.id] && stats[r.id].keys) || 0,
       totalSpent: (stats[r.id] && stats[r.id].spent) || 0
-    })).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    })).sort((a, b) => {
+      const pa = a.parent || '';
+      const pb = b.parent || '';
+      if (pa !== pb) return pa.localeCompare(pb);
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
     return res.json({ resellers, pricing: db.pricing, pending: db.topups.filter(t => t.status === 'pending').length });
   } catch (e) {
     return res.status(500).json({ error: 'Read failed: ' + e.message, resellers: [] });
@@ -1520,6 +1770,8 @@ app.post('/api/admin/create-reseller', async (req, res) => {
         active: true,
         note: String(req.body.note || '').slice(0, 200),
         prices: {},
+        parentId: null,
+        qr: '',
         createdAt: new Date().toISOString(),
         lastLoginAt: null
       };
@@ -1571,8 +1823,11 @@ app.post('/api/admin/delete-reseller', async (req, res) => {
 
   try {
     await mutate(c, db => {
+      /* orphans become top-level masters rather than dangling */
+      db.resellers.forEach(r => { if (r.parentId === id) r.parentId = null; });
       db.resellers = db.resellers.filter(r => r.id !== id);
       db.topups = db.topups.filter(t => t.resellerId !== id);
+      db.topups.forEach(t => { if (t.approverId === id) t.approverId = null; });
     });
     return res.json({ success: true });
   } catch (e) {
@@ -1630,12 +1885,19 @@ app.post('/api/admin/global-prices', async (req, res) => {
   }
 });
 
+/* Master-level requests only — sub requests are handled by their parent. */
 app.post('/api/admin/topups', async (req, res) => {
   const state = await requireAdmin(req, res);
   if (!state) return;
   try {
     const db = await getDb(true, credsFrom(req));
-    return res.json({ topups: db.topups.slice(0, 200) });
+    const names = {};
+    db.resellers.forEach(r => { names[r.id] = r.username; });
+    const list = db.topups
+      .filter(t => !t.approverId)
+      .slice(0, 200)
+      .map(t => ({ ...t, parentOf: names[t.resellerId] || t.username }));
+    return res.json({ topups: list });
   } catch (e) {
     return res.status(500).json({ error: e.message, topups: [] });
   }
