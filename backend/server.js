@@ -1498,6 +1498,7 @@ app.post('/api/admin/create-reseller', async (req, res) => {
   const state = await requireAdmin(req, res);
   if (!state) return;
 
+  const c = credsFrom(req);
   const username = String(req.body.username || '').trim().toLowerCase();
   const password = String(req.body.password || '');
   const credits = Math.max(0, Math.round(Number(req.body.credits) || 0));
@@ -1564,6 +1565,7 @@ app.post('/api/admin/delete-reseller', async (req, res) => {
   const state = await requireAdmin(req, res);
   if (!state) return;
   const { id } = req.body;
+  const c = credsFrom(req);
 
   try {
     await mutate(c, db => {
