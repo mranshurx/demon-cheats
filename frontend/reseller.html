@@ -85,7 +85,6 @@
   .row2{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:14px}
   .acts{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
   .qrprev{max-width:180px;border-radius:10px;background:#fff;padding:8px;display:block;margin-bottom:10px}
-  .divider{border-top:1px solid var(--line);margin:16px 0}
 </style>
 </head>
 <body>
@@ -214,6 +213,14 @@
       </div>
 
       <div class="card">
+        <h2>My Sub Prices (default for every sub)</h2>
+        <div class="note" style="margin-bottom:12px">Leave blank to use the platform default. These are what your subs pay unless you override a single sub.</div>
+        <div class="grid" id="subDefaultGrid"></div>
+        <button class="btn btn-red" style="width:100%;margin-top:12px" onclick="saveSubDefaults()">Save My Sub Prices</button>
+        <div id="sdMsg" class="msg"></div>
+      </div>
+
+      <div class="card">
         <h2>My Resellers</h2>
         <table>
           <thead><tr><th>Reseller</th><th>Credits</th><th>Keys</th><th>Spent</th><th>State</th><th style="text-align:right">Actions</th></tr></thead>
@@ -334,7 +341,6 @@ async function loadMe(){
     + (me.parent ? " · under " + me.parent : " · master reseller")
     + (me.note ? " · " + me.note : "");
 
-  /* QR comes from the upline (or your own if you are top level). */
   if (me.qr) {
     $("qr").src = me.qr;
     $("qr").classList.remove("hidden");
@@ -352,6 +358,32 @@ async function loadMe(){
   $("qrUrl").value = (me.ownQr && !me.ownQr.startsWith("data:")) ? me.ownQr : "";
 
   $("subsTabBtn").classList.toggle("hidden", !me.canCreateSubs);
+  if (me.canCreateSubs) renderSubDefaults(me.subDefaults || {});
+}
+
+function renderSubDefaults(defs){
+  $("subDefaultGrid").innerHTML = HOURS.map(h => `
+    <div class="plan">
+      <div class="t">${esc(PLANS[h])}</div>
+      <input class="form-control" data-hours="${h}" type="number" min="0" step="1"
+             value="${defs[h] != null ? defs[h] : ""}" placeholder="—" style="margin-top:8px" />
+    </div>`).join("");
+}
+
+async function saveSubDefaults(){
+  const msg = $("sdMsg");
+  msg.className = "msg";
+  const map = {};
+  document.querySelectorAll("#subDefaultGrid input").forEach(i => {
+    const v = i.value.trim();
+    if(v !== "") map[i.dataset.hours] = parseInt(v, 10);
+  });
+  try{
+    await api("/api/reseller/sub-defaults", { prices: map });
+    msg.className = "msg ok";
+    msg.textContent = "Saved. New subs will use these prices.";
+    await loadMe();
+  }catch(e){ msg.className = "msg err"; msg.textContent = e.message; }
 }
 
 async function loadPrices(){
@@ -517,15 +549,19 @@ async function decideTopup(id, approve){
   catch(e){ alert(e.message); }
 }
 
-/* ---------- prices for a sub ---------- */
+/* ---------- per-sub price override ---------- */
 async function openPrices(id, name){
   const r = subs.find(x => x.id === id);
   const cur = (r && r.prices) || {};
+  const defs = me.subDefaults || {};
   const lines = HOURS.map(h => {
     const v = cur[h] != null ? cur[h] : "";
     return `${PLANS[h]}: ${v}`;
   }).join("\n");
-  const raw = prompt(`Prices for ${name} (₹). Blank = inherit yours.\nFormat: label: price`, lines);
+  const raw = prompt(
+    `Prices for ${name} (₹). Blank = use your sub default.\nDefault now: ${HOURS.map(h => PLANS[h] + "=" + (defs[h] || 0)).join(", ")}\n\nFormat: label: price`,
+    lines
+  );
   if(raw === null) return;
 
   const map = {};
