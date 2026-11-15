@@ -12,26 +12,6 @@
       "expiresAt": "2026-11-16T04:15:16.485Z"
     },
     {
-      "key": "DEMON-8Q3MAN",
-      "durationHours": 1,
-      "maxDevices": 1,
-      "deviceLimit": "single",
-      "devices": [
-        {
-          "id": "D1806a03c997e2849",
-          "firstSeen": "2026-11-15T05:23:47.386Z",
-          "lastSeen": "2026-11-15T05:23:47.386Z",
-          "ua": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36"
-        }
-      ],
-      "resellerId": "Rf051dbd01d7f11b4",
-      "cost": 3,
-      "createdAt": "2026-11-15T05:23:04.990Z",
-      "startedAt": "2026-11-15T05:23:45.811Z",
-      "activatedAt": "2026-11-15T05:23:45.811Z",
-      "expiresAt": "2026-11-15T06:23:45.811Z"
-    },
-    {
       "key": "DEMON-CCQ2H7",
       "durationHours": 1,
       "maxDevices": 1,
