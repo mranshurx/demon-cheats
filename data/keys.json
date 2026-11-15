@@ -10,6 +10,19 @@
       "startedAt": "2026-11-15T04:15:16.485Z",
       "activatedAt": "2026-11-15T04:15:16.485Z",
       "expiresAt": "2026-11-16T04:15:16.485Z"
+    },
+    {
+      "key": "DEMON-0YX3GD",
+      "durationHours": 1,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R5881fd0262539641",
+      "cost": 2,
+      "createdAt": "2026-11-15T04:38:21.142Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
     }
   ],
   "maintenance": {
@@ -39,7 +52,7 @@
       "username": "anshu",
       "passSalt": "17987a68cfcddafecd381eff",
       "passHash": "fbfc427bc9e56e6aebf639c7378a7818663ce374ca55582a40627b16cae72b4e",
-      "credits": 1000,
+      "credits": 998,
       "active": true,
       "note": "",
       "prices": {},
