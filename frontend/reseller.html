@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DEMON CHEATS — ADMIN RESELLER</title>
+<title>DEMON CHEATS — Reseller</title>
 <link rel="icon" href="logo/logo.png" type="image/png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,7 +19,7 @@
     font-family:'JetBrains Mono',ui-monospace,monospace;
     background-image:radial-gradient(900px 500px at 50% -10%,rgba(255,42,68,.10),transparent 60%);
   }
-  .wrap{max-width:920px;margin:0 auto;padding:22px}
+  .wrap{max-width:980px;margin:0 auto;padding:22px}
   .top{display:flex;justify-content:space-between;align-items:center;gap:14px;
     border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:20px;flex-wrap:wrap}
   .brand{font-family:'Archivo Black',sans-serif;font-size:15px;letter-spacing:.16em;color:#fff;margin:0}
@@ -34,6 +34,10 @@
     box-shadow:0 4px 14px rgba(255,42,68,.3)}
   .btn-red:hover{opacity:.92}
   .btn-ghost{background:transparent}
+  .btn-sm{font-size:10px;padding:5px 8px;border-radius:6px;text-transform:none;letter-spacing:.02em}
+  .btn-sm.good{background:rgba(16,185,129,.15);color:#34d399;border-color:rgba(16,185,129,.3)}
+  .btn-sm.warn{background:rgba(245,158,11,.15);color:#f59e0b;border-color:rgba(245,158,11,.3)}
+  .btn-sm.bad{background:rgba(239,68,68,.15);color:#f87171;border-color:rgba(239,68,68,.3)}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
   .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:#fff;margin:0 0 14px;
     border-bottom:1px solid var(--line);padding-bottom:10px;font-weight:700}
@@ -56,14 +60,14 @@
   .tab.on{background:#fff;color:#000;font-weight:700;border-color:#fff}
   table{width:100%;border-collapse:collapse;font-size:11.5px}
   th{text-align:left;padding:9px 10px;color:var(--mut);font-size:9.5px;text-transform:uppercase;
-    letter-spacing:.08em;border-bottom:1px solid var(--line)}
-  td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.05);color:#d4d4d8}
+    letter-spacing:.08em;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.05);color:#d4d4d8;vertical-align:middle}
   .mono{font-weight:700;color:#fff}
   .tag{font-size:9.5px;padding:2px 7px;border-radius:5px;border:1px solid var(--line);
     background:rgba(255,255,255,.05);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
   .tag.pending{color:var(--warn);border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.12)}
-  .tag.approved{color:var(--ok);border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.12)}
-  .tag.rejected{color:var(--bad);border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.12)}
+  .tag.approved,.tag.active{color:var(--ok);border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.12)}
+  .tag.rejected,.tag.disabled{color:var(--bad);border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.12)}
   .qr{display:block;max-width:230px;width:100%;margin:0 auto 12px;border-radius:12px;background:#fff;padding:10px}
   .qr-missing{text-align:center;font-size:11px;color:var(--warn);padding:20px;border:1px dashed var(--line);border-radius:10px}
   .note{font-size:10.5px;color:var(--mut);line-height:1.7}
@@ -77,6 +81,11 @@
   .stat{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px}
   .stat div{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.1em}
   .stat b{display:block;font-size:16px;color:#fff;font-family:'Archivo Black',sans-serif;margin-top:4px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 90px;gap:8px;margin-bottom:8px}
+  .row2{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:14px}
+  .acts{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+  .qrprev{max-width:180px;border-radius:10px;background:#fff;padding:8px;display:block;margin-bottom:10px}
+  .divider{border-top:1px solid var(--line);margin:16px 0}
 </style>
 </head>
 <body>
@@ -96,7 +105,7 @@
       <button class="btn btn-red" style="width:100%" onclick="doLogin()">Sign In</button>
       <div id="loginMsg" class="msg err"></div>
     </div>
-    <p class="note" style="text-align:center">No account? Ask the owner for reseller access.</p>
+    <p class="note" style="text-align:center">No account? Ask your upline for reseller access.</p>
   </div>
 
   <div id="app" class="hidden">
@@ -124,6 +133,7 @@
       <button class="tab on" data-tab="buyTab" onclick="tab('buyTab',this)">Buy Keys</button>
       <button class="tab" data-tab="topTab" onclick="tab('topTab',this)">Add Credits</button>
       <button class="tab" data-tab="keysTab" onclick="tab('keysTab',this)">My Keys</button>
+      <button class="tab hidden" id="subsTabBtn" data-tab="subsTab" onclick="tab('subsTab',this)">My Resellers</button>
       <button class="tab" data-tab="accTab" onclick="tab('accTab',this)">Account</button>
     </div>
 
@@ -148,11 +158,12 @@
     <div id="topTab" class="hidden">
       <div class="card">
         <h2>Add Credits</h2>
-        <img id="qr" class="qr" src="/qr/qr.png" alt="Payment QR" onerror="qrFail()" />
+        <div id="qrOwnerNote" class="note" style="margin-bottom:10px"></div>
+        <img id="qr" class="qr hidden" alt="Payment QR" onerror="qrFail()" />
         <div id="qrMissing" class="qr-missing hidden">
-          QR not uploaded yet. Owner: add <b>public/qr/qr.png</b>.
+          No payment QR set yet. Ask your upline to add one.
         </div>
-        <div class="note" style="margin-bottom:14px">Pay with any UPI app, then submit the amount and the UTR / transaction id below. Credits are added after the owner confirms.</div>
+        <div class="note" style="margin-bottom:14px">Pay with any UPI app, then submit the amount and the UTR / transaction id below. Credits are added once approved.</div>
         <div class="field">
           <label>Amount (₹)</label>
           <input id="tAmount" type="number" min="1" step="1" placeholder="100" />
@@ -163,7 +174,7 @@
         </div>
         <div class="field">
           <label>Note (optional)</label>
-          <input id="tNote" placeholder="anything the owner should know" />
+          <input id="tNote" placeholder="anything they should know" />
         </div>
         <button class="btn btn-red" style="width:100%" onclick="submitTopup()">Submit Top-up Request</button>
         <div id="topMsg" class="msg"></div>
@@ -187,7 +198,58 @@
       </div>
     </div>
 
+    <div id="subsTab" class="hidden">
+      <div class="card">
+        <h2>Create Reseller Under Me</h2>
+        <div class="row3">
+          <input id="nrUser" placeholder="username" spellcheck="false" />
+          <input id="nrPass" type="password" placeholder="password (6+)" />
+          <input id="nrCredits" type="number" min="0" placeholder="₹" />
+        </div>
+        <div class="row2">
+          <input id="nrNote" placeholder="note (optional)" />
+          <button class="btn btn-red" onclick="createSub()">+ Create</button>
+        </div>
+        <div id="subMsg" class="msg"></div>
+      </div>
+
+      <div class="card">
+        <h2>My Resellers</h2>
+        <table>
+          <thead><tr><th>Reseller</th><th>Credits</th><th>Keys</th><th>Spent</th><th>State</th><th style="text-align:right">Actions</th></tr></thead>
+          <tbody id="subBody"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Top-up Requests From Them</h2>
+        <table>
+          <thead><tr><th>Reseller</th><th>Amount</th><th>Ref</th><th>Status</th><th>Date</th><th style="text-align:right">Actions</th></tr></thead>
+          <tbody id="apprBody"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div id="accTab" class="hidden">
+      <div class="card">
+        <h2>My Payment QR</h2>
+        <div class="note" style="margin-bottom:12px">This QR is shown to the resellers under you when they add credits. Upload an image or paste a link.</div>
+        <img id="qrPrev" class="qrprev hidden" alt="QR preview" />
+        <div class="field">
+          <label>Upload image</label>
+          <input id="qrFile" type="file" accept="image/*" onchange="pickQr(event)" />
+        </div>
+        <div class="field">
+          <label>or image URL</label>
+          <input id="qrUrl" placeholder="https://..." spellcheck="false" />
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-red" style="flex:1" onclick="saveQr()">Save QR</button>
+          <button class="btn" onclick="clearQr()">Clear</button>
+        </div>
+        <div id="qrMsg" class="msg"></div>
+      </div>
+
       <div class="card">
         <h2>Change Password</h2>
         <div class="field"><label>Current password</label><input id="cPass" type="password" /></div>
@@ -203,8 +265,12 @@
 <script>
 const TOKEN_KEY = "demon_reseller_token";
 const PLANS = {1:"1 Hour",3:"3 Hours",6:"6 Hours",12:"12 Hours",24:"1 Day",72:"3 Days",168:"7 Days",336:"14 Days",720:"30 Days",8760:"365 Days",999999:"Lifetime"};
+const HOURS = [1,3,6,12,24,72,168,336,720,8760,999999];
 let token = localStorage.getItem(TOKEN_KEY) || "";
 let prices = [];
+let me = {};
+let subs = [];
+let pendingQr = "";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -227,10 +293,10 @@ async function api(path, body){
   return d;
 }
 
-function qrFail(){ $("qr").classList.add("hidden"); $("qrMissing").classList.remove("hidden"); }
+function qrFail(){ $("qr").classList.add("hidden"); }
 
 function tab(id, btn){
-  ["buyTab","topTab","keysTab","accTab"].forEach(t => $(t).classList.add("hidden"));
+  ["buyTab","topTab","keysTab","subsTab","accTab"].forEach(t => $(t).classList.add("hidden"));
   document.querySelectorAll(".tab").forEach(b => b.classList.remove("on"));
   $(id).classList.remove("hidden");
   btn.classList.add("on");
@@ -259,12 +325,33 @@ function logoutLocal(){
 function doLogout(){ logoutLocal(); }
 
 async function loadMe(){
-  const d = await api("/api/reseller/me", {});
-  $("bal").textContent = money(d.credits);
-  $("sKeys").textContent = d.keysMade;
-  $("sSpent").textContent = money(d.totalSpent);
-  $("sSince").textContent = fmt(d.createdAt);
-  $("whoami").textContent = d.username + (d.note ? " · " + d.note : "");
+  me = await api("/api/reseller/me", {});
+  $("bal").textContent = money(me.credits);
+  $("sKeys").textContent = me.keysMade;
+  $("sSpent").textContent = money(me.totalSpent);
+  $("sSince").textContent = fmt(me.createdAt);
+  $("whoami").textContent = me.username
+    + (me.parent ? " · under " + me.parent : " · master reseller")
+    + (me.note ? " · " + me.note : "");
+
+  /* QR comes from the upline (or your own if you are top level). */
+  if (me.qr) {
+    $("qr").src = me.qr;
+    $("qr").classList.remove("hidden");
+    $("qrMissing").classList.add("hidden");
+  } else {
+    $("qr").classList.add("hidden");
+    $("qrMissing").classList.remove("hidden");
+  }
+  $("qrOwnerNote").textContent = me.qrFrom === "own"
+    ? "This is your own QR."
+    : (me.qrFrom ? "Pay to " + me.qrFrom + "'s QR below." : "");
+
+  $("qrPrev").src = me.ownQr || "";
+  $("qrPrev").classList.toggle("hidden", !me.ownQr);
+  $("qrUrl").value = (me.ownQr && !me.ownQr.startsWith("data:")) ? me.ownQr : "";
+
+  $("subsTabBtn").classList.toggle("hidden", !me.canCreateSubs);
 }
 
 async function loadPrices(){
@@ -284,15 +371,13 @@ async function loadKeys(){
   const rows = d.keys || [];
   $("keyBody").innerHTML = rows.length ? rows.map(k => {
     const st = !k.activatedAt ? "unused" : (new Date(k.expiresAt).getTime() <= Date.now() ? "expired" : "active");
-    const dev = (Array.isArray(k.devices) && k.devices.length)
-      ? "locked"
-      : (k.activatedAt ? "locked" : "not bound");
+    const dev = (Array.isArray(k.devices) && k.devices.length) ? "locked" : "not bound";
     return `<tr>
       <td class="mono">${esc(k.key)}</td>
       <td>${esc(PLANS[k.durationHours] || (k.durationHours + "h"))}</td>
       <td>${dev}</td>
       <td>${money(k.cost)}</td>
-      <td><span class="tag ${st === "active" ? "approved" : (st === "expired" ? "rejected" : "")}">${st}</span></td>
+      <td><span class="tag ${st}">${st}</span></td>
       <td>${fmt(k.createdAt)}</td>
     </tr>`;
   }).join("") : `<tr><td colspan="6" style="color:#6b7280">No keys yet.</td></tr>`;
@@ -307,6 +392,46 @@ async function loadTopups(){
     <td><span class="tag ${t.status}">${t.status}</span></td>
     <td>${fmt(t.createdAt)}</td>
   </tr>`).join("") : `<tr><td colspan="4" style="color:#6b7280">No requests yet.</td></tr>`;
+}
+
+async function loadSubs(){
+  if(!me.canCreateSubs){ subs = []; return; }
+  const d = await api("/api/reseller/subs", {});
+  subs = d.subs || [];
+  $("subBody").innerHTML = subs.length ? subs.map(r => `<tr>
+    <td class="mono">${esc(r.username)}${r.note ? `<div class="note">${esc(r.note)}</div>` : ""}</td>
+    <td class="mono">${money(r.credits)}</td>
+    <td>${r.keysMade}</td>
+    <td>${money(r.totalSpent)}</td>
+    <td><span class="tag ${r.active ? "active" : "disabled"}">${r.active ? "active" : "disabled"}</span></td>
+    <td><div class="acts">
+      <button class="btn btn-sm good" onclick="addCredits('${r.id}','${esc(r.username)}')">+ ₹</button>
+      <button class="btn btn-sm" onclick="openPrices('${r.id}','${esc(r.username)}')">Prices</button>
+      <button class="btn btn-sm" onclick="setPass('${r.id}','${esc(r.username)}')">Pass</button>
+      <button class="btn btn-sm warn" onclick="toggleSub('${r.id}',${r.active ? "false" : "true"})">${r.active ? "Disable" : "Enable"}</button>
+      <button class="btn btn-sm bad" onclick="deleteSub('${r.id}','${esc(r.username)}')">Delete</button>
+    </div></td>
+  </tr>`).join("") : `<tr><td colspan="6" style="color:#6b7280">No resellers under you yet.</td></tr>`;
+  await loadApprovals();
+}
+
+async function loadApprovals(){
+  if(!me.canCreateSubs) return;
+  const d = await api("/api/reseller/approvals", {});
+  const rows = d.topups || [];
+  const sorted = rows.filter(t => t.status === "pending").concat(rows.filter(t => t.status !== "pending")).slice(0, 60);
+  $("apprBody").innerHTML = sorted.length ? sorted.map(t => `<tr>
+    <td class="mono">${esc(t.username || "—")}</td>
+    <td class="mono">${money(t.amount)}</td>
+    <td>${esc(t.reference || "—")}</td>
+    <td><span class="tag ${t.status}">${t.status}</span></td>
+    <td>${fmt(t.createdAt)}</td>
+    <td><div class="acts">
+      ${t.status === "pending" ? `
+        <button class="btn btn-sm good" onclick="decideTopup('${t.id}',true)">Approve</button>
+        <button class="btn btn-sm bad" onclick="decideTopup('${t.id}',false)">Reject</button>` : ""}
+    </div></td>
+  </tr>`).join("") : `<tr><td colspan="6" style="color:#6b7280">No requests.</td></tr>`;
 }
 
 async function buy(hours){
@@ -334,10 +459,144 @@ async function submitTopup(){
   try{
     await api("/api/reseller/topup", { amount, reference: $("tRef").value.trim(), note: $("tNote").value.trim() });
     msg.className = "msg ok";
-    msg.textContent = "Request sent. Wait for the owner to approve.";
+    msg.textContent = "Request sent. Wait for approval.";
     $("tAmount").value = ""; $("tRef").value = ""; $("tNote").value = "";
     await loadTopups();
   }catch(e){ msg.className = "msg err"; msg.textContent = e.message; }
+}
+
+/* ---------- sub management ---------- */
+async function createSub(){
+  const msg = $("subMsg");
+  msg.className = "msg";
+  try{
+    await api("/api/reseller/create-sub", {
+      username: $("nrUser").value.trim().toLowerCase(),
+      password: $("nrPass").value,
+      credits: parseInt($("nrCredits").value, 10) || 0,
+      note: $("nrNote").value.trim()
+    });
+    msg.className = "msg ok";
+    msg.textContent = "Reseller created.";
+    $("nrUser").value = ""; $("nrPass").value = ""; $("nrCredits").value = ""; $("nrNote").value = "";
+    await loadSubs();
+  }catch(e){ msg.className = "msg err"; msg.textContent = e.message; }
+}
+
+async function addCredits(id, name){
+  const raw = prompt(`Credits to add for ${name} (negative to deduct):`, "100");
+  if(raw === null) return;
+  const addCredits = Math.round(Number(raw));
+  if(!Number.isFinite(addCredits) || addCredits === 0) return;
+  try{
+    await api("/api/reseller/update-sub", { id, addCredits });
+    await loadSubs();
+  }catch(e){ alert(e.message); }
+}
+
+async function setPass(id, name){
+  const pw = prompt(`New password for ${name} (6+ chars):`, "");
+  if(!pw) return;
+  try{ await api("/api/reseller/update-sub", { id, password: pw }); }
+  catch(e){ alert(e.message); }
+}
+
+async function toggleSub(id, active){
+  try{ await api("/api/reseller/update-sub", { id, active }); await loadSubs(); }
+  catch(e){ alert(e.message); }
+}
+
+async function deleteSub(id, name){
+  if(!confirm(`Delete ${name}?\n\nTheir keys stay valid.`)) return;
+  try{ await api("/api/reseller/delete-sub", { id }); await loadSubs(); }
+  catch(e){ alert(e.message); }
+}
+
+async function decideTopup(id, approve){
+  try{ await api("/api/reseller/topup-decide", { id, approve }); await loadApprovals(); await loadSubs(); }
+  catch(e){ alert(e.message); }
+}
+
+/* ---------- prices for a sub ---------- */
+async function openPrices(id, name){
+  const r = subs.find(x => x.id === id);
+  const cur = (r && r.prices) || {};
+  const lines = HOURS.map(h => {
+    const v = cur[h] != null ? cur[h] : "";
+    return `${PLANS[h]}: ${v}`;
+  }).join("\n");
+  const raw = prompt(`Prices for ${name} (₹). Blank = inherit yours.\nFormat: label: price`, lines);
+  if(raw === null) return;
+
+  const map = {};
+  raw.split(/\n/).forEach(line => {
+    const idx = line.lastIndexOf(":");
+    if(idx < 0) return;
+    const label = line.slice(0, idx).trim();
+    const val = line.slice(idx + 1).trim();
+    if(!val) return;
+    const h = HOURS.find(x => PLANS[x] === label);
+    if(h) map[h] = parseInt(val, 10);
+  });
+  try{ await api("/api/reseller/sub-prices", { id, prices: map }); await loadSubs(); }
+  catch(e){ alert(e.message); }
+}
+
+/* ---------- QR ---------- */
+function shrink(file){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 420;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.width * scale));
+      c.height = Math.max(1, Math.round(img.height * scale));
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = rej;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function pickQr(ev){
+  const f = ev.target.files[0];
+  if(!f) return;
+  pendingQr = await shrink(f);
+  $("qrPrev").src = pendingQr;
+  $("qrPrev").classList.remove("hidden");
+  $("qrUrl").value = "";
+  $("qrMsg").className = "msg";
+  $("qrMsg").textContent = "Preview ready — press Save QR.";
+}
+
+async function saveQr(){
+  const msg = $("qrMsg");
+  msg.className = "msg";
+  const url = $("qrUrl").value.trim();
+  const qr = url || pendingQr;
+  if(!qr){ msg.className = "msg err"; msg.textContent = "Upload an image or paste a URL."; return; }
+  try{
+    const d = await api("/api/reseller/set-qr", { qr });
+    pendingQr = "";
+    msg.className = "msg ok";
+    msg.textContent = "QR saved.";
+    await loadMe();
+    if(!d.qr){ msg.className = "msg err"; msg.textContent = "QR too large — try a smaller image."; }
+  }catch(e){ msg.className = "msg err"; msg.textContent = e.message; }
+}
+
+async function clearQr(){
+  try{
+    await api("/api/reseller/set-qr", { qr: "" });
+    pendingQr = "";
+    $("qrPrev").classList.add("hidden");
+    $("qrUrl").value = "";
+    $("qrMsg").className = "msg ok";
+    $("qrMsg").textContent = "QR cleared.";
+    await loadMe();
+  }catch(e){ $("qrMsg").className = "msg err"; $("qrMsg").textContent = e.message; }
 }
 
 async function changePass(){
@@ -353,7 +612,8 @@ async function changePass(){
 
 async function reloadAll(){
   try{
-    await Promise.all([loadMe(), loadPrices(), loadKeys(), loadTopups()]);
+    await loadMe();
+    await Promise.all([loadPrices(), loadKeys(), loadTopups(), loadSubs()]);
   }catch(e){ /* handled */ }
 }
 
