@@ -131,7 +131,7 @@
   #price-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(5px);display:none;
     align-items:center;justify-content:center;z-index:2100;padding:20px}
   .price-box{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:24px;
-    width:min(520px,100%)}
+    width:min(520px,100%);max-height:90vh;overflow:auto}
   .price-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
   .price-grid label{font-size:10px;text-transform:uppercase;color:var(--mut);display:block;margin-bottom:4px}
 
@@ -376,7 +376,7 @@
 
         <div class="notice">
           <span>₹</span>
-          <span>Credits are spent by resellers at their own price. Per-reseller prices override the default table.</span>
+          <span>Resellers marked <b>under</b> someone are sub-resellers; they top up via their upline's QR and cannot create more.</span>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr 90px;gap:8px;margin-bottom:8px;">
@@ -394,6 +394,7 @@
             <thead>
               <tr>
                 <th>Reseller</th>
+                <th>Under</th>
                 <th>Credits</th>
                 <th>Keys</th>
                 <th>Spent</th>
@@ -403,7 +404,7 @@
               </tr>
             </thead>
             <tbody id="reseller-tbody">
-              <tr><td colspan="7" style="text-align:center;color:#6b7280;padding:24px;">Loading resellers...</td></tr>
+              <tr><td colspan="8" style="text-align:center;color:#6b7280;padding:24px;">Loading resellers...</td></tr>
             </tbody>
           </table>
         </div>
@@ -419,6 +420,7 @@
           </div>
           <button class="btn-action" onclick="loadTopups()">Refresh</button>
         </div>
+        <div class="notice">Only top-level reseller requests land here. Sub requests go to their upline.</div>
         <div class="table-container">
           <table>
             <thead><tr><th>Reseller</th><th>Amount</th><th>Ref</th><th>Status</th><th>Date</th><th style="text-align:right;">Actions</th></tr></thead>
@@ -542,7 +544,7 @@ let tickTimer = null;
 let pingTimer = null;
 let autoTimer = null;
 let watchTimer = null;
-let priceTarget = null;   /* reseller id, or null for global */
+let priceTarget = null;
 
 const $ = id => document.getElementById(id);
 const money = n => "₹" + (Number(n) || 0);
@@ -940,14 +942,18 @@ function render(){
 function renderResellers(){
   const tb = $("reseller-tbody");
   if(!allRes.length){
-    tb.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:24px;">No resellers yet.</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:24px;">No resellers yet.</td></tr>`;
     return;
   }
-  tb.innerHTML = allRes.map(r => `<tr>
-    <td class="key-code">${esc(r.username)}
-      ${r.note ? `<span class="cell-sub dim">${esc(r.note)}</span>` : ""}</td>
+  tb.innerHTML = allRes.map(r => {
+    const sub = !!r.parent;
+    return `<tr>
+    <td class="key-code">${sub ? "↳ " : ""}${esc(r.username)}
+      ${r.note ? `<span class="cell-sub dim">${esc(r.note)}</span>` : ""}
+      ${r.hasQr ? `<span class="cell-sub" style="color:#34d399">qr set</span>` : ""}</td>
+    <td class="dim">${sub ? esc(r.parent) : "<b style='color:#fff'>owner</b>"}</td>
     <td class="key-code">${money(r.credits)}</td>
-    <td>${r.keysMade}</td>
+    <td>${r.keysMade}${r.subs ? ` <span class="cell-sub dim">${r.subs} sub</span>` : ""}</td>
     <td class="dim">${money(r.totalSpent)}</td>
     <td><span class="badge ${r.active ? "badge-active" : "badge-expired"}">${r.active ? "active" : "disabled"}</span></td>
     <td class="dim">${esc(fmtDate(r.lastLoginAt))}</td>
@@ -960,7 +966,8 @@ function renderResellers(){
         <button class="btn-action danger" onclick="deleteReseller('${r.id}','${esc(r.username)}')">Delete</button>
       </div>
     </td>
-  </tr>`).join("");
+  </tr>`;
+  }).join("");
 }
 
 function renderTopups(list){
@@ -1144,7 +1151,7 @@ async function toggleActive(id, active){
 }
 
 async function deleteReseller(id, name){
-  if(!confirm(`Delete reseller ${name}?\n\nTheir keys stay valid, the account and its top-up history are removed.`)) return;
+  if(!confirm(`Delete reseller ${name}?\n\nTheir keys stay valid. Any resellers under them become top-level.`)) return;
   try{
     const d = await api("/api/admin/delete-reseller", { id });
     if(d.success){ toast("deleted"); loadResellers(); }
