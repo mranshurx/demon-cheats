@@ -70,7 +70,7 @@
       "passSalt": "1e21c595d1fc80dec1aa760c",
       "passHash": "11cee704732650fef3b868f42f40a3292d426f72a8e7450c9166f18bd756daff",
       "credits": 100,
-      "active": true,
+      "active": false,
       "note": "",
       "prices": {},
       "parentId": "Re4f4adecc607a60a",
