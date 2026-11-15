@@ -47,38 +47,8 @@
     "aimbot": "",
     "location": ""
   },
-  "resellers": [
-    {
-      "id": "Rf051dbd01d7f11b4",
-      "username": "fardin234",
-      "passSalt": "ca448e88b7f4f608b83fbaca",
-      "passHash": "9dbcfac4a0fcd122950430eb179b37a7b7123afa972adaec877eac0b3f0c93ec",
-      "credits": 99999951,
-      "active": true,
-      "note": "",
-      "prices": {},
-      "subPrices": {},
-      "parentId": null,
-      "qr": "",
-      "createdAt": "2026-11-15T05:20:20.171Z",
-      "lastLoginAt": "2026-11-15T05:40:36.376Z"
-    }
-  ],
-  "topups": [
-    {
-      "id": "Td1d2fa1b9854e0a2",
-      "resellerId": "Rf051dbd01d7f11b4",
-      "username": "fardin234",
-      "approverId": "Rb58d18da9d3cd88a",
-      "amount": 100,
-      "method": "UPI",
-      "reference": "956273846005",
-      "note": "T2611151057544434105988",
-      "status": "rejected",
-      "createdAt": "2026-11-15T05:28:28.784Z",
-      "decidedAt": "2026-11-15T05:33:46.034Z"
-    }
-  ],
+  "resellers": [],
+  "topups": [],
   "pricing": {
     "1": 2,
     "3": 4,
