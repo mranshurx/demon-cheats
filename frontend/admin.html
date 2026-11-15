@@ -377,7 +377,7 @@
 
         <div class="notice">
           <span>₹</span>
-          <span>Resellers marked <b>under</b> someone are sub-resellers; they top up via their upline's QR and cannot create more. Sub prices default to the separate sub table.</span>
+          <span>Resellers marked <b>under</b> someone are sub-resellers; they cannot create more. Sub prices default to the separate sub table.</span>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr 90px;gap:8px;margin-bottom:8px;">
@@ -421,12 +421,12 @@
           </div>
           <button class="btn-action" onclick="loadTopups()">Refresh</button>
         </div>
-        <div class="notice">Only top-level reseller requests land here. Sub requests go to their upline.</div>
+        <div class="notice">Every request from every reseller and sub-reseller lands here for your approval.</div>
         <div class="table-container">
           <table>
-            <thead><tr><th>Reseller</th><th>Amount</th><th>Ref</th><th>Status</th><th>Date</th><th style="text-align:right;">Actions</th></tr></thead>
+            <thead><tr><th>Reseller</th><th>Under</th><th>Amount</th><th>Ref</th><th>Status</th><th>Date</th><th style="text-align:right;">Actions</th></tr></thead>
             <tbody id="topup-tbody">
-              <tr><td colspan="6" style="text-align:center;color:#6b7280;padding:24px;">Loading requests...</td></tr>
+              <tr><td colspan="7" style="text-align:center;color:#6b7280;padding:24px;">Loading requests...</td></tr>
             </tbody>
           </table>
         </div>
@@ -977,13 +977,14 @@ function renderResellers(){
 function renderTopups(list){
   const tb = $("topup-tbody");
   const pending = list.filter(t => t.status === "pending");
-  const shown = pending.concat(list.filter(t => t.status !== "pending")).slice(0, 60);
+  const shown = pending.concat(list.filter(t => t.status !== "pending")).slice(0, 80);
   if(!shown.length){
-    tb.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:24px;">No requests.</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:24px;">No requests.</td></tr>`;
     return;
   }
   tb.innerHTML = shown.map(t => `<tr>
     <td class="key-code">${esc(t.username || "—")}</td>
+    <td class="dim">${t.parentOf ? esc(t.parentOf) : "—"}</td>
     <td class="key-code">${money(t.amount)}</td>
     <td class="dim">${esc(t.reference || "—")}</td>
     <td><span class="badge ${t.status === "approved" ? "badge-active" : (t.status === "rejected" ? "badge-expired" : "badge-unbound")}">${esc(t.status)}</span></td>
@@ -1231,10 +1232,10 @@ async function savePrices(){
   });
   try{
     let d;
-    if(priceMode === "reseller")       d = await api("/api/admin/reseller-prices", { id: priceTarget, prices });
+    if(priceMode === "reseller")         d = await api("/api/admin/reseller-prices", { id: priceTarget, prices });
     else if(priceMode === "resellersub") d = await api("/api/admin/reseller-sub-prices", { id: priceTarget, prices });
-    else if(priceMode === "global")     d = await api("/api/admin/global-prices", { prices });
-    else                                d = await api("/api/admin/global-sub-prices", { prices });
+    else if(priceMode === "global")      d = await api("/api/admin/global-prices", { prices });
+    else                                 d = await api("/api/admin/global-sub-prices", { prices });
 
     if(d.success){
       toast("prices saved");
