@@ -476,7 +476,7 @@
       "username": "subhadeep",
       "passSalt": "643345243874bc45ec43dd5e",
       "passHash": "7676502707f7af032d78c5e39c29a7edb21cde428c73cabdd6e10168473f0bab",
-      "credits": 0,
+      "credits": 50,
       "active": true,
       "note": "",
       "prices": {},
@@ -523,8 +523,9 @@
       "method": "UPI",
       "reference": "632075001654",
       "note": "Kuch jayda add krde bhai",
-      "status": "pending",
-      "createdAt": "2026-11-16T16:32:07.709Z"
+      "status": "approved",
+      "createdAt": "2026-11-16T16:32:07.709Z",
+      "decidedAt": "2026-11-16T16:36:25.597Z"
     }
   ],
   "pricing": {
