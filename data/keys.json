@@ -334,6 +334,71 @@
       "startedAt": null,
       "activatedAt": null,
       "expiresAt": null
+    },
+    {
+      "key": "DEMON-C4WPA9",
+      "durationHours": 24,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R968572e0493bf7a3",
+      "cost": 12,
+      "createdAt": "2026-11-16T15:33:16.963Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
+    },
+    {
+      "key": "DEMON-ICZU0A",
+      "durationHours": 24,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R968572e0493bf7a3",
+      "cost": 12,
+      "createdAt": "2026-11-16T15:33:16.963Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
+    },
+    {
+      "key": "DEMON-F9K21X",
+      "durationHours": 24,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R968572e0493bf7a3",
+      "cost": 12,
+      "createdAt": "2026-11-16T15:33:16.963Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
+    },
+    {
+      "key": "DEMON-NE3ZS9",
+      "durationHours": 24,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R968572e0493bf7a3",
+      "cost": 12,
+      "createdAt": "2026-11-16T15:33:16.963Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
+    },
+    {
+      "key": "DEMON-4P4XM4",
+      "durationHours": 24,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R968572e0493bf7a3",
+      "cost": 12,
+      "createdAt": "2026-11-16T15:33:16.963Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
     }
   ],
   "maintenance": {
@@ -366,7 +431,7 @@
       "username": "fardin",
       "passSalt": "30f41fcba7b5c76389cbd152",
       "passHash": "095cff5c956d4ee17bbe1d331d6064d2584983ee81e460b7ad2b5fcd5709e42c",
-      "credits": 84,
+      "credits": 24,
       "active": true,
       "note": "",
       "prices": {
