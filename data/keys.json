@@ -419,6 +419,19 @@
       "startedAt": null,
       "activatedAt": null,
       "expiresAt": null
+    },
+    {
+      "key": "DEMON-FM67UK",
+      "durationHours": 720,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R6a0161825752fc61",
+      "cost": 100,
+      "createdAt": "2026-11-16T16:09:39.443Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
     }
   ],
   "maintenance": {
@@ -436,7 +449,7 @@
       "username": "subhadeep",
       "passSalt": "643345243874bc45ec43dd5e",
       "passHash": "7676502707f7af032d78c5e39c29a7edb21cde428c73cabdd6e10168473f0bab",
-      "credits": 100,
+      "credits": 0,
       "active": true,
       "note": "",
       "prices": {},
