@@ -32,7 +32,23 @@
     "aimbot": "",
     "location": ""
   },
-  "resellers": [],
+  "resellers": [
+    {
+      "id": "R6a0161825752fc61",
+      "username": "subhadeep",
+      "passSalt": "643345243874bc45ec43dd5e",
+      "passHash": "7676502707f7af032d78c5e39c29a7edb21cde428c73cabdd6e10168473f0bab",
+      "credits": 0,
+      "active": true,
+      "note": "",
+      "prices": {},
+      "subPrices": {},
+      "parentId": null,
+      "qr": "",
+      "createdAt": "2026-11-16T14:05:31.407Z",
+      "lastLoginAt": null
+    }
+  ],
   "topups": [],
   "pricing": {
     "1": 2,
