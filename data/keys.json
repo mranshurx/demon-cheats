@@ -21,6 +21,19 @@
       "startedAt": "2026-11-16T11:05:05.936Z",
       "activatedAt": "2026-11-16T11:05:05.936Z",
       "expiresAt": "2026-11-17T11:05:05.936Z"
+    },
+    {
+      "key": "DEMON-PT789D",
+      "durationHours": 1,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R968572e0493bf7a3",
+      "cost": 2,
+      "createdAt": "2026-11-16T14:35:38.234Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
     }
   ],
   "maintenance": {
@@ -53,7 +66,7 @@
       "username": "fardin",
       "passSalt": "30f41fcba7b5c76389cbd152",
       "passHash": "095cff5c956d4ee17bbe1d331d6064d2584983ee81e460b7ad2b5fcd5709e42c",
-      "credits": 200,
+      "credits": 198,
       "active": true,
       "note": "",
       "prices": {
