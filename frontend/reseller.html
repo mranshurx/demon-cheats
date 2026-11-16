@@ -81,7 +81,7 @@
   .stat{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px}
   .stat div{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.1em}
   .stat b{display:block;font-size:16px;color:#fff;font-family:'Archivo Black',sans-serif;margin-top:4px}
-  .row3{display:grid;grid-template-columns:1fr 1fr 90px;gap:8px;margin-bottom:8px}
+  .row3{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
   .row2{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:14px}
   .acts{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
   .qrprev{max-width:180px;border-radius:10px;background:#fff;padding:8px;display:block;margin-bottom:10px}
@@ -203,12 +203,12 @@
         <div class="row3">
           <input id="nrUser" placeholder="username" spellcheck="false" />
           <input id="nrPass" type="password" placeholder="password (6+)" />
-          <input id="nrCredits" type="number" min="0" placeholder="₹" />
         </div>
         <div class="row2">
           <input id="nrNote" placeholder="note (optional)" />
           <button class="btn btn-red" onclick="createSub()">+ Create</button>
         </div>
+        <div class="note">New resellers start on <b>₹0</b> — the owner funds them from the admin panel.</div>
         <div id="subMsg" class="msg"></div>
       </div>
 
@@ -222,7 +222,7 @@
 
       <div class="card">
         <h2>My Resellers</h2>
-        <div class="note" style="margin-bottom:12px">Top-up requests from these resellers go straight to the owner for approval.</div>
+        <div class="note" style="margin-bottom:12px">Credits are topped up by the owner only. Top-up requests from these resellers go straight to the owner for approval.</div>
         <table>
           <thead><tr><th>Reseller</th><th>Credits</th><th>Keys</th><th>Spent</th><th>State</th><th style="text-align:right">Actions</th></tr></thead>
           <tbody id="subBody"></tbody>
@@ -430,7 +430,6 @@ async function loadSubs(){
     <td>${money(r.totalSpent)}</td>
     <td><span class="tag ${r.active ? "active" : "disabled"}">${r.active ? "active" : "disabled"}</span></td>
     <td><div class="acts">
-      <button class="btn btn-sm good" onclick="addCredits('${r.id}','${esc(r.username)}')">+ ₹</button>
       <button class="btn btn-sm" onclick="openPrices('${r.id}','${esc(r.username)}')">Prices</button>
       <button class="btn btn-sm" onclick="setPass('${r.id}','${esc(r.username)}')">Pass</button>
       <button class="btn btn-sm warn" onclick="toggleSub('${r.id}',${r.active ? "false" : "true"})">${r.active ? "Disable" : "Enable"}</button>
@@ -478,25 +477,13 @@ async function createSub(){
     await api("/api/reseller/create-sub", {
       username: $("nrUser").value.trim().toLowerCase(),
       password: $("nrPass").value,
-      credits: parseInt($("nrCredits").value, 10) || 0,
       note: $("nrNote").value.trim()
     });
     msg.className = "msg ok";
-    msg.textContent = "Reseller created.";
-    $("nrUser").value = ""; $("nrPass").value = ""; $("nrCredits").value = ""; $("nrNote").value = "";
+    msg.textContent = "Reseller created on ₹0. Ask the owner to fund them.";
+    $("nrUser").value = ""; $("nrPass").value = ""; $("nrNote").value = "";
     await loadSubs();
   }catch(e){ msg.className = "msg err"; msg.textContent = e.message; }
-}
-
-async function addCredits(id, name){
-  const raw = prompt(`Credits to add for ${name} (negative to deduct):`, "100");
-  if(raw === null) return;
-  const addCredits = Math.round(Number(raw));
-  if(!Number.isFinite(addCredits) || addCredits === 0) return;
-  try{
-    await api("/api/reseller/update-sub", { id, addCredits });
-    await loadSubs();
-  }catch(e){ alert(e.message); }
 }
 
 async function setPass(id, name){
