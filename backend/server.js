@@ -25,13 +25,12 @@ const HARD = {
   branch: 'main',
   file:   'data/keys.json',
   token:  '',
-  providerId: ''
+  providerId: 'ZGD3YGrW'
 };
 
-/* Empty by default — the demo panel runs without one. Set it in the admin
-   panel or via HAPP_PROVIDER_ID. hide-settings only applies with a providerid,
-   so both are emitted together or neither is. */
-const FALLBACK_PROVIDER_ID = '';
+/* Lock-down is the default, not a switch. If the admin clears providerid the
+   fallback keeps hide-settings alive instead of silently dropping it. */
+const FALLBACK_PROVIDER_ID = 'ZGD3YGrW';
 
 /* Subscription body encryption (AES-128-GCM, Happ scheme).
    OFF by default: only enable once you have confirmed imports still work.
@@ -207,7 +206,8 @@ async function requireAdmin(req, res) {
 }
 
 /* Provider ID — required for hide-settings, which removes the server address
-   and the whole settings sheet from the client. */
+   and the whole settings sheet from the client. Hardcoded and overridable via
+   env HAPP_PROVIDER_ID or the admin panel. */
 function providerId() {
   const v = String(cfg.providerId || process.env.HAPP_PROVIDER_ID || '').trim();
   return v || FALLBACK_PROVIDER_ID;
@@ -697,41 +697,191 @@ const REASON_TEXT = {
 };
 
 /* ================= ROUTING CONFIG ================= */
-const UPSTREAM = {
-  scheme: 'socks',
-  host:   'asiarezzx.toulouse-digital31.fr',
-  port:   8443,
-  auth:   'YzdiNjg3YWE4OTI4ZjRjOGU3MzZiMGFhZTdhZTIyM2E6Mg==',
-  label:  'DEMON - India'
-};
+/*
+  Upstream: hysteria2 over TLS (h3/QUIC), port 443.
 
-const PER_APP_LIST = 'com.garena.game.ffi,com.dts.freefiremax';
+  /sub is delivered as a base64-encoded list containing a single hysteria2://
+  node. That is the format every panel serves and the only one Happ parses
+  without either dumping raw text or throwing "unknown content":
+
+    base64( JSON config )  -> decodes to JSON, Happ expects links -> unknown content
+    raw JSON               -> parses, but the whole config is on screen
+    base64( link )         -> parses, shows one clean server row   <-- this
+
+  With providerid + hide-settings the server row cannot be opened at all, so
+  the address, port, auth and JSON never reach the user's eyes.
+*/
+const DEFAULT_HYST_AUTH = '6914422730:ca0a93b7b5698e52';
+const HYST_HOST = 'proxy-ind.dripwire.cc';
+const HYST_PORT = 443;
+const PROFILE_NAME = 'DEMON CHEATS';
+
+/*
+  'b64link' — base64( hysteria2 link ). Default, hidden, parses everywhere.
+  'json'    — raw Xray JSON. Visible on screen, but keeps the port routing table.
+*/
+const SUB_FORMAT = 'b64link';
+
+/* Auth handed to the node while the key is dead. The server rejects it, so the
+   handshake dies and the client reports a genuine failure instead of a fake ping. */
 const DEAD_AUTH = 'DEMON-BLOCKED:0';
 
-/* Format tag, kept for /api/admin/diag. 'comments' = base64 lines with
-   #directive comment headers, which is what this upstream has always served. */
-const SUB_FORMAT = 'comments';
+const PER_APP_LIST = 'com.garena.game.ffi,com.dts.freefiremax';
 
-function b64(s) { return Buffer.from(String(s), 'utf8').toString('base64'); }
+/* ================= BASE XRAY CONFIG (imported) ================= */
+/*
+  Canonical tunnel profile, kept verbatim from the exported config so the
+  sniffing rules, port routing table and QUIC mask live in exactly one place.
 
-function nodeLine(auth, label) {
-  const userinfo = auth ? b64(auth) : UPSTREAM.auth;
-  return `${UPSTREAM.scheme}://${userinfo}@${UPSTREAM.host}:${UPSTREAM.port}#${encodeURIComponent(label)}`;
+  buildConfig() deep-clones this and patches only the fields that vary per
+  request (remarks label, hysteria auth, address, port). Nothing here is ever
+  mutated in place, so a blocked key, a feature auth or a host override can
+  never leak into the next response.
+*/
+const BASE_CONFIG = {
+  remarks: 'demon-ind',
+  inbounds: [
+    {
+      listen: '127.0.0.1',
+      port: 10808,
+      protocol: 'socks',
+      settings: {
+        auth: 'noauth',
+        udp: true
+      },
+      sniffing: {
+        destOverride: [
+          'http',
+          'tls',
+          'quic'
+        ],
+        enabled: true,
+        routeOnly: false
+      },
+      tag: 'socks'
+    },
+    {
+      listen: '127.0.0.1',
+      port: 10809,
+      protocol: 'http',
+      sniffing: {
+        destOverride: [
+          'http',
+          'tls',
+          'quic'
+        ],
+        enabled: true,
+        routeOnly: false
+      },
+      tag: 'http'
+    }
+  ],
+  outbounds: [
+    {
+      protocol: 'hysteria',
+      settings: {
+        address: 'proxy-ind.dripwire.cc',
+        port: 443,
+        version: 2
+      },
+      streamSettings: {
+        hysteriaSettings: {
+          auth: '6914422730:ca0a93b7b5698e52',
+          version: 2
+        },
+        network: 'hysteria',
+        security: 'tls',
+        tlsSettings: {
+          alpn: [
+            'h3'
+          ],
+          serverName: 'proxy-ind.dripwire.cc',
+          show: false
+        },
+        finalmask: {
+          quicParams: {
+            disableChromeParrot: true
+          }
+        }
+      },
+      tag: 'proxy'
+    },
+    {
+      protocol: 'freedom',
+      tag: 'direct'
+    }
+  ],
+  routing: {
+    domainStrategy: 'AsIs',
+    rules: [
+      {
+        network: 'tcp',
+        outboundTag: 'proxy',
+        port: '39000-39999'
+      },
+      {
+        network: 'udp',
+        outboundTag: 'proxy',
+        port: '10000-10999'
+      },
+      {
+        network: 'tcp,udp',
+        outboundTag: 'direct'
+      }
+    ]
+  }
+};
+
+/* Full Xray config — used by 'json' mode. Clones BASE_CONFIG, then applies the
+   per-request label / auth / address / port. Fresh object every call. */
+function buildConfig(blocked, label, auth, host, port) {
+  const addr = host || HYST_HOST;
+  const prt = Number(port) || HYST_PORT;
+  const cred = blocked ? DEAD_AUTH : (auth || DEFAULT_HYST_AUTH);
+
+  const outCfg = JSON.parse(JSON.stringify(BASE_CONFIG));
+  outCfg.remarks = label;
+
+  const proxyOut = Array.isArray(outCfg.outbounds)
+    ? outCfg.outbounds.find(o => o && o.tag === 'proxy') || outCfg.outbounds[0]
+    : null;
+
+  if (proxyOut) {
+    if (proxyOut.settings) {
+      proxyOut.settings.address = addr;
+      proxyOut.settings.port = prt;
+    }
+    const ss = proxyOut.streamSettings;
+    if (ss) {
+      if (ss.hysteriaSettings) ss.hysteriaSettings.auth = cred;
+      if (ss.tlsSettings) ss.tlsSettings.serverName = addr;
+    }
+  }
+
+  return outCfg;
+}
+
+/* The same proxy outbound as a hysteria2 share link. */
+function buildLink(blocked, label, auth, host, port) {
+  const addr = host || HYST_HOST;
+  const prt = Number(port) || HYST_PORT;
+  const cred = blocked ? DEAD_AUTH : (auth || DEFAULT_HYST_AUTH);
+  const q = new URLSearchParams({ security: 'tls', sni: addr, alpn: 'h3' });
+  return `hysteria2://${encodeURIComponent(cred)}@${addr}:${prt}?${q}#${encodeURIComponent(label)}`;
 }
 
 /*
   Always emits a valid body — a blocked key gets a real outbound with a rejected
   credential rather than an empty body, so Happ keeps the profile mounted and
   simply fails to connect.
+
+  Body stays exactly base64( link ). No comment lines: directives travel in the
+  response headers instead, where they cannot corrupt the payload.
 */
-function subConfig(blocked, label, auth) {
-  const head = [
-    '#hide-settings: 1',
-    '#per-app-proxy-mode: on',
-    `#per-app-proxy-list: ${PER_APP_LIST}`
-  ];
-  const line = nodeLine(blocked ? DEAD_AUTH : auth, label);
-  return head.join('\n') + '\n' + line + '\n';
+function subConfig(blocked, label, auth, host, port) {
+  const line = buildLink(blocked, label, auth, host, port);
+  if (SUB_FORMAT === 'json') return JSON.stringify(buildConfig(blocked, label, auth, host, port), null, 2);
+  return Buffer.from(line, 'utf8').toString('base64');
 }
 
 /* AES-128-GCM. Happ wants the tag in its own header, base64'd — not appended
@@ -743,7 +893,7 @@ function encryptBody(text) {
 }
 
 /* ================= FEATURE MODES ================= */
-/* aimbot | location. Each mode may carry its own upstream user:pass. */
+/* aimbot | location. Each mode may carry its own hysteria user:pass. */
 const FEATURE_MODES = ['aimbot', 'location'];
 const FEATURE_LABEL = { aimbot: 'AIMBOT', location: 'LOCATION + AIMBOT' };
 
@@ -988,18 +1138,14 @@ app.get('/sub', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
 
   /*
-    hide-settings only applies with a providerid. The body still carries the
-    #hide-settings comment for older builds; the header pair is what modern
-    Happ reads, so both go out together or neither does.
+    Unconditional. hide-settings only applies with a providerid, so both go
+    out together or neither does.
   */
-  const pid = providerId();
-  if (pid) {
-    res.setHeader('providerid', pid);
-    res.setHeader('hide-settings', '1');
-    res.setHeader('manual-block-user-agent', '1');
-    res.setHeader('subscription-always-hwid-enable', '1');
-    res.setHeader('dont-use-filter', '1');
-  }
+  res.setHeader('providerid', providerId());
+  res.setHeader('hide-settings', '1');
+  res.setHeader('manual-block-user-agent', '1');
+  res.setHeader('subscription-always-hwid-enable', '1');
+  res.setHeader('dont-use-filter', '1');
 
   res.setHeader('content-disposition', 'attachment; filename="demon-cheats.txt"');
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -1015,7 +1161,7 @@ app.get('/sub', async (req, res) => {
 
     if (m.enabled) {
       res.setHeader('x-demon-status', 'maintenance');
-      body = subConfig(true, `⚠️ MAINTENANCE: ${m.message}`);
+      body = subConfig(true, `${PROFILE_NAME} — MAINTENANCE`);
     } else {
       /* k = license. Bare `key` is either the AES key id or a legacy license. */
       const legacy = String(req.query.key || '');
@@ -1024,7 +1170,7 @@ app.get('/sub', async (req, res) => {
       const out = key ? await accessKey(key, c, did, deviceUa(req)) : { ok: false, reason: 'invalid' };
       if (!out.ok) {
         res.setHeader('x-demon-status', out.reason);
-        body = subConfig(true, `❌ ${REASON_TEXT[out.reason] || 'SUBSCRIPTION EXPIRED OR TERMINATED'}`);
+        body = subConfig(true, `${PROFILE_NAME} — ${(REASON_TEXT[out.reason] || 'SUBSCRIPTION EXPIRED').toUpperCase()}`);
       } else {
         /* Advertised expiry uses the paused clock so the date does not creep
            forward in the client while the service is down. */
@@ -1033,15 +1179,15 @@ app.get('/sub', async (req, res) => {
         res.setHeader('x-demon-status', 'ok');
         if (mode) res.setHeader('x-demon-mode', mode);
         res.setHeader('subscription-userinfo', `upload=0; download=0; total=107374182400; expire=${Math.floor(liveExpiry / 1000)}`);
-        body = subConfig(false, UPSTREAM.label + tag, authFor(db, mode));
+        body = subConfig(false, PROFILE_NAME + tag, authFor(db, mode));
       }
     }
   } catch (e) {
     res.setHeader('x-demon-status', 'storage-error');
-    body = subConfig(true, '❌ SUBSCRIPTION EXPIRED OR TERMINATED');
+    body = subConfig(true, `${PROFILE_NAME} — SUBSCRIPTION EXPIRED OR TERMINATED`);
   }
 
-  if (SUB_ENCRYPT) {
+  if (SUB_ENCRYPT && SUB_FORMAT !== 'json') {
     const enc = encryptBody(body);
     res.setHeader('encrypt-tag', enc.tag);
     return res.status(200).send(enc.body);
@@ -1528,7 +1674,7 @@ app.post('/api/admin/provider-id', async (req, res) => {
   happLinkCache.clear();
   console.log(`[happ] providerid -> ${next ? next.slice(0, 8) + '…' : 'cleared (using fallback)'}`);
   await pushCfgToRepo(cfg, cfg).catch(() => {});
-  return res.json({ success: true, providerId: providerId(), hideSettings: !!providerId() });
+  return res.json({ success: true, providerId: providerId(), hideSettings: true });
 });
 
 app.post('/api/admin/diag', async (req, res) => {
@@ -1553,7 +1699,7 @@ app.post('/api/admin/diag', async (req, res) => {
     subEncrypt: SUB_ENCRYPT,
     subKeyId: SUB_KEY_ID,
     providerId: providerId() ? 'set' : 'missing',
-    hideSettings: !!providerId()
+    hideSettings: true
   };
 
   try {
@@ -1690,7 +1836,7 @@ app.post('/api/admin/list-keys', async (req, res) => {
   }
 });
 
-/* Saves the upstream user:pass used for each feature mode. */
+/* Saves the hysteria user:pass used for each feature mode. */
 app.post('/api/admin/feature-auth', async (req, res) => {
   const state = await requireAdmin(req, res);
   if (!state) return;
@@ -2146,8 +2292,8 @@ const PORT = process.env.PORT || 3000;
     console.log(`[cfg] storage -> ${cfg.owner}/${cfg.repo}:${cfg.file}`);
     console.log(`[cfg] token -> ${tokenShape(cfg.token)}`);
     console.log(`[admin] key source -> ${ADMIN_KEY_URL}`);
-    console.log(`[upstream] socks5 -> ${UPSTREAM.host}:${UPSTREAM.port}`);
-    console.log(`[sub] format -> ${SUB_FORMAT} | providerid -> ${providerId() || 'none'}`);
+    console.log(`[upstream] hysteria2 -> ${HYST_HOST}:${HYST_PORT}`);
+    console.log(`[sub] format -> ${SUB_FORMAT} | providerid -> ${providerId()}`);
     console.log(`[sub] encrypt -> ${SUB_ENCRYPT ? `on (key id ${SUB_KEY_ID})` : 'off'}`);
     getAdminKey(true);
   });
