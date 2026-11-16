@@ -156,23 +156,16 @@
       "resellerId": "R968572e0493bf7a3",
       "cost": 5,
       "createdAt": "2026-11-16T15:30:08.727Z",
-      "startedAt": null,
-      "activatedAt": null,
-      "expiresAt": null
+      "startedAt": "2026-11-16T17:13:34.445Z",
+      "activatedAt": "2026-11-16T17:13:34.445Z",
+      "expiresAt": "2026-11-16T20:13:34.445Z"
     },
     {
       "key": "DEMON-2FMRPJ",
       "durationHours": 3,
       "maxDevices": 1,
       "deviceLimit": "single",
-      "devices": [
-        {
-          "id": "D112674e64aa83a7b",
-          "firstSeen": "2026-11-16T17:13:34.225Z",
-          "lastSeen": "2026-11-16T17:13:34.225Z",
-          "ua": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Mobile Safari/537.36"
-        }
-      ],
+      "devices": [],
       "resellerId": "R968572e0493bf7a3",
       "cost": 5,
       "createdAt": "2026-11-16T15:30:08.727Z",
