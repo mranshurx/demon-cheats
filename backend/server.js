@@ -21,14 +21,29 @@ const LOCAL_MIRROR = path.join(__dirname, 'store.local.json');
 /* ================= STORAGE ================= */
 const HARD = {
   owner:  'mranshurx',
-  repo:   'CYBER-X-SILENT',
+  repo:   'demon-cheats',
   branch: 'main',
   file:   'data/keys.json',
-  token:  ''
+  token:  '',
+  providerId: ''
 };
+
+/* Empty by default — the demo panel runs without one. Set it in the admin
+   panel or via HAPP_PROVIDER_ID. hide-settings only applies with a providerid,
+   so both are emitted together or neither is. */
+const FALLBACK_PROVIDER_ID = '';
+
+/* Subscription body encryption (AES-128-GCM, Happ scheme).
+   OFF by default: only enable once you have confirmed imports still work.
+   key02 is the public test key — request a private one for real secrecy. */
+const SUB_KEY_ID  = process.env.SUB_KEY_ID  || 'key02';
+const SUB_AES_KEY = Buffer.from(process.env.SUB_AES_KEY || 'key02:+]%4ij#P"/', 'utf8');
+const SUB_IV      = Buffer.from('kkkkkkkkkkkk', 'utf8');
+const SUB_ENCRYPT = process.env.SUB_ENCRYPT === '1';
 
 const LOCAL_CFG = path.join(__dirname, 'github.json');
 const REPO_CFG_PATH = 'data/config.json';
+const CFG_KEYS = ['owner', 'repo', 'branch', 'file', 'token', 'providerId'];
 
 function envOverrides() {
   const o = {};
@@ -37,6 +52,7 @@ function envOverrides() {
   if (process.env.GITHUB_BRANCH) o.branch = process.env.GITHUB_BRANCH;
   if (process.env.GITHUB_KEYS_PATH) o.file = process.env.GITHUB_KEYS_PATH;
   if (process.env.GITHUB_TOKEN) o.token = process.env.GITHUB_TOKEN.trim();
+  if (process.env.HAPP_PROVIDER_ID) o.providerId = process.env.HAPP_PROVIDER_ID.trim();
   return o;
 }
 
@@ -46,7 +62,7 @@ function loadCfg() {
   try {
     if (fs.existsSync(LOCAL_CFG)) {
       const saved = JSON.parse(fs.readFileSync(LOCAL_CFG, 'utf8'));
-      for (const k of ['owner', 'repo', 'branch', 'file', 'token']) {
+      for (const k of CFG_KEYS) {
         if (saved[k]) cfg[k] = String(saved[k]).trim();
       }
       console.log('[cfg] loaded from local github.json');
@@ -92,7 +108,7 @@ async function pullCfgFromRepo() {
     const r = await fetch(raw, { headers: { 'User-Agent': 'demon-cheats' } });
     if (!r.ok) return;
     const j = await r.json();
-    for (const k of ['owner', 'repo', 'branch', 'file', 'token']) {
+    for (const k of CFG_KEYS) {
       if (j[k]) cfg[k] = String(j[k]).trim();
     }
     saveCfg();
@@ -124,6 +140,7 @@ function credsFrom(req) {
   out.token = out.token.trim();
   return out;
 }
+/* Token is deliberately NOT part of the signature: client and admin share one cache. */
 function sigOf(c) { return `${c.owner}/${c.repo}@${c.branch}:${c.file}`; }
 function ready(c) { return !!(c.owner && c.repo); }
 
@@ -189,7 +206,12 @@ async function requireAdmin(req, res) {
   return state;
 }
 
-const HAPP_PROVIDER_ID = "";
+/* Provider ID — required for hide-settings, which removes the server address
+   and the whole settings sheet from the client. */
+function providerId() {
+  const v = String(cfg.providerId || process.env.HAPP_PROVIDER_ID || '').trim();
+  return v || FALLBACK_PROVIDER_ID;
+}
 
 const DEFAULT_MAINT = { enabled: false, message: 'System under maintenance.', since: null };
 const EMPTY_FEATURES = { aimbot: '', location: '' };
@@ -286,6 +308,7 @@ async function ghWriteOnce(c, text, sha, useBranch) {
 async function ghWrite(c, text, sha) {
   if (!ready(c)) throw new Error('Storage not configured');
 
+  /* A client request carries no token — recover the stored one before failing. */
   if (!c.token) {
     await pullCfgFromRepo();
     if (cfg.token) c = { ...c, token: cfg.token };
@@ -449,6 +472,9 @@ async function putDb(db, c) {
   });
 }
 
+/* Work on a clone: if the write throws, the cache keeps the untouched source
+   state and the next call retries cleanly instead of reading a half-applied
+   mutation. */
 async function mutate(c, fn) {
   const db = await getDb(true, c);
   const work = JSON.parse(JSON.stringify(db));
@@ -478,6 +504,7 @@ function normalizeHours(h) {
 }
 
 /* ================= DEVICE LIMIT ================= */
+/* 0 = unlimited devices, 1 = single device (HWID locked on first unlock) */
 function parseDeviceLimit(body) {
   body = body || {};
   const v = body.deviceLimit;
@@ -526,6 +553,7 @@ function migrateRecord(r) {
 }
 
 /* ================= KEY RESOLUTION ================= */
+/* Binds the device on a single-device key the first time it is seen. */
 async function bindDevice(c, key, did, ua) {
   return mutate(c, db => {
     const rec = db.keys.find(k => k.key === key);
@@ -545,6 +573,19 @@ async function bindDevice(c, key, did, ua) {
 }
 
 /* ================= MAINTENANCE CLOCK ================= */
+/*
+  Wall time spent in maintenance is never charged to the buyer. Two halves:
+
+  - live  : effectiveExpiry() adds the *running* maintenance window on the fly,
+            so no key reads as expired while the pause is in progress.
+  - settle: when maintenance is switched off the window is written into every
+            key's expiresAt, so the credit survives restarts and later reads.
+
+  Only the overlap between the pause and the key's own active span is credited,
+  so a key that was already dead before maintenance started gets nothing, and a
+  key sold *during* maintenance only gets credited from its activation.
+*/
+
 function maintStart(db) {
   const m = (db && db.maintenance) || {};
   if (!m.enabled || !m.since) return null;
@@ -581,6 +622,10 @@ function settleMaintenance(db, startMs, endMs) {
   return credited;
 }
 
+/*
+  Returns { ok, reason, record }.
+  reason: invalid | expired | no-device | device-mismatch
+*/
 async function accessKey(key, c, did, ua) {
   let db = await getDb(false, c);
   let r = db.keys.find(k => k.key === key);
@@ -607,11 +652,15 @@ async function accessKey(key, c, did, ua) {
       });
       if (!r) return { ok: false, reason: 'invalid' };
     } catch (e) {
+      /* Never block the buyer on a storage hiccup — serve it in memory,
+         the cache still holds the unactivated record so the next call retries. */
       console.warn('[key] activation write failed, serving in-memory:', e.message);
       r = { ...before, activatedAt: startedAt, startedAt, durationHours: hours, expiresAt };
     }
   }
 
+  /* Test against the paused clock, not the raw stamp, so a key cannot die
+     while the service is down. */
   const expMs = effectiveExpiry(r, maintStart(db));
   if (expMs == null || Date.now() > expMs) {
     return { ok: false, reason: 'expired', record: r };
@@ -659,6 +708,10 @@ const UPSTREAM = {
 const PER_APP_LIST = 'com.garena.game.ffi,com.dts.freefiremax';
 const DEAD_AUTH = 'DEMON-BLOCKED:0';
 
+/* Format tag, kept for /api/admin/diag. 'comments' = base64 lines with
+   #directive comment headers, which is what this upstream has always served. */
+const SUB_FORMAT = 'comments';
+
 function b64(s) { return Buffer.from(String(s), 'utf8').toString('base64'); }
 
 function nodeLine(auth, label) {
@@ -666,6 +719,11 @@ function nodeLine(auth, label) {
   return `${UPSTREAM.scheme}://${userinfo}@${UPSTREAM.host}:${UPSTREAM.port}#${encodeURIComponent(label)}`;
 }
 
+/*
+  Always emits a valid body — a blocked key gets a real outbound with a rejected
+  credential rather than an empty body, so Happ keeps the profile mounted and
+  simply fails to connect.
+*/
 function subConfig(blocked, label, auth) {
   const head = [
     '#hide-settings: 1',
@@ -676,19 +734,29 @@ function subConfig(blocked, label, auth) {
   return head.join('\n') + '\n' + line + '\n';
 }
 
+/* AES-128-GCM. Happ wants the tag in its own header, base64'd — not appended
+   to the ciphertext, and not inside the body. */
+function encryptBody(text) {
+  const cipher = crypto.createCipheriv('aes-128-gcm', SUB_AES_KEY, SUB_IV);
+  const ct = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+  return { body: ct.toString('base64'), tag: cipher.getAuthTag().toString('base64') };
+}
+
 /* ================= FEATURE MODES ================= */
+/* aimbot | location. Each mode may carry its own upstream user:pass. */
 const FEATURE_MODES = ['aimbot', 'location'];
 const FEATURE_LABEL = { aimbot: 'AIMBOT', location: 'LOCATION + AIMBOT' };
 
 function cleanAuth(v) {
   const s = String(v == null ? '' : v).trim();
   if (!s) return '';
-  if (!s.includes(':')) return null;
+  if (!s.includes(':')) return null;              /* must be user:pass */
   const [u, p] = s.split(':');
   if (!u.trim() || !p.trim()) return null;
   return s.slice(0, 160);
 }
 
+/* Auth for a mode. Empty string means "use the built-in default". */
 function authFor(db, mode) {
   const f = (db && db.features) || {};
   if (mode && FEATURE_MODES.includes(mode) && f[mode]) return f[mode];
@@ -697,7 +765,8 @@ function authFor(db, mode) {
 
 const PROFILE_TITLE = 'DEMON CHEATS';
 
-/* ================= HAPP LINK ================= */
+/* ================= HAPP CRYPT ================= */
+/* crypto.happ.su returns a happ://cryptN/... deep link wrapping the sub URL. */
 const happLinkCache = new Map();
 const HAPP_CACHE_TTL = 10 * 60 * 1000;
 const HAPP_CACHE_MAX = 500;
@@ -715,6 +784,7 @@ function happCacheSet(k, link) {
   }
   happLinkCache.set(k, { link, at: Date.now() });
 }
+/* Drop every cached link for a key so a mode/auth change is picked up at once. */
 function happCacheDrop(key) {
   for (const k of [...happLinkCache.keys()]) {
     if (!key || k.startsWith(key + '|')) happLinkCache.delete(k);
@@ -725,6 +795,7 @@ function baseUrl(req) {
   const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
   return `${proto}://${req.get('host')}`;
 }
+
 function encryptHappLink(subUrl) {
   return new Promise((resolve) => {
     let settled = false;
@@ -738,11 +809,17 @@ function encryptHappLink(subUrl) {
       let data = '';
       res.setEncoding('utf8');
       res.on('data', c => data += c);
-      res.on('end', () => { try { const j = JSON.parse(data); done(j && j.encrypted_link ? j.encrypted_link : null); } catch (e) { done(null); } });
+      res.on('end', () => {
+        try {
+          const j = JSON.parse(data);
+          const link = j && j.encrypted_link ? String(j.encrypted_link).trim() : null;
+          done(link && link.startsWith('happ://') ? link : null);
+        } catch (e) { done(null); }
+      });
       res.on('error', () => done(null));
     });
     req.on('error', () => done(null));
-    req.setTimeout(5000, () => { req.destroy(); done(null); });
+    req.setTimeout(6000, () => { req.destroy(); done(null); });
     req.write(body);
     req.end();
   });
@@ -863,6 +940,7 @@ app.get('/api/maintenance-status', async (req, res) => {
   }
 });
 
+/* Which modes currently have an auth configured — drives the client badges. */
 app.get('/api/features', async (req, res) => {
   try {
     const db = await getDb(false, credsFrom(req));
@@ -884,13 +962,16 @@ app.get('/api/happ-link', async (req, res) => {
     if (!out.ok) return res.json({ ok: false, reason: out.reason, message: REASON_TEXT[out.reason] });
 
     const m = FEATURE_MODES.includes(mode) ? mode : '';
-    const subUrl = `${baseUrl(req)}/sub?key=${encodeURIComponent(key)}${did ? `&did=${encodeURIComponent(did)}` : ''}${m ? `&mode=${m}` : ''}`;
-    const cacheKey = `${key}|${did}|${m}`;
+    /* k = license, key = AES key id. Encryption only adds `key` when it is on. */
+    const subUrl = `${baseUrl(req)}/sub?k=${encodeURIComponent(key)}${did ? `&did=${encodeURIComponent(did)}` : ''}${m ? `&mode=${m}` : ''}${SUB_ENCRYPT ? `&key=${encodeURIComponent(SUB_KEY_ID)}` : ''}`;
+    const cacheKey = `${key}|${did}|${m}|${SUB_ENCRYPT ? SUB_KEY_ID : '-'}`;
     const cachedLink = happCacheGet(cacheKey);
-    if (cachedLink) return res.json({ ok: true, link: cachedLink, raw: subUrl, mode: m });
-    const link = await encryptHappLink(subUrl);
+    if (cachedLink) return res.json({ ok: true, link: cachedLink, raw: subUrl, mode: m, encrypted: true });
+
+    let link = await encryptHappLink(subUrl);
+    if (!link) link = await encryptHappLink(subUrl);   // one retry, then accept the raw URL
     if (link) happCacheSet(cacheKey, link);
-    return res.json({ ok: !!link, link: link || subUrl, raw: subUrl, encrypted: !!link, mode: m });
+    return res.json({ ok: true, link: link || subUrl, raw: subUrl, encrypted: !!link, mode: m });
   } catch (e) {
     return res.json({ ok: false, reason: 'storage-error', detail: e.message });
   }
@@ -901,8 +982,25 @@ app.get('/sub', async (req, res) => {
   res.setHeader('profile-title', PROFILE_TITLE);
   res.setHeader('subscription-auto-update-enable', '1');
   res.setHeader('subscription-auto-update-open-enable', '1');
-  res.setHeader('hide-settings', '1');
-  if (HAPP_PROVIDER_ID) res.setHeader('providerid', HAPP_PROVIDER_ID);
+  res.setHeader('per-app-proxy-mode', 'on');
+  res.setHeader('per-app-proxy-list', PER_APP_LIST);
+  res.setHeader('subscriptions-collapse', '0');
+  res.setHeader('Cache-Control', 'no-store');
+
+  /*
+    hide-settings only applies with a providerid. The body still carries the
+    #hide-settings comment for older builds; the header pair is what modern
+    Happ reads, so both go out together or neither does.
+  */
+  const pid = providerId();
+  if (pid) {
+    res.setHeader('providerid', pid);
+    res.setHeader('hide-settings', '1');
+    res.setHeader('manual-block-user-agent', '1');
+    res.setHeader('subscription-always-hwid-enable', '1');
+    res.setHeader('dont-use-filter', '1');
+  }
+
   res.setHeader('content-disposition', 'attachment; filename="demon-cheats.txt"');
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
 
@@ -919,13 +1017,17 @@ app.get('/sub', async (req, res) => {
       res.setHeader('x-demon-status', 'maintenance');
       body = subConfig(true, `⚠️ MAINTENANCE: ${m.message}`);
     } else {
-      const { key } = req.query;
+      /* k = license. Bare `key` is either the AES key id or a legacy license. */
+      const legacy = String(req.query.key || '');
+      const key = String(req.query.k || (/^key\d+$/.test(legacy) ? '' : legacy)).trim();
       const did = deviceOf(req);
       const out = key ? await accessKey(key, c, did, deviceUa(req)) : { ok: false, reason: 'invalid' };
       if (!out.ok) {
         res.setHeader('x-demon-status', out.reason);
         body = subConfig(true, `❌ ${REASON_TEXT[out.reason] || 'SUBSCRIPTION EXPIRED OR TERMINATED'}`);
       } else {
+        /* Advertised expiry uses the paused clock so the date does not creep
+           forward in the client while the service is down. */
         const liveExpiry = effectiveExpiry(out.record, maintStart(db));
         const tag = mode ? ` · ${FEATURE_LABEL[mode]}` : '';
         res.setHeader('x-demon-status', 'ok');
@@ -939,6 +1041,11 @@ app.get('/sub', async (req, res) => {
     body = subConfig(true, '❌ SUBSCRIPTION EXPIRED OR TERMINATED');
   }
 
+  if (SUB_ENCRYPT) {
+    const enc = encryptBody(body);
+    res.setHeader('encrypt-tag', enc.tag);
+    return res.status(200).send(enc.body);
+  }
   return res.status(200).send(body);
 });
 
@@ -981,6 +1088,8 @@ app.get('/api/check-key', async (req, res) => {
       features: { aimbot: !!db.features.aimbot, location: !!db.features.location }
     };
 
+    /* Maintenance still reports the key as good and hands over a frozen
+       remainingMs, so the countdown holds instead of draining to zero. */
     if (m.enabled) {
       return res.json({
         ...payload,
@@ -1406,6 +1515,22 @@ app.post('/api/admin/verify', async (req, res) => {
   return res.json({ success: true, ver: state.ver });
 });
 
+/* Sets or clears the providerid. Clearing falls back to the hardcoded one. */
+app.post('/api/admin/provider-id', async (req, res) => {
+  const state = await requireAdmin(req, res);
+  if (!state) return;
+
+  const raw = String((req.body && req.body.providerId) || '').trim();
+  const next = raw.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+
+  cfg.providerId = next;
+  saveCfg();
+  happLinkCache.clear();
+  console.log(`[happ] providerid -> ${next ? next.slice(0, 8) + '…' : 'cleared (using fallback)'}`);
+  await pushCfgToRepo(cfg, cfg).catch(() => {});
+  return res.json({ success: true, providerId: providerId(), hideSettings: !!providerId() });
+});
+
 app.post('/api/admin/diag', async (req, res) => {
   const state = await requireAdmin(req, res);
   if (!state) return;
@@ -1423,7 +1548,12 @@ app.post('/api/admin/diag', async (req, res) => {
     tokenSource: process.env.GITHUB_TOKEN && c.token === process.env.GITHUB_TOKEN.trim()
       ? 'env GITHUB_TOKEN'
       : (c.token === HARD.token ? 'hardcoded' : 'panel override'),
-    adminKeyVer: state.ver
+    adminKeyVer: state.ver,
+    subFormat: SUB_FORMAT,
+    subEncrypt: SUB_ENCRYPT,
+    subKeyId: SUB_KEY_ID,
+    providerId: providerId() ? 'set' : 'missing',
+    hideSettings: !!providerId()
   };
 
   try {
@@ -1548,12 +1678,19 @@ app.post('/api/admin/list-keys', async (req, res) => {
     const keys = [...db.keys].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     const names = {};
     db.resellers.forEach(r => { names[r.id] = r.username; });
-    return res.json({ keys, maintenance: db.maintenance, features: db.features, resellerNames: names });
+    return res.json({
+      keys,
+      maintenance: db.maintenance,
+      features: db.features,
+      resellerNames: names,
+      providerId: providerId()
+    });
   } catch (e) {
     return res.status(500).json({ error: "Read failed: " + e.message, keys: [] });
   }
 });
 
+/* Saves the upstream user:pass used for each feature mode. */
 app.post('/api/admin/feature-auth', async (req, res) => {
   const state = await requireAdmin(req, res);
   if (!state) return;
@@ -1573,6 +1710,7 @@ app.post('/api/admin/feature-auth', async (req, res) => {
       db.features.location = location;
       return { ...db.features };
     });
+    /* Cached links embed the old auth. */
     happCacheDrop();
     return res.json({ success: true, features: out });
   } catch (e) {
@@ -1624,6 +1762,7 @@ app.post('/api/admin/repair-key', async (req, res) => {
   }
 });
 
+/* Clears the bound device so a single-device key can be used elsewhere. */
 app.post('/api/admin/reset-device', async (req, res) => {
   const state = await requireAdmin(req, res);
   if (!state) return;
@@ -1645,6 +1784,7 @@ app.post('/api/admin/reset-device', async (req, res) => {
   }
 });
 
+/* Flips an existing key between unlimited and single-device. */
 app.post('/api/admin/set-device-limit', async (req, res) => {
   const state = await requireAdmin(req, res);
   if (!state) return;
@@ -1683,6 +1823,8 @@ app.post('/api/admin/maintenance', async (req, res) => {
       const msg = message || prev.message || 'System under maintenance.';
 
       if (wantOn) {
+        /* `since` is stamped once and kept — repeated saves while already on
+           must not restart the window or the earlier minutes get refunded twice. */
         db.maintenance = {
           enabled: true,
           message: msg,
@@ -1711,6 +1853,7 @@ app.post('/api/admin/maintenance', async (req, res) => {
       return db.maintenance;
     });
 
+    /* Cached Happ links embed the dead auth, so drop them on every toggle. */
     happLinkCache.clear();
     return res.json({ success: true, maintenance: m });
   } catch (e) {
@@ -2003,6 +2146,9 @@ const PORT = process.env.PORT || 3000;
     console.log(`[cfg] storage -> ${cfg.owner}/${cfg.repo}:${cfg.file}`);
     console.log(`[cfg] token -> ${tokenShape(cfg.token)}`);
     console.log(`[admin] key source -> ${ADMIN_KEY_URL}`);
+    console.log(`[upstream] socks5 -> ${UPSTREAM.host}:${UPSTREAM.port}`);
+    console.log(`[sub] format -> ${SUB_FORMAT} | providerid -> ${providerId() || 'none'}`);
+    console.log(`[sub] encrypt -> ${SUB_ENCRYPT ? `on (key id ${SUB_KEY_ID})` : 'off'}`);
     getAdminKey(true);
   });
 })();
