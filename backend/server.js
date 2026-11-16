@@ -1525,7 +1525,10 @@ app.post('/api/reseller/create-sub', async (req, res) => {
 
   const username = String(req.body.username || '').trim().toLowerCase();
   const password = String(req.body.password || '');
-  const credits = Math.max(0, Math.round(Number(req.body.credits) || 0));
+  /* credits are owner-only now: every new sub starts empty and the owner funds
+     it from the admin panel. Any credits field in the body is ignored. */
+  const credits = 0;
+
   if (!validUsername(username)) return res.status(400).json({ error: 'Username: 3-20 chars, a-z 0-9 _ only.' });
   if (password.length < 6) return res.status(400).json({ error: 'Password must be 6+ characters.' });
 
@@ -1551,12 +1554,15 @@ app.post('/api/reseller/create-sub', async (req, res) => {
       db.resellers.push(r);
       return r;
     });
-    return res.json({ success: true, id: rec.id, username: rec.username });
+    return res.json({ success: true, id: rec.id, username: rec.username, credits: rec.credits });
   } catch (e) {
     return res.status(400).json({ error: e.message });
   }
 });
 
+/* Credits are owner-only. A reseller can toggle, rename the note and reset a
+   sub password — but `credits` / `addCredits` in the body are ignored here.
+   The owner path is /api/admin/update-reseller. */
 app.post('/api/reseller/update-sub', async (req, res) => {
   const ctx = await requireReseller(req, res);
   if (!ctx) return;
@@ -1568,12 +1574,6 @@ app.post('/api/reseller/update-sub', async (req, res) => {
       const r = db.resellers.find(x => x.id === id);
       if (!r) throw new Error('Reseller not found.');
       if (r.parentId !== me.id) throw new Error('Not your sub.');
-      if (req.body.addCredits != null) {
-        r.credits = Math.max(0, r.credits + Math.round(Number(req.body.addCredits) || 0));
-      }
-      if (req.body.credits != null) {
-        r.credits = Math.max(0, Math.round(Number(req.body.credits) || 0));
-      }
       if (req.body.active != null) r.active = !!req.body.active;
       if (req.body.note != null) r.note = String(req.body.note).slice(0, 200);
       if (req.body.password) {
