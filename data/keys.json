@@ -10,6 +10,17 @@
       "startedAt": "2026-11-15T04:15:16.485Z",
       "activatedAt": "2026-11-15T04:15:16.485Z",
       "expiresAt": "2026-11-16T04:15:16.485Z"
+    },
+    {
+      "key": "DEMON-12ZYFM",
+      "durationHours": 24,
+      "maxDevices": 0,
+      "deviceLimit": "unlimited",
+      "devices": [],
+      "createdAt": "2026-11-16T11:04:54.978Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
     }
   ],
   "maintenance": {
