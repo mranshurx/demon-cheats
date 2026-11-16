@@ -34,6 +34,19 @@
       "startedAt": null,
       "activatedAt": null,
       "expiresAt": null
+    },
+    {
+      "key": "DEMON-INFHBB",
+      "durationHours": 1,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R968572e0493bf7a3",
+      "cost": 2,
+      "createdAt": "2026-11-16T14:35:41.325Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
     }
   ],
   "maintenance": {
@@ -66,7 +79,7 @@
       "username": "fardin",
       "passSalt": "30f41fcba7b5c76389cbd152",
       "passHash": "095cff5c956d4ee17bbe1d331d6064d2584983ee81e460b7ad2b5fcd5709e42c",
-      "credits": 198,
+      "credits": 196,
       "active": true,
       "note": "",
       "prices": {
