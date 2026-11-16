@@ -459,6 +459,19 @@
       "startedAt": "2026-11-16T16:23:13.895Z",
       "activatedAt": "2026-11-16T16:23:13.895Z",
       "expiresAt": "2026-11-16T19:23:13.895Z"
+    },
+    {
+      "key": "DEMON-0W7NKV",
+      "durationHours": 168,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R6a0161825752fc61",
+      "cost": 35,
+      "createdAt": "2026-11-16T16:38:48.602Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
     }
   ],
   "maintenance": {
@@ -476,7 +489,7 @@
       "username": "subhadeep",
       "passSalt": "643345243874bc45ec43dd5e",
       "passHash": "7676502707f7af032d78c5e39c29a7edb21cde428c73cabdd6e10168473f0bab",
-      "credits": 50,
+      "credits": 15,
       "active": true,
       "note": "",
       "prices": {},
