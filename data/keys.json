@@ -47,6 +47,21 @@
       "qr": "",
       "createdAt": "2026-11-16T13:54:54.243Z",
       "lastLoginAt": "2026-11-16T13:55:33.631Z"
+    },
+    {
+      "id": "R6540935b056b9671",
+      "username": "under",
+      "passSalt": "539699a35dded4a63f79d79a",
+      "passHash": "c6f1c75185019b1c5534166490423b5435ba7535d275fb8c4b3091f2f1ef3ce2",
+      "credits": 0,
+      "active": true,
+      "note": "",
+      "prices": {},
+      "subPrices": {},
+      "parentId": "R7b821ac5511c169f",
+      "qr": "",
+      "createdAt": "2026-11-16T13:55:58.517Z",
+      "lastLoginAt": null
     }
   ],
   "topups": [],
