@@ -61,6 +61,19 @@
       "startedAt": "2026-11-16T15:01:36.424Z",
       "activatedAt": "2026-11-16T15:01:36.424Z",
       "expiresAt": "2026-11-16T16:01:36.424Z"
+    },
+    {
+      "key": "DEMON-0MN2Q9",
+      "durationHours": 1,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R968572e0493bf7a3",
+      "cost": 2,
+      "createdAt": "2026-11-16T15:28:52.177Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
     }
   ],
   "maintenance": {
@@ -93,7 +106,7 @@
       "username": "fardin",
       "passSalt": "30f41fcba7b5c76389cbd152",
       "passHash": "095cff5c956d4ee17bbe1d331d6064d2584983ee81e460b7ad2b5fcd5709e42c",
-      "credits": 196,
+      "credits": 194,
       "active": true,
       "note": "",
       "prices": {
