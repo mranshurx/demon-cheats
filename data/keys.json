@@ -204,6 +204,71 @@
       "startedAt": null,
       "activatedAt": null,
       "expiresAt": null
+    },
+    {
+      "key": "DEMON-M0RKCG",
+      "durationHours": 6,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R968572e0493bf7a3",
+      "cost": 6,
+      "createdAt": "2026-11-16T15:32:24.475Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
+    },
+    {
+      "key": "DEMON-145EX1",
+      "durationHours": 6,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R968572e0493bf7a3",
+      "cost": 6,
+      "createdAt": "2026-11-16T15:32:24.475Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
+    },
+    {
+      "key": "DEMON-DSCQQA",
+      "durationHours": 6,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R968572e0493bf7a3",
+      "cost": 6,
+      "createdAt": "2026-11-16T15:32:24.475Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
+    },
+    {
+      "key": "DEMON-4MGKIE",
+      "durationHours": 6,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R968572e0493bf7a3",
+      "cost": 6,
+      "createdAt": "2026-11-16T15:32:24.475Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
+    },
+    {
+      "key": "DEMON-4G87VU",
+      "durationHours": 6,
+      "maxDevices": 1,
+      "deviceLimit": "single",
+      "devices": [],
+      "resellerId": "R968572e0493bf7a3",
+      "cost": 6,
+      "createdAt": "2026-11-16T15:32:24.475Z",
+      "startedAt": null,
+      "activatedAt": null,
+      "expiresAt": null
     }
   ],
   "maintenance": {
@@ -236,7 +301,7 @@
       "username": "fardin",
       "passSalt": "30f41fcba7b5c76389cbd152",
       "passHash": "095cff5c956d4ee17bbe1d331d6064d2584983ee81e460b7ad2b5fcd5709e42c",
-      "credits": 159,
+      "credits": 129,
       "active": true,
       "note": "",
       "prices": {
