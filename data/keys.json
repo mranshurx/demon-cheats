@@ -512,7 +512,21 @@
       "lastLoginAt": "2026-11-16T14:31:48.028Z"
     }
   ],
-  "topups": [],
+  "topups": [
+    {
+      "id": "Tc152f1ff1e4a0487",
+      "resellerId": "R6a0161825752fc61",
+      "username": "subhadeep",
+      "parentId": null,
+      "approverId": null,
+      "amount": 50,
+      "method": "UPI",
+      "reference": "632075001654",
+      "note": "Kuch jayda add krde bhai",
+      "status": "pending",
+      "createdAt": "2026-11-16T16:32:07.709Z"
+    }
+  ],
   "pricing": {
     "1": 2,
     "3": 4,
