@@ -429,9 +429,9 @@
       "resellerId": "R6a0161825752fc61",
       "cost": 100,
       "createdAt": "2026-11-16T16:09:39.443Z",
-      "startedAt": null,
-      "activatedAt": null,
-      "expiresAt": null
+      "startedAt": "2026-11-16T16:10:40.463Z",
+      "activatedAt": "2026-11-16T16:10:40.463Z",
+      "expiresAt": "2026-12-16T16:10:40.463Z"
     }
   ],
   "maintenance": {
