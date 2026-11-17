@@ -319,7 +319,14 @@
       "durationHours": 6,
       "maxDevices": 1,
       "deviceLimit": "single",
-      "devices": [],
+      "devices": [
+        {
+          "id": "Dd204af517890a64c",
+          "firstSeen": "2026-11-17T09:14:01.083Z",
+          "lastSeen": "2026-11-17T09:14:01.083Z",
+          "ua": "Happ/4.11.2/Android/17948118661831751511"
+        }
+      ],
       "resellerId": "R968572e0493bf7a3",
       "cost": 6,
       "createdAt": "2026-11-16T15:32:24.475Z",
