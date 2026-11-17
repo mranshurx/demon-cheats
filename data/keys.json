@@ -722,6 +722,21 @@
       "qr": "",
       "createdAt": "2026-11-17T14:19:56.525Z",
       "lastLoginAt": "2026-11-17T14:21:08.348Z"
+    },
+    {
+      "id": "R09740d68f653f36d",
+      "username": "anshu",
+      "passSalt": "0b3bbebe8dda3248fb947b7a",
+      "passHash": "6335c9eb144eee1f2d5934c607533699789dd16ef9778918ec645dedcbb3d056",
+      "credits": 0,
+      "active": true,
+      "note": "",
+      "prices": {},
+      "subPrices": {},
+      "parentId": null,
+      "qr": "",
+      "createdAt": "2026-11-17T14:21:20.313Z",
+      "lastLoginAt": null
     }
   ],
   "topups": [
