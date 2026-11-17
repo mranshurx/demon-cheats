@@ -313,7 +313,8 @@
       "createdAt": "2026-11-16T15:32:24.475Z",
       "startedAt": "2026-11-17T09:54:49.169Z",
       "activatedAt": "2026-11-17T09:54:49.169Z",
-      "expiresAt": "2026-11-17T15:54:49.169Z"
+      "expiresAt": "2026-11-17T16:34:15.860Z",
+      "maintenancePausedMs": 2366691
     },
     {
       "key": "DEMON-DSCQQA",
@@ -333,7 +334,8 @@
       "createdAt": "2026-11-16T15:32:24.475Z",
       "startedAt": "2026-11-17T09:46:32.217Z",
       "activatedAt": "2026-11-17T09:46:32.217Z",
-      "expiresAt": "2026-11-17T15:46:32.217Z"
+      "expiresAt": "2026-11-17T16:25:58.908Z",
+      "maintenancePausedMs": 2366691
     },
     {
       "key": "DEMON-4MGKIE",
@@ -353,7 +355,8 @@
       "createdAt": "2026-11-16T15:32:24.475Z",
       "startedAt": "2026-11-17T09:13:59.362Z",
       "activatedAt": "2026-11-17T09:13:59.362Z",
-      "expiresAt": "2026-11-17T15:13:59.362Z"
+      "expiresAt": "2026-11-17T15:53:26.053Z",
+      "maintenancePausedMs": 2366691
     },
     {
       "key": "DEMON-4G87VU",
@@ -386,7 +389,8 @@
       "createdAt": "2026-11-16T15:33:02.272Z",
       "startedAt": "2026-11-17T13:02:51.670Z",
       "activatedAt": "2026-11-17T13:02:51.670Z",
-      "expiresAt": "2026-11-18T01:02:51.670Z"
+      "expiresAt": "2026-11-18T01:42:18.361Z",
+      "maintenancePausedMs": 2366691
     },
     {
       "key": "DEMON-YOBFWB",
@@ -536,7 +540,8 @@
       "createdAt": "2026-11-16T16:09:39.443Z",
       "startedAt": "2026-11-16T16:10:40.463Z",
       "activatedAt": "2026-11-16T16:10:40.463Z",
-      "expiresAt": "2026-12-16T16:10:40.463Z"
+      "expiresAt": "2026-12-16T16:50:07.154Z",
+      "maintenancePausedMs": 2366691
     },
     {
       "key": "DEMON-B3Z006",
@@ -576,7 +581,8 @@
       "createdAt": "2026-11-16T16:38:48.602Z",
       "startedAt": "2026-11-16T16:42:59.670Z",
       "activatedAt": "2026-11-16T16:42:59.670Z",
-      "expiresAt": "2026-11-23T16:42:59.670Z"
+      "expiresAt": "2026-11-23T17:22:26.361Z",
+      "maintenancePausedMs": 2366691
     },
     {
       "key": "DEMON-JPUCER",
@@ -607,7 +613,8 @@
       "createdAt": "2026-11-17T12:24:18.432Z",
       "startedAt": "2026-11-17T12:26:06.763Z",
       "activatedAt": "2026-11-17T12:26:06.763Z",
-      "expiresAt": "2026-11-18T12:26:06.763Z"
+      "expiresAt": "2026-11-18T13:05:33.454Z",
+      "maintenancePausedMs": 2366691
     },
     {
       "key": "DEMON-68688U",
@@ -633,9 +640,12 @@
     }
   ],
   "maintenance": {
-    "enabled": true,
+    "enabled": false,
     "message": "System under maintenance.",
-    "since": "2026-11-17T13:34:01.175Z"
+    "since": null,
+    "lastPausedMs": 2366691,
+    "lastPausedKeys": 7,
+    "lastEndedAt": "2026-11-17T14:13:27.866Z"
   },
   "features": {
     "aimbot": "",
