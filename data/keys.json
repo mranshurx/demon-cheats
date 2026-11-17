@@ -709,21 +709,6 @@
       "lastLoginAt": "2026-11-17T12:11:13.617Z"
     },
     {
-      "id": "R20aca762b2a68e2a",
-      "username": "sanju",
-      "passSalt": "7fc0442483585d4a6c926ffe",
-      "passHash": "059843cd7bf545407adf64f0094409c91accb939fe3cd8bf0a43bbe0e02bb8f2",
-      "credits": 0,
-      "active": true,
-      "note": "",
-      "prices": {},
-      "subPrices": {},
-      "parentId": null,
-      "qr": "",
-      "createdAt": "2026-11-17T14:19:56.525Z",
-      "lastLoginAt": "2026-11-17T14:21:08.348Z"
-    },
-    {
       "id": "R09740d68f653f36d",
       "username": "anshu",
       "passSalt": "0b3bbebe8dda3248fb947b7a",
