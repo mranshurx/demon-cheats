@@ -1463,7 +1463,7 @@
       "passSalt": "60b57a6463a993d02298cd94",
       "passHash": "bc64550ea0078223dfdc80a3bf9758f828ae3a7cc8436a00ff1c03bc70cca8e8",
       "credits": 200,
-      "active": true,
+      "active": false,
       "note": "",
       "prices": {},
       "subPrices": {},
