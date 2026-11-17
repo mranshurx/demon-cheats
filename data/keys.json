@@ -615,17 +615,6 @@
       "activatedAt": "2026-11-17T12:26:06.763Z",
       "expiresAt": "2026-11-18T13:05:33.454Z",
       "maintenancePausedMs": 2366691
-    },
-    {
-      "key": "DEMON-BFJXHZ",
-      "durationHours": 1,
-      "maxDevices": 1,
-      "deviceLimit": "single",
-      "devices": [],
-      "createdAt": "2026-11-17T13:33:36.637Z",
-      "startedAt": null,
-      "activatedAt": null,
-      "expiresAt": null
     }
   ],
   "maintenance": {
