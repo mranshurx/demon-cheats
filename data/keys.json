@@ -927,7 +927,14 @@
       "durationHours": 6,
       "maxDevices": 1,
       "deviceLimit": "single",
-      "devices": [],
+      "devices": [
+        {
+          "id": "Dbc3cf0a0bcb43c6c",
+          "firstSeen": "2026-11-17T15:11:37.241Z",
+          "lastSeen": "2026-11-17T15:11:37.241Z",
+          "ua": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Mobile Safari/537.36"
+        }
+      ],
       "resellerId": "Rc2f6a2e427be92e9",
       "cost": 5,
       "createdAt": "2026-11-17T14:48:06.121Z",
