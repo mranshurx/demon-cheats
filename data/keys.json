@@ -617,17 +617,6 @@
       "maintenancePausedMs": 2366691
     },
     {
-      "key": "DEMON-68688U",
-      "durationHours": 1,
-      "maxDevices": 0,
-      "deviceLimit": "unlimited",
-      "devices": [],
-      "createdAt": "2026-11-17T13:33:25.359Z",
-      "startedAt": null,
-      "activatedAt": null,
-      "expiresAt": null
-    },
-    {
       "key": "DEMON-BFJXHZ",
       "durationHours": 1,
       "maxDevices": 1,
