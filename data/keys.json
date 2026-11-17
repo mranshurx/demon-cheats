@@ -734,8 +734,9 @@
       "method": "UPI",
       "reference": "",
       "note": "",
-      "status": "pending",
-      "createdAt": "2026-11-17T12:14:44.308Z"
+      "status": "rejected",
+      "createdAt": "2026-11-17T12:14:44.308Z",
+      "decidedAt": "2026-11-17T14:14:56.571Z"
     },
     {
       "id": "Tdb1e61f23364ecaf",
