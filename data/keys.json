@@ -373,7 +373,14 @@
       "durationHours": 12,
       "maxDevices": 1,
       "deviceLimit": "single",
-      "devices": [],
+      "devices": [
+        {
+          "id": "D692a96d36de07882",
+          "firstSeen": "2026-11-17T13:02:53.531Z",
+          "lastSeen": "2026-11-17T13:02:53.531Z",
+          "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1"
+        }
+      ],
       "resellerId": "R968572e0493bf7a3",
       "cost": 9,
       "createdAt": "2026-11-16T15:33:02.272Z",
