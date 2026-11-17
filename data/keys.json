@@ -677,7 +677,7 @@
       "username": "sujay",
       "passSalt": "60b57a6463a993d02298cd94",
       "passHash": "bc64550ea0078223dfdc80a3bf9758f828ae3a7cc8436a00ff1c03bc70cca8e8",
-      "credits": 0,
+      "credits": 200,
       "active": true,
       "note": "",
       "prices": {},
@@ -699,8 +699,9 @@
       "method": "UPI",
       "reference": "287758325860",
       "note": "",
-      "status": "pending",
-      "createdAt": "2026-11-17T12:17:26.758Z"
+      "status": "approved",
+      "createdAt": "2026-11-17T12:17:26.758Z",
+      "decidedAt": "2026-11-17T13:32:30.414Z"
     },
     {
       "id": "Tb9ce2b024c3c2b9f",
