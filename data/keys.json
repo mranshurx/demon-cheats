@@ -749,6 +749,21 @@
       "qr": "",
       "createdAt": "2026-11-17T14:22:48.852Z",
       "lastLoginAt": "2026-11-17T14:26:30.481Z"
+    },
+    {
+      "id": "Rc2f6a2e427be92e9",
+      "username": "p20bhai",
+      "passSalt": "36f52e1392f0066abd37b8d6",
+      "passHash": "24aa979fefe684a91ce40ec8e7632f1a9f019c7225971bf696493257f9ba9e70",
+      "credits": 0,
+      "active": true,
+      "note": "",
+      "prices": {},
+      "subPrices": {},
+      "parentId": "R09740d68f653f36d",
+      "qr": "",
+      "createdAt": "2026-11-17T14:32:13.579Z",
+      "lastLoginAt": null
     }
   ],
   "topups": [
