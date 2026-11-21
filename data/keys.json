@@ -1539,6 +1539,21 @@
       "qr": "",
       "createdAt": "2026-11-17T14:32:13.579Z",
       "lastLoginAt": "2026-11-17T14:39:06.917Z"
+    },
+    {
+      "id": "Re6d6e967390e4b72",
+      "username": "yakup",
+      "passSalt": "63055d0d905185df8a838b6d",
+      "passHash": "b711621ece9d1e918f6b4410c3a5931874bd4c99562b33dc267713b065729811",
+      "credits": 0,
+      "active": true,
+      "note": "",
+      "prices": {},
+      "subPrices": {},
+      "parentId": null,
+      "qr": "",
+      "createdAt": "2026-11-21T14:17:06.912Z",
+      "lastLoginAt": null
     }
   ],
   "topups": [
